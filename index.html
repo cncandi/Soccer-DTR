@@ -860,6 +860,8 @@
 
         // Kader-Generator Funktion
         function generateSquad() {
+            console.log('generateSquad called'); // Debug
+            
             const opponent = document.getElementById('squadOpponent').value;
             const gameType = document.getElementById('squadGameType').value;
             const date = document.getElementById('squadDate').value;
@@ -868,11 +870,19 @@
             const meetLocation = document.getElementById('squadMeetLocation').value;
             const extraInfo = document.getElementById('squadExtraInfo').value;
 
+            // Validierung
+            if (!opponent || !date) {
+                alert('Bitte fülle mindestens Gegner und Datum aus!');
+                return;
+            }
+
             // Nur verfügbare Spieler
             const availablePlayers = players.filter(p => p.status === 'verfügbar');
             
+            console.log('Verfügbare Spieler:', availablePlayers.length);
+            
             if (availablePlayers.length === 0) {
-                showMessage('Keine verfügbaren Spieler! Füge Spieler hinzu und setze Status auf "Verfügbar".', 'error');
+                alert('Keine verfügbaren Spieler!\n\nGehe zu "Spielerverwaltung" und:\n1. Füge Spieler hinzu\n2. Setze deren Status auf "✅ Verfügbar"');
                 return;
             }
 
