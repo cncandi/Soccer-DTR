@@ -634,8 +634,8 @@
             div.innerHTML = '<div class="loading"><div class="spinner"></div><p>KI analysiert...</p></div>';
 
             try {
-                // Use backend proxy (update this URL after deploying to Vercel)
-                const BACKEND_URL = 'https://your-backend.vercel.app/api/claude';
+                // Backend API endpoint
+                const BACKEND_URL = 'https://soccer-dtr-backend-andi.vercel.app/api/claude';
                 
                 const res = await fetch(BACKEND_URL, {
                     method: "POST",
