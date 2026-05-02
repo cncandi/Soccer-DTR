@@ -69,8 +69,20 @@
             background: #f8f9fa;
             border-bottom: 3px solid #e9ecef;
             overflow-x: auto;
+            overflow-y: hidden;
             gap: 5px;
             padding: 12px 20px 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        
+        .tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .tabs::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
         }
         
         .tab {
