@@ -187,6 +187,57 @@
             flex-wrap: wrap;
         }
         select.opponent-select { flex: 1; min-width: 250px; }
+        
+        .player-jersey {
+            position: absolute;
+            text-align: center;
+            user-select: none;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .player-jersey svg {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        .player-jersey .player-name {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            margin-top: 2px;
+        }
+        .player-jersey .jersey-number {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .formation-option-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1e3c72;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .formation-option-card:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        .formation-option-card h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+        .formation-option-card.selected {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
     </style>
 </head>
 <body>
@@ -478,6 +529,64 @@
                 <div id="squadResult" style="margin-top: 30px;"></div>
             </div>
 
+            <!-- Formation Tab -->
+            <div id="formation" class="tab-content">
+                <h2>⚽ Aufstellung</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px;"><strong>Formation wählen:</strong></label>
+                    <select id="formationSelect" onchange="loadFormation()" style="padding: 10px; font-size: 1em; width: 200px;">
+                        <option value="4-3-3">4-3-3 (Offensiv)</option>
+                        <option value="4-4-2">4-4-2 (Ausgewogen)</option>
+                        <option value="4-2-3-1">4-2-3-1 (Flexibel)</option>
+                        <option value="3-5-2">3-5-2 (Breit)</option>
+                        <option value="4-1-4-1">4-1-4-1 (Defensiv)</option>
+                    </select>
+                    <button class="btn" onclick="generateFormationOptions()" style="margin-left: 10px;">🤖 3 KI-Vorschläge</button>
+                </div>
+
+                <div id="formationOptions" style="margin-bottom: 30px;"></div>
+
+                <div id="pitchContainer" style="max-width: 800px; margin: 20px auto; position: relative; background: #2d5016; border-radius: 10px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <svg id="footballPitch" viewBox="0 0 700 1050" style="width: 100%; border: 3px solid white; border-radius: 8px; background: linear-gradient(180deg, #2d5016 0%, #3a6b1f 50%, #2d5016 100%);">
+                        <!-- Spielfeld -->
+                        <rect x="10" y="10" width="680" height="1030" fill="none" stroke="white" stroke-width="3"/>
+                        
+                        <!-- Mittellinie -->
+                        <line x1="10" y1="525" x2="690" y2="525" stroke="white" stroke-width="3"/>
+                        
+                        <!-- Mittelkreis -->
+                        <circle cx="350" cy="525" r="80" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="525" r="3" fill="white"/>
+                        
+                        <!-- Strafraum oben -->
+                        <rect x="190" y="10" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                        <rect x="270" y="10" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                        <path d="M 350 160 A 80 80 0 0 0 270 160" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="120" r="3" fill="white"/>
+                        
+                        <!-- Strafraum unten -->
+                        <rect x="190" y="890" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                        <rect x="270" y="990" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                        <path d="M 270 890 A 80 80 0 0 0 430 890" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="930" r="3" fill="white"/>
+                        
+                        <!-- Ecken -->
+                        <path d="M 10 10 Q 20 10 20 20" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 690 10 Q 680 10 680 20" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 10 1040 Q 20 1040 20 1030" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 690 1040 Q 680 1040 680 1030" fill="none" stroke="white" stroke-width="2"/>
+                    </svg>
+                    
+                    <div id="playersOnPitch" style="position: absolute; top: 20px; left: 20px; right: 20px; bottom: 20px; pointer-events: none;"></div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn" onclick="saveFormationImage()">💾 Aufstellung speichern</button>
+                    <button class="btn btn-secondary" onclick="shareFormationImage()">📱 Als Bild teilen</button>
+                </div>
+            </div>
+
             <div id="analysis" class="tab-content">
                 <h2>KI-gestützte Trainer-Analyse</h2>
                 <div class="analysis-controls">
@@ -514,6 +623,11 @@
             // Spieler-Auswahl rendern wenn Kader-Tab geöffnet wird
             if (tabName === 'squad') {
                 renderPlayerSelection();
+            }
+            
+            // Formation rendern wenn Aufstellung-Tab geöffnet wird
+            if (tabName === 'formation') {
+                renderPitch();
             }
         }
 
@@ -1067,6 +1181,210 @@
             const encodedMessage = encodeURIComponent(window.currentSquadMessage);
             const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
             window.open(whatsappURL, '_blank');
+        }
+
+        // Formation Visualizer
+        let selectedFormation = '4-3-3';
+        let playersOnField = [];
+
+        const formations = {
+            '4-3-3': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 250, y: 650, role: 'ZM'},
+                    {x: 350, y: 620, role: 'ZM'},
+                    {x: 450, y: 650, role: 'ZM'},
+                    {x: 150, y: 350, role: 'LF'},
+                    {x: 350, y: 300, role: 'ST'},
+                    {x: 550, y: 350, role: 'RF'}
+                ]
+            },
+            '4-4-2': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 150, y: 580, role: 'LM'},
+                    {x: 300, y: 620, role: 'ZM'},
+                    {x: 400, y: 620, role: 'ZM'},
+                    {x: 550, y: 580, role: 'RM'},
+                    {x: 280, y: 300, role: 'ST'},
+                    {x: 420, y: 300, role: 'ST'}
+                ]
+            },
+            '4-2-3-1': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 300, y: 680, role: 'DM'},
+                    {x: 400, y: 680, role: 'DM'},
+                    {x: 150, y: 450, role: 'LM'},
+                    {x: 350, y: 480, role: 'OM'},
+                    {x: 550, y: 450, role: 'RM'},
+                    {x: 350, y: 250, role: 'ST'}
+                ]
+            },
+            '3-5-2': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 220, y: 850, role: 'IV'},
+                    {x: 350, y: 870, role: 'IV'},
+                    {x: 480, y: 850, role: 'IV'},
+                    {x: 120, y: 620, role: 'LM'},
+                    {x: 280, y: 680, role: 'ZM'},
+                    {x: 350, y: 640, role: 'ZM'},
+                    {x: 420, y: 680, role: 'ZM'},
+                    {x: 580, y: 620, role: 'RM'},
+                    {x: 300, y: 320, role: 'ST'},
+                    {x: 400, y: 320, role: 'ST'}
+                ]
+            },
+            '4-1-4-1': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 350, y: 700, role: 'DM'},
+                    {x: 150, y: 500, role: 'LM'},
+                    {x: 300, y: 550, role: 'ZM'},
+                    {x: 400, y: 550, role: 'ZM'},
+                    {x: 550, y: 500, role: 'RM'},
+                    {x: 350, y: 250, role: 'ST'}
+                ]
+            }
+        };
+
+        function loadFormation() {
+            selectedFormation = document.getElementById('formationSelect').value;
+            renderPitch();
+        }
+
+        function renderPitch() {
+            const container = document.getElementById('playersOnPitch');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const formationData = formations[selectedFormation];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                container.innerHTML = '<div style="color: white; text-align: center; padding: 40px; font-size: 1.2em;">Mindestens 11 verfügbare Spieler benötigt!</div>';
+                return;
+            }
+
+            // Beste 11 Spieler nach Rating
+            const sortedPlayers = availablePlayers.sort((a, b) => {
+                const avgA = calculatePlayerRating(a);
+                const avgB = calculatePlayerRating(b);
+                return avgB - avgA;
+            }).slice(0, 11);
+
+            playersOnField = formationData.positions.map((pos, idx) => {
+                const player = sortedPlayers[idx];
+                return {
+                    player: player,
+                    x: pos.x,
+                    y: pos.y,
+                    number: idx + 1
+                };
+            });
+
+            playersOnField.forEach(p => {
+                const jersey = createJerseyElement(p.player, p.number, p.x, p.y);
+                container.appendChild(jersey);
+            });
+        }
+
+        function calculatePlayerRating(player) {
+            return ((Object.values(player.skills).reduce((a,b)=>a+b,0)/4 + 
+                    Object.values(player.physical).reduce((a,b)=>a+b,0)/3 + 
+                    Object.values(player.mental).reduce((a,b)=>a+b,0)/3) / 3);
+        }
+
+        function createJerseyElement(player, number, x, y) {
+            const div = document.createElement('div');
+            div.className = 'player-jersey';
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            
+            div.innerHTML = `
+                <svg viewBox="0 0 100 100">
+                    <path d="M20,30 L30,20 L40,25 L50,20 L60,25 L70,20 L80,30 L80,80 Q80,90 70,90 L30,90 Q20,90 20,80 Z" 
+                          fill="#c41e3a" stroke="white" stroke-width="2"/>
+                    <circle cx="35" cy="35" r="8" fill="white"/>
+                    <circle cx="65" cy="35" r="8" fill="white"/>
+                </svg>
+                <div class="jersey-number">${number}</div>
+                <div class="player-name">${player.name}</div>
+            `;
+            
+            return div;
+        }
+
+        function generateFormationOptions() {
+            if (players.filter(p => p.status === 'verfügbar').length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            const prompt = buildPrompt('formation_options', null);
+            
+            document.getElementById('formationOptions').innerHTML = '<div class="loading"><div class="spinner"></div><p>KI generiert 3 taktische Optionen...</p></div>';
+            
+            runFormationAnalysis(prompt);
+        }
+
+        async function runFormationAnalysis(prompt) {
+            try {
+                const res = await fetch('https://soccer-dtr-backend-andi.vercel.app/api/claude', {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`API Error: ${res.status}`);
+                }
+                
+                const data = await res.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+
+                displayFormationOptions(data.response);
+            } catch (err) {
+                document.getElementById('formationOptions').innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}</div>`;
+            }
+        }
+
+        function displayFormationOptions(aiResponse) {
+            const container = document.getElementById('formationOptions');
+            container.innerHTML = `
+                <h3 style="margin-bottom: 15px;">🎯 KI-Taktik-Vorschläge:</h3>
+                <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 8px;">${aiResponse}</div>
+                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Wähle oben die passende Formation aus und passe sie an.</p>
+            `;
+        }
+
+        function saveFormationImage() {
+            alert('Tipp: Mache einen Screenshot deines Bildschirms!\n\niPhone: Home + Power Taste\nAndroid: Lautstärke runter + Power');
+        }
+
+        function shareFormationImage() {
+            alert('Tipp: Mache einen Screenshot und teile diesen über WhatsApp!\n\niPhone: Screenshot → Teilen\nAndroid: Screenshot → Teilen');
         }
     </script>
 </body>
