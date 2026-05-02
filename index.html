@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fußball-Trainer Assistent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #1e3c72;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s;
+            color: #1e3c72;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active {
+            background: #1e3c72;
+            color: white;
+        }
+
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #1e3c72;
+        }
+
+        .rating-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .rating-item label {
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .rating-item input[type="range"] {
+            width: 120px;
+            margin: 0 10px;
+        }
+
+        .rating-value {
+            font-weight: 700;
+            color: #1e3c72;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #2a5298;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 60, 114, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .player-list,
+        .opponent-list {
+            margin-top: 30px;
+        }
+
+        .player-card,
+        .opponent-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1e3c72;
+        }
+
+        .player-card h3,
+        .opponent-card h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+
+        .player-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .info-item {
+            font-size: 0.9em;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .action-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .analysis-section {
+            margin-bottom: 30px;
+        }
+
+        .analysis-section h2 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .analysis-content {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e3c72;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .analysis-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        select.opponent-select {
+            flex: 1;
+            min-width: 250px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚽ Fußball-Trainer Assistent</h1>
+            <p class="subtitle">KI-gestützte Trainingsplanung, Taktikanalyse und Spielerverwaltung</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab" onclick="switchTab('players')">Spielerverwaltung</button>
+            <button class="tab" onclick="switchTab('opponents')">Gegneranalyse</button>
+            <button class="tab" onclick="switchTab('analysis')">KI-Analyse</button>
+        </div>
+
+        <div class="content">
+            <!-- Dashboard -->
+            <div id="dashboard" class="tab-content active">
+                <div class="stats-overview">
+                    <div class="stat-card">
+                        <div class="stat-number" id="playerCount">0</div>
+                        <div class="stat-label">Spieler</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="opponentCount">0</div>
+                        <div class="stat-label">Gegner analysiert</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgTeamRating">0</div>
+                        <div class="stat-label">Ø Team-Rating</div>
+                    </div>
+                </div>
+
+                <h2>Schnellstart</h2>
+                <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten! Beginne mit:</p>
+                <ol style="line-height: 2; margin-left: 20px;">
+                    <li>Füge deine <strong>Spieler</strong> hinzu (Reiter "Spielerverwaltung")</li>
+                    <li>Analysiere deine <strong>Gegner</strong> (Reiter "Gegneranalyse")</li>
+                    <li>Lass die <strong>KI</strong> Aufstellungen, Trainingspläne und Ansprachen erstellen</li>
+                </ol>
+            </div>
+
+            <!-- Spielerverwaltung -->
+            <div id="players" class="tab-content">
+                <h2>Neuen Spieler hinzufügen</h2>
+                
+                <form id="playerForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name *</label>
+                            <input type="text" id="playerName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Alter</label>
+                            <input type="number" id="playerAge" min="15" max="45">
+                        </div>
+                        <div class="form-group">
+                            <label>Hauptposition *</label>
+                            <select id="playerPosition" required>
+                                <option value="">-- Wählen --</option>
+                                <option value="TW">Torwart</option>
+                                <option value="IV">Innenverteidiger</option>
+                                <option value="LV">Linksverteidiger</option>
+                                <option value="RV">Rechtsverteidiger</option>
+                                <option value="DM">Defensives Mittelfeld</option>
+                                <option value="ZM">Zentrales Mittelfeld</option>
+                                <option value="OM">Offensives Mittelfeld</option>
+                                <option value="LM">Linkes Mittelfeld</option>
+                                <option value="RM">Rechtes Mittelfeld</option>
+                                <option value="LF">Linksaußen</option>
+                                <option value="RF">Rechtsaußen</option>
+                                <option value="ST">Stürmer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Technische Fähigkeiten (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Passspiel</label>
+                            <input type="range" id="skillPassing" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Schuss</label>
+                            <input type="range" id="skillShooting" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Dribbling</label>
+                            <input type="range" id="skillDribbling" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Kopfball</label>
+                            <input type="range" id="skillHeading" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Physische Attribute (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Schnelligkeit</label>
+                            <input type="range" id="physSpeed" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Ausdauer</label>
+                            <input type="range" id="physStamina" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Zweikampf</label>
+                            <input type="range" id="physTackling" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Mentale Eigenschaften (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Spielintelligenz</label>
+                            <input type="range" id="mentalIntelligence" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Führungsqualität</label>
+                            <input type="range" id="mentalLeadership" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Nervenstärke</label>
+                            <input type="range" id="mentalComposure" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Besondere Stärken</label>
+                        <textarea id="playerStrengths" rows="3" placeholder="z.B. Exzellentes Stellungsspiel, starker linker Fuß..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Entwicklungsbereiche / Schwächen</label>
+                        <textarea id="playerWeaknesses" rows="3" placeholder="z.B. Schwacher rechter Fuß, Kopfballspiel..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn">Spieler hinzufügen</button>
+                </form>
+
+                <div class="player-list" id="playerList"></div>
+            </div>
+
+            <!-- Gegneranalyse -->
+            <div id="opponents" class="tab-content">
+                <h2>Gegner analysieren</h2>
+                
+                <form id="opponentForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Mannschaftsname *</label>
+                            <input type="text" id="opponentName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Grundformation *</label>
+                            <select id="opponentFormation" required>
+                                <option value="">-- Wählen --</option>
+                                <option value="4-4-2">4-4-2</option>
+                                <option value="4-3-3">4-3-3</option>
+                                <option value="4-2-3-1">4-2-3-1</option>
+                                <option value="3-5-2">3-5-2</option>
+                                <option value="3-4-3">3-4-3</option>
+                                <option value="5-3-2">5-3-2</option>
+                                <option value="4-1-4-1">4-1-4-1</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Spielweise</label>
+                            <select id="opponentStyle">
+                                <option value="Ballbesitzorientiert">Ballbesitzorientiert</option>
+                                <option value="Konterfußball">Konterfußball</option>
+                                <option value="Pressing">Hohes Pressing</option>
+                                <option value="Defensiv">Defensiv / Tiefer Block</option>
+                                <option value="Ausgeglichen">Ausgeglichen</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Schlüsselspieler</label>
+                        <textarea id="opponentKeyPlayers" rows="2" placeholder="z.B. Nr. 10 - Spielmacher, starker linker Fuß"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Stärken des Gegners</label>
+                        <textarea id="opponentStrengths" rows="3" placeholder="z.B. Sehr kopfballstark bei Standards, schnelle Außenspieler..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Schwächen des Gegners</label>
+                        <textarea id="opponentWeaknesses" rows="3" placeholder="z.B. Anfällig für schnelle Konter, schwacher linker Verteidiger..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Standard-Situationen (Besonderheiten)</label>
+                        <textarea id="opponentSetPieces" rows="2" placeholder="z.B. Gefährlich bei Ecken, kurze Freistöße..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn">Gegner speichern</button>
+                </form>
+
+                <div class="opponent-list" id="opponentList"></div>
+            </div>
+
+            <!-- KI-Analyse -->
+            <div id="analysis" class="tab-content">
+                <h2>KI-gestützte Trainer-Analyse</h2>
+                
+                <div class="analysis-controls">
+                    <select id="analysisOpponent" class="opponent-select">
+                        <option value="">-- Gegner wählen (optional) --</option>
+                    </select>
+                    <button class="btn" onclick="generateLineup()">Aufstellung generieren</button>
+                    <button class="btn" onclick="generateTrainingPlan()">Wochentrainingsplan</button>
+                    <button class="btn" onclick="generateTactics()">Taktik-Ansprache</button>
+                    <button class="btn" onclick="generateLongTermGoals()">Langfristige Ziele</button>
+                </div>
+
+                <div id="analysisResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datenbank (localStorage für Persistenz)
+        let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+        let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
+
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', function() {
+            renderPlayers();
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+        });
+
+        // Tab-Wechsel
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Rating-Display Update
+        function updateRatingDisplay(slider) {
+            const valueDisplay = slider.nextElementSibling;
+            valueDisplay.textContent = slider.value;
+        }
+
+        // Spieler hinzufügen
+        document.getElementById('playerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const player = {
+                id: Date.now(),
+                name: document.getElementById('playerName').value,
+                age: document.getElementById('playerAge').value,
+                position: document.getElementById('playerPosition').value,
+                skills: {
+                    passing: parseInt(document.getElementById('skillPassing').value),
+                    shooting: parseInt(document.getElementById('skillShooting').value),
+                    dribbling: parseInt(document.getElementById('skillDribbling').value),
+                    heading: parseInt(document.getElementById('skillHeading').value)
+                },
+                physical: {
+                    speed: parseInt(document.getElementById('physSpeed').value),
+                    stamina: parseInt(document.getElementById('physStamina').value),
+                    tackling: parseInt(document.getElementById('physTackling').value)
+                },
+                mental: {
+                    intelligence: parseInt(document.getElementById('mentalIntelligence').value),
+                    leadership: parseInt(document.getElementById('mentalLeadership').value),
+                    composure: parseInt(document.getElementById('mentalComposure').value)
+                },
+                strengths: document.getElementById('playerStrengths').value,
+                weaknesses: document.getElementById('playerWeaknesses').value
+            };
+
+            players.push(player);
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            
+            this.reset();
+            document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
+            
+            renderPlayers();
+            updateDashboard();
+            showMessage('Spieler erfolgreich hinzugefügt!', 'success');
+        });
+
+        // Gegner hinzufügen
+        document.getElementById('opponentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const opponent = {
+                id: Date.now(),
+                name: document.getElementById('opponentName').value,
+                formation: document.getElementById('opponentFormation').value,
+                style: document.getElementById('opponentStyle').value,
+                keyPlayers: document.getElementById('opponentKeyPlayers').value,
+                strengths: document.getElementById('opponentStrengths').value,
+                weaknesses: document.getElementById('opponentWeaknesses').value,
+                setPieces: document.getElementById('opponentSetPieces').value
+            };
+
+            opponents.push(opponent);
+            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            
+            this.reset();
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+            showMessage('Gegner erfolgreich gespeichert!', 'success');
+        });
+
+        // Spieler rendern
+        function renderPlayers() {
+            const list = document.getElementById('playerList');
+            if (players.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Noch
