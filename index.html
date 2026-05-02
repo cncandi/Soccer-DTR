@@ -404,6 +404,26 @@
             <div id="squad" class="tab-content">
                 <h2>⚽ Kader-Generator für WhatsApp</h2>
                 
+                <!-- Schritt 1: Spieler auswählen -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px;">Schritt 1: Spieler für den Kader auswählen</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Wähle alle Spieler aus, die für dieses Spiel zur Verfügung stehen:</p>
+                    
+                    <div id="playerSelectionList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;"></div>
+                    
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-secondary" onclick="selectAllPlayers()" style="margin-right: 10px;">✅ Alle auswählen</button>
+                        <button class="btn btn-secondary" onclick="deselectAllPlayers()">❌ Alle abwählen</button>
+                        <button class="btn btn-secondary" onclick="selectOnlyAvailable()" style="margin-left: 10px;">🎯 Nur Verfügbare</button>
+                    </div>
+                    
+                    <p style="margin-top: 15px; font-weight: bold; color: #1e3c72;">
+                        Ausgewählt: <span id="selectedPlayerCount">0</span> Spieler
+                    </p>
+                </div>
+
+                <!-- Schritt 2: Spiel-Details -->
+                <h3 style="margin-bottom: 15px;">Schritt 2: Spiel-Details</h3>
                 <form id="squadForm">
                     <div class="form-row">
                         <div class="form-group">
@@ -490,6 +510,11 @@
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+            
+            // Spieler-Auswahl rendern wenn Kader-Tab geöffnet wird
+            if (tabName === 'squad') {
+                renderPlayerSelection();
+            }
         }
 
         function updateRatingDisplay(slider) {
@@ -859,6 +884,93 @@
         }
 
         // Kader-Generator Funktion
+        let selectedPlayerIds = new Set();
+
+        function renderPlayerSelection() {
+            const container = document.getElementById('playerSelectionList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // Nur nicht-verletzte Spieler (verfügbar + abwesend können ausgewählt werden)
+            const selectablePlayers = players.filter(p => p.status !== 'verletzt');
+            
+            if (selectablePlayers.length === 0) {
+                container.innerHTML = '<p style="color: #666;">Keine Spieler vorhanden. Füge zuerst Spieler hinzu!</p>';
+                return;
+            }
+
+            selectablePlayers.forEach(player => {
+                const isAvailable = player.status === 'verfügbar';
+                const isSelected = selectedPlayerIds.has(player.id);
+                
+                const statusIcon = {
+                    'verfügbar': '✅',
+                    'abwesend': '❌'
+                }[player.status] || '❓';
+                
+                const aYouthLabel = player.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;">A-Jugend</span>' : '';
+                
+                const checkbox = document.createElement('label');
+                checkbox.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    padding: 10px;
+                    background: ${isSelected ? '#d4edda' : 'white'};
+                    border: 2px solid ${isSelected ? '#28a745' : '#e0e0e0'};
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                `;
+                
+                checkbox.innerHTML = `
+                    <input type="checkbox" 
+                           ${isSelected ? 'checked' : ''} 
+                           onchange="togglePlayerSelection(${player.id})"
+                           style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                    <span>
+                        ${statusIcon} <strong>${player.name}</strong> (${player.position})${aYouthLabel}
+                    </span>
+                `;
+                
+                container.appendChild(checkbox);
+            });
+            
+            updateSelectedCount();
+        }
+
+        function togglePlayerSelection(playerId) {
+            if (selectedPlayerIds.has(playerId)) {
+                selectedPlayerIds.delete(playerId);
+            } else {
+                selectedPlayerIds.add(playerId);
+            }
+            renderPlayerSelection();
+        }
+
+        function selectAllPlayers() {
+            players.filter(p => p.status !== 'verletzt').forEach(p => selectedPlayerIds.add(p.id));
+            renderPlayerSelection();
+        }
+
+        function deselectAllPlayers() {
+            selectedPlayerIds.clear();
+            renderPlayerSelection();
+        }
+
+        function selectOnlyAvailable() {
+            selectedPlayerIds.clear();
+            players.filter(p => p.status === 'verfügbar').forEach(p => selectedPlayerIds.add(p.id));
+            renderPlayerSelection();
+        }
+
+        function updateSelectedCount() {
+            const countEl = document.getElementById('selectedPlayerCount');
+            if (countEl) {
+                countEl.textContent = selectedPlayerIds.size;
+            }
+        }
+
         function generateSquad() {
             console.log('generateSquad called'); // Debug
             
@@ -876,19 +988,19 @@
                 return;
             }
 
-            // Nur verfügbare Spieler
-            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            // Nur ausgewählte Spieler
+            const selectedPlayers = players.filter(p => selectedPlayerIds.has(p.id));
             
-            console.log('Verfügbare Spieler:', availablePlayers.length);
+            console.log('Ausgewählte Spieler:', selectedPlayers.length);
             
-            if (availablePlayers.length === 0) {
-                alert('Keine verfügbaren Spieler!\n\nGehe zu "Spielerverwaltung" und:\n1. Füge Spieler hinzu\n2. Setze deren Status auf "✅ Verfügbar"');
+            if (selectedPlayers.length === 0) {
+                alert('Keine Spieler ausgewählt!\n\nBitte wähle oben mindestens einen Spieler aus.');
                 return;
             }
 
             // Spieler nach Stammkraft sortieren (A-Jugend ans Ende)
-            const regularPlayers = availablePlayers.filter(p => !p.aYouth);
-            const aYouthPlayers = availablePlayers.filter(p => p.aYouth);
+            const regularPlayers = selectedPlayers.filter(p => !p.aYouth);
+            const aYouthPlayers = selectedPlayers.filter(p => p.aYouth);
             const sortedPlayers = [...regularPlayers, ...aYouthPlayers];
 
             // Datum formatieren
