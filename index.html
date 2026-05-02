@@ -5,24 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fußball-Trainer Assistent</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
             padding: 20px;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
+        .container { max-width: 1400px; margin: 0 auto; }
         header {
             background: white;
             padding: 25px;
@@ -30,25 +20,9 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
-
-        h1 {
-            color: #1e3c72;
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: 1.1em;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
+        h1 { color: #1e3c72; font-size: 2em; margin-bottom: 10px; }
+        .subtitle { color: #666; font-size: 1.1em; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .tab {
             background: white;
             border: none;
@@ -60,46 +34,19 @@
             transition: all 0.3s;
             color: #1e3c72;
         }
-
-        .tab:hover {
-            background: #f0f0f0;
-        }
-
-        .tab.active {
-            background: #1e3c72;
-            color: white;
-        }
-
+        .tab:hover { background: #f0f0f0; }
+        .tab.active { background: #1e3c72; color: white; }
         .content {
             background: white;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        input[type="text"],
-        input[type="number"],
-        select,
-        textarea {
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        input[type="text"], input[type="number"], select, textarea {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -107,21 +54,16 @@
             font-size: 1em;
             transition: border-color 0.3s;
         }
-
-        input:focus,
-        select:focus,
-        textarea:focus {
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #1e3c72;
         }
-
         .rating-group {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
-
         .rating-item {
             display: flex;
             justify-content: space-between;
@@ -130,24 +72,14 @@
             background: #f8f9fa;
             border-radius: 6px;
         }
-
-        .rating-item label {
-            margin: 0;
-            font-weight: 500;
-        }
-
-        .rating-item input[type="range"] {
-            width: 120px;
-            margin: 0 10px;
-        }
-
+        .rating-item label { margin: 0; font-weight: 500; }
+        .rating-item input[type="range"] { width: 120px; margin: 0 10px; }
         .rating-value {
             font-weight: 700;
             color: #1e3c72;
             min-width: 30px;
             text-align: center;
         }
-
         .btn {
             background: #1e3c72;
             color: white;
@@ -159,82 +91,38 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-
         .btn:hover {
             background: #2a5298;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(30, 60, 114, 0.3);
         }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .player-list,
-        .opponent-list {
-            margin-top: 30px;
-        }
-
-        .player-card,
-        .opponent-card {
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .player-list, .opponent-list { margin-top: 30px; }
+        .player-card, .opponent-card {
             background: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 15px;
             border-left: 4px solid #1e3c72;
         }
-
-        .player-card h3,
-        .opponent-card h3 {
-            color: #1e3c72;
-            margin-bottom: 10px;
-        }
-
+        .player-card h3, .opponent-card h3 { color: #1e3c72; margin-bottom: 10px; }
         .player-info {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 10px;
             margin-top: 10px;
         }
-
-        .info-item {
-            font-size: 0.9em;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #666;
-        }
-
-        .action-buttons {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .analysis-section {
-            margin-bottom: 30px;
-        }
-
+        .info-item { font-size: 0.9em; }
+        .info-label { font-weight: 600; color: #666; }
+        .action-buttons { margin-top: 15px; display: flex; gap: 10px; }
+        .analysis-section { margin-bottom: 30px; }
         .analysis-section h2 {
             color: #1e3c72;
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 2px solid #e0e0e0;
         }
-
         .analysis-content {
             background: #f8f9fa;
             padding: 20px;
@@ -242,12 +130,7 @@
             white-space: pre-wrap;
             line-height: 1.6;
         }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-        }
-
+        .loading { text-align: center; padding: 40px; }
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #1e3c72;
@@ -257,12 +140,10 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
         .error {
             background: #f8d7da;
             color: #721c24;
@@ -271,7 +152,6 @@
             margin-bottom: 20px;
             border-left: 4px solid #dc3545;
         }
-
         .success {
             background: #d4edda;
             color: #155724;
@@ -280,20 +160,17 @@
             margin-bottom: 20px;
             border-left: 4px solid #28a745;
         }
-
         .form-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
         }
-
         .stats-overview {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -301,29 +178,15 @@
             border-radius: 10px;
             text-align: center;
         }
-
-        .stat-number {
-            font-size: 2.5em;
-            font-weight: 700;
-        }
-
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
-            margin-top: 5px;
-        }
-
+        .stat-number { font-size: 2.5em; font-weight: 700; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; margin-top: 5px; }
         .analysis-controls {
             display: flex;
             gap: 15px;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-
-        select.opponent-select {
-            flex: 1;
-            min-width: 250px;
-        }
+        select.opponent-select { flex: 1; min-width: 250px; }
     </style>
 </head>
 <body>
@@ -341,7 +204,6 @@
         </div>
 
         <div class="content">
-            <!-- Dashboard -->
             <div id="dashboard" class="tab-content active">
                 <div class="stats-overview">
                     <div class="stat-card">
@@ -357,20 +219,17 @@
                         <div class="stat-label">Ø Team-Rating</div>
                     </div>
                 </div>
-
                 <h2>Schnellstart</h2>
-                <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten! Beginne mit:</p>
+                <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten!</p>
                 <ol style="line-height: 2; margin-left: 20px;">
-                    <li>Füge deine <strong>Spieler</strong> hinzu (Reiter "Spielerverwaltung")</li>
-                    <li>Analysiere deine <strong>Gegner</strong> (Reiter "Gegneranalyse")</li>
-                    <li>Lass die <strong>KI</strong> Aufstellungen, Trainingspläne und Ansprachen erstellen</li>
+                    <li>Füge deine <strong>Spieler</strong> hinzu</li>
+                    <li>Analysiere deine <strong>Gegner</strong></li>
+                    <li>Lass die <strong>KI</strong> Aufstellungen und Trainingspläne erstellen</li>
                 </ol>
             </div>
 
-            <!-- Spielerverwaltung -->
             <div id="players" class="tab-content">
                 <h2>Neuen Spieler hinzufügen</h2>
-                
                 <form id="playerForm">
                     <div class="form-row">
                         <div class="form-group">
@@ -392,10 +251,6 @@
                                 <option value="DM">Defensives Mittelfeld</option>
                                 <option value="ZM">Zentrales Mittelfeld</option>
                                 <option value="OM">Offensives Mittelfeld</option>
-                                <option value="LM">Linkes Mittelfeld</option>
-                                <option value="RM">Rechtes Mittelfeld</option>
-                                <option value="LF">Linksaußen</option>
-                                <option value="RF">Rechtsaußen</option>
                                 <option value="ST">Stürmer</option>
                             </select>
                         </div>
@@ -465,24 +320,19 @@
 
                     <div class="form-group">
                         <label>Besondere Stärken</label>
-                        <textarea id="playerStrengths" rows="3" placeholder="z.B. Exzellentes Stellungsspiel, starker linker Fuß..."></textarea>
+                        <textarea id="playerStrengths" rows="3" placeholder="z.B. Exzellentes Stellungsspiel..."></textarea>
                     </div>
-
                     <div class="form-group">
                         <label>Entwicklungsbereiche / Schwächen</label>
-                        <textarea id="playerWeaknesses" rows="3" placeholder="z.B. Schwacher rechter Fuß, Kopfballspiel..."></textarea>
+                        <textarea id="playerWeaknesses" rows="3" placeholder="z.B. Schwacher rechter Fuß..."></textarea>
                     </div>
-
                     <button type="submit" class="btn">Spieler hinzufügen</button>
                 </form>
-
                 <div class="player-list" id="playerList"></div>
             </div>
 
-            <!-- Gegneranalyse -->
             <div id="opponents" class="tab-content">
                 <h2>Gegner analysieren</h2>
-                
                 <form id="opponentForm">
                     <div class="form-row">
                         <div class="form-group">
@@ -497,9 +347,7 @@
                                 <option value="4-3-3">4-3-3</option>
                                 <option value="4-2-3-1">4-2-3-1</option>
                                 <option value="3-5-2">3-5-2</option>
-                                <option value="3-4-3">3-4-3</option>
                                 <option value="5-3-2">5-3-2</option>
-                                <option value="4-1-4-1">4-1-4-1</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -508,63 +356,47 @@
                                 <option value="Ballbesitzorientiert">Ballbesitzorientiert</option>
                                 <option value="Konterfußball">Konterfußball</option>
                                 <option value="Pressing">Hohes Pressing</option>
-                                <option value="Defensiv">Defensiv / Tiefer Block</option>
-                                <option value="Ausgeglichen">Ausgeglichen</option>
+                                <option value="Defensiv">Defensiv</option>
                             </select>
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label>Schlüsselspieler</label>
-                        <textarea id="opponentKeyPlayers" rows="2" placeholder="z.B. Nr. 10 - Spielmacher, starker linker Fuß"></textarea>
+                        <textarea id="opponentKeyPlayers" rows="2"></textarea>
                     </div>
-
                     <div class="form-group">
                         <label>Stärken des Gegners</label>
-                        <textarea id="opponentStrengths" rows="3" placeholder="z.B. Sehr kopfballstark bei Standards, schnelle Außenspieler..."></textarea>
+                        <textarea id="opponentStrengths" rows="3"></textarea>
                     </div>
-
                     <div class="form-group">
                         <label>Schwächen des Gegners</label>
-                        <textarea id="opponentWeaknesses" rows="3" placeholder="z.B. Anfällig für schnelle Konter, schwacher linker Verteidiger..."></textarea>
+                        <textarea id="opponentWeaknesses" rows="3"></textarea>
                     </div>
-
-                    <div class="form-group">
-                        <label>Standard-Situationen (Besonderheiten)</label>
-                        <textarea id="opponentSetPieces" rows="2" placeholder="z.B. Gefährlich bei Ecken, kurze Freistöße..."></textarea>
-                    </div>
-
                     <button type="submit" class="btn">Gegner speichern</button>
                 </form>
-
                 <div class="opponent-list" id="opponentList"></div>
             </div>
 
-            <!-- KI-Analyse -->
             <div id="analysis" class="tab-content">
                 <h2>KI-gestützte Trainer-Analyse</h2>
-                
                 <div class="analysis-controls">
                     <select id="analysisOpponent" class="opponent-select">
-                        <option value="">-- Gegner wählen (optional) --</option>
+                        <option value="">-- Gegner wählen --</option>
                     </select>
-                    <button class="btn" onclick="generateLineup()">Aufstellung generieren</button>
-                    <button class="btn" onclick="generateTrainingPlan()">Wochentrainingsplan</button>
-                    <button class="btn" onclick="generateTactics()">Taktik-Ansprache</button>
-                    <button class="btn" onclick="generateLongTermGoals()">Langfristige Ziele</button>
+                    <button class="btn" onclick="generateLineup()">Aufstellung</button>
+                    <button class="btn" onclick="generateTrainingPlan()">Trainingsplan</button>
+                    <button class="btn" onclick="generateTactics()">Taktik</button>
+                    <button class="btn" onclick="generateLongTermGoals()">Langfristziele</button>
                 </div>
-
                 <div id="analysisResults"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Datenbank (localStorage für Persistenz)
         let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
 
-        // Initialisierung
         document.addEventListener('DOMContentLoaded', function() {
             renderPlayers();
             renderOpponents();
@@ -572,25 +404,19 @@
             updateOpponentSelect();
         });
 
-        // Tab-Wechsel
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
 
-        // Rating-Display Update
         function updateRatingDisplay(slider) {
-            const valueDisplay = slider.nextElementSibling;
-            valueDisplay.textContent = slider.value;
+            slider.nextElementSibling.textContent = slider.value;
         }
 
-        // Spieler hinzufügen
         document.getElementById('playerForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
             const player = {
                 id: Date.now(),
                 name: document.getElementById('playerName').value,
@@ -615,22 +441,17 @@
                 strengths: document.getElementById('playerStrengths').value,
                 weaknesses: document.getElementById('playerWeaknesses').value
             };
-
             players.push(player);
             localStorage.setItem('footballPlayers', JSON.stringify(players));
-            
             this.reset();
             document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
-            
             renderPlayers();
             updateDashboard();
-            showMessage('Spieler erfolgreich hinzugefügt!', 'success');
+            showMessage('Spieler hinzugefügt!', 'success');
         });
 
-        // Gegner hinzufügen
         document.getElementById('opponentForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
             const opponent = {
                 id: Date.now(),
                 name: document.getElementById('opponentName').value,
@@ -638,22 +459,209 @@
                 style: document.getElementById('opponentStyle').value,
                 keyPlayers: document.getElementById('opponentKeyPlayers').value,
                 strengths: document.getElementById('opponentStrengths').value,
-                weaknesses: document.getElementById('opponentWeaknesses').value,
-                setPieces: document.getElementById('opponentSetPieces').value
+                weaknesses: document.getElementById('opponentWeaknesses').value
             };
-
             opponents.push(opponent);
             localStorage.setItem('footballOpponents', JSON.stringify(opponents));
-            
             this.reset();
             renderOpponents();
             updateDashboard();
             updateOpponentSelect();
-            showMessage('Gegner erfolgreich gespeichert!', 'success');
+            showMessage('Gegner gespeichert!', 'success');
         });
 
-        // Spieler rendern
         function renderPlayers() {
             const list = document.getElementById('playerList');
-            if (players.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Noch
+            if (!players.length) {
+                list.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Noch keine Spieler vorhanden.</p>';
+                return;
+            }
+            list.innerHTML = '<h2 style="margin:20px 0;">Dein Kader (' + players.length + ')</h2>';
+            players.forEach(p => {
+                const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                            Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                            Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
+                list.innerHTML += `
+                    <div class="player-card">
+                        <h3>${p.name} (${p.position}) - ${avg}/10</h3>
+                        <div class="player-info">
+                            <div class="info-item"><span class="info-label">Pass:</span> ${p.skills.passing}</div>
+                            <div class="info-item"><span class="info-label">Schuss:</span> ${p.skills.shooting}</div>
+                            <div class="info-item"><span class="info-label">Tempo:</span> ${p.physical.speed}</div>
+                            <div class="info-item"><span class="info-label">Intelligenz:</span> ${p.mental.intelligence}</div>
+                        </div>
+                        ${p.strengths ? '<p style="margin-top:10px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
+                        ${p.weaknesses ? '<p><strong>Schwächen:</strong> '+p.weaknesses+'</p>' : ''}
+                        <div class="action-buttons">
+                            <button class="btn btn-danger" onclick="deletePlayer(${p.id})">Löschen</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderOpponents() {
+            const list = document.getElementById('opponentList');
+            if (!opponents.length) {
+                list.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Noch keine Gegner.</p>';
+                return;
+            }
+            list.innerHTML = '<h2 style="margin:20px 0;">Gegner (' + opponents.length + ')</h2>';
+            opponents.forEach(o => {
+                list.innerHTML += `
+                    <div class="opponent-card">
+                        <h3>${o.name} (${o.formation})</h3>
+                        <p><strong>Spielweise:</strong> ${o.style}</p>
+                        ${o.strengths ? '<p><strong>Stärken:</strong> '+o.strengths+'</p>' : ''}
+                        ${o.weaknesses ? '<p><strong>Schwächen:</strong> '+o.weaknesses+'</p>' : ''}
+                        <div class="action-buttons">
+                            <button class="btn btn-danger" onclick="deleteOpponent(${o.id})">Löschen</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateDashboard() {
+            document.getElementById('playerCount').textContent = players.length;
+            document.getElementById('opponentCount').textContent = opponents.length;
+            if (players.length) {
+                const avg = players.map(p => {
+                    return (Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                           Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                           Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3;
+                });
+                document.getElementById('avgTeamRating').textContent = 
+                    (avg.reduce((a,b)=>a+b,0)/players.length).toFixed(1);
+            }
+        }
+
+        function updateOpponentSelect() {
+            const select = document.getElementById('analysisOpponent');
+            select.innerHTML = '<option value="">-- Gegner wählen --</option>';
+            opponents.forEach(o => {
+                select.innerHTML += `<option value="${o.id}">${o.name}</option>`;
+            });
+        }
+
+        function deletePlayer(id) {
+            if (confirm('Spieler löschen?')) {
+                players = players.filter(p => p.id !== id);
+                localStorage.setItem('footballPlayers', JSON.stringify(players));
+                renderPlayers();
+                updateDashboard();
+            }
+        }
+
+        function deleteOpponent(id) {
+            if (confirm('Gegner löschen?')) {
+                opponents = opponents.filter(o => o.id !== id);
+                localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+                renderOpponents();
+                updateDashboard();
+                updateOpponentSelect();
+            }
+        }
+
+        function showMessage(msg, type) {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = msg;
+            document.getElementById('analysisResults').insertBefore(div, document.getElementById('analysisResults').firstChild);
+            setTimeout(() => div.remove(), 4000);
+        }
+
+        async function generateLineup() {
+            if (players.length < 11) return showMessage('Mindestens 11 Spieler nötig!', 'error');
+            const oppId = document.getElementById('analysisOpponent').value;
+            const opp = opponents.find(o => o.id == oppId);
+            await runAnalysis('Optimale Aufstellung', buildPrompt('lineup', opp));
+        }
+
+        async function generateTrainingPlan() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            const oppId = document.getElementById('analysisOpponent').value;
+            const opp = opponents.find(o => o.id == oppId);
+            await runAnalysis('Wochentrainingsplan', buildPrompt('training', opp));
+        }
+
+        async function generateTactics() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            const oppId = document.getElementById('analysisOpponent').value;
+            const opp = opponents.find(o => o.id == oppId);
+            await runAnalysis('Taktik-Ansprache', buildPrompt('tactics', opp));
+        }
+
+        async function generateLongTermGoals() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            await runAnalysis('Langfristige Ziele (3 Monate)', buildPrompt('longterm'));
+        }
+
+        function buildPrompt(type, opp) {
+            let data = `MEIN TEAM:\nKader: ${players.length} Spieler\n\n`;
+            const pos = {};
+            players.forEach(p => pos[p.position] = (pos[p.position]||0)+1);
+            data += 'Positionen:\n' + Object.entries(pos).map(([k,v]) => `- ${k}: ${v}`).join('\n') + '\n\n';
+            data += 'SPIELER:\n';
+            players.forEach(p => {
+                const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                            Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                            Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
+                data += `\n${p.name} (${p.position}) - ${avg}/10\n`;
+                data += `  Pass ${p.skills.passing}, Schuss ${p.skills.shooting}, Tempo ${p.physical.speed}\n`;
+                if (p.strengths) data += `  Stärken: ${p.strengths}\n`;
+                if (p.weaknesses) data += `  Schwächen: ${p.weaknesses}\n`;
+            });
+            
+            if (opp) {
+                data += `\n\nGEGNER: ${opp.name}\n${opp.formation}, ${opp.style}\n`;
+                if (opp.strengths) data += `Stärken: ${opp.strengths}\n`;
+                if (opp.weaknesses) data += `Schwächen: ${opp.weaknesses}\n`;
+            }
+
+            const prompts = {
+                lineup: 'Erstelle die OPTIMALE STARTAUFSTELLUNG (11 Spieler mit Positionen).\nBegründe taktisch, zeige Matchups, Einwechseloptionen, Plan B.',
+                training: 'Erstelle WOCHENTRAININGSPLAN (Mo-Fr).\nJe Tag: Schwerpunkt, 2-3 Übungen, Dauer, welche Schwächen werden trainiert.',
+                tactics: 'Erstelle ANSPRACHEN-STICHPUNKTE:\n1. MANNSCHAFT (Motivation + 3 Hauptpunkte)\n2. GRUPPENTAKTIK (Defensive/Mittelfeld/Offensive)\n3. INDIVIDUELLE ANWEISUNGEN (5 Schlüsselspieler)',
+                longterm: 'Erstelle 3-MONATS-ENTWICKLUNGSPLAN:\n1. Team-Ziele (Schwächen beheben)\n2. Top 5 Spieler-Entwicklungsziele\n3. Trainings-Periodisierung\n4. Erfolgs-Indikatoren'
+            };
+
+            return data + '\n\n' + prompts[type];
+        }
+
+        async function runAnalysis(title, prompt) {
+            const div = document.getElementById('analysisResults');
+            div.innerHTML = '<div class="loading"><div class="spinner"></div><p>KI analysiert...</p></div>';
+
+            try {
+                const res = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        model: "claude-sonnet-4-20250514",
+                        max_tokens: 4000,
+                        messages: [{
+                            role: "user",
+                            content: "Du bist Fußball-Trainer-Assistent. Analysiere professionell und praxisnah.\n\n" + prompt
+                        }]
+                    })
+                });
+
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                
+                const data = await res.json();
+                const text = data.content.filter(i => i.type === "text").map(i => i.text).join("\n");
+
+                div.innerHTML = `
+                    <div class="analysis-section">
+                        <h2>${title}</h2>
+                        <div class="analysis-content">${text}</div>
+                    </div>
+                `;
+            } catch (err) {
+                div.innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
