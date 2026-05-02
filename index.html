@@ -372,10 +372,15 @@
         }
         
         .analysis-controls {
-            display: flex;
+            display: flex !important;
             gap: 15px;
             margin-bottom: 24px;
             flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .analysis-controls .btn {
+            flex-shrink: 0;
         }
         
         select.opponent-select { 
