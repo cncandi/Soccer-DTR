@@ -634,32 +634,34 @@
             div.innerHTML = '<div class="loading"><div class="spinner"></div><p>KI analysiert...</p></div>';
 
             try {
-                const res = await fetch("https://api.anthropic.com/v1/messages", {
+                // Use backend proxy (update this URL after deploying to Vercel)
+                const BACKEND_URL = 'https://your-backend.vercel.app/api/claude';
+                
+                const res = await fetch(BACKEND_URL, {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({
-                        model: "claude-sonnet-4-20250514",
-                        max_tokens: 4000,
-                        messages: [{
-                            role: "user",
-                            content: "Du bist Fußball-Trainer-Assistent. Analysiere professionell und praxisnah.\n\n" + prompt
-                        }]
-                    })
+                    body: JSON.stringify({ prompt: prompt })
                 });
 
-                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || `API Error: ${res.status}`);
+                }
                 
                 const data = await res.json();
-                const text = data.content.filter(i => i.type === "text").map(i => i.text).join("\n");
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
 
                 div.innerHTML = `
                     <div class="analysis-section">
                         <h2>${title}</h2>
-                        <div class="analysis-content">${text}</div>
+                        <div class="analysis-content">${data.response}</div>
                     </div>
                 `;
             } catch (err) {
-                div.innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}</div>`;
+                div.innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}<br><br>Hinweis: Stelle sicher, dass das Backend deployed ist und die URL korrekt ist.</div>`;
             }
         }
     </script>
