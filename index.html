@@ -200,6 +200,7 @@
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab" onclick="switchTab('players')">Spielerverwaltung</button>
             <button class="tab" onclick="switchTab('opponents')">Gegneranalyse</button>
+            <button class="tab" onclick="switchTab('squad')">Kader-Generator</button>
             <button class="tab" onclick="switchTab('analysis')">KI-Analyse</button>
         </div>
 
@@ -253,6 +254,28 @@
                                 <option value="OM">Offensives Mittelfeld</option>
                                 <option value="ST">Stürmer</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="playerStatus">
+                                <option value="verfügbar">✅ Verfügbar</option>
+                                <option value="verletzt">🤕 Verletzt</option>
+                                <option value="abwesend">❌ Nicht dabei</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>A-Jugend Ergänzung</label>
+                            <select id="playerAYouth">
+                                <option value="false">Nein</option>
+                                <option value="true">Ja (A-Jugend)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rückkehr (bei Verletzung)</label>
+                            <input type="date" id="playerReturnDate">
                         </div>
                     </div>
 
@@ -377,6 +400,63 @@
                 <div class="opponent-list" id="opponentList"></div>
             </div>
 
+            <div id="squad" class="tab-content">
+                <h2>⚽ Kader-Generator für WhatsApp</h2>
+                
+                <form id="squadForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Gegner *</label>
+                            <input type="text" id="squadOpponent" placeholder="z.B. Wallau" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Spieltyp</label>
+                            <select id="squadGameType">
+                                <option value="Auswärtsspiel">Auswärtsspiel</option>
+                                <option value="Heimspiel">Heimspiel</option>
+                                <option value="Freundschaftsspiel">Freundschaftsspiel</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Datum *</label>
+                            <input type="date" id="squadDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Treffpunkt Zeit *</label>
+                            <input type="time" id="squadMeetTime" value="13:45" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Trikotfarbe</label>
+                            <select id="squadJerseyColor">
+                                <option value="Rot">🔴 Rot</option>
+                                <option value="Blau">🔵 Blau</option>
+                                <option value="Grün">🟢 Grün</option>
+                                <option value="Gelb">🟡 Gelb</option>
+                                <option value="Weiß">⚪ Weiß</option>
+                                <option value="Schwarz">⚫ Schwarz</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Treffpunkt Ort</label>
+                        <input type="text" id="squadMeetLocation" placeholder="z.B. Vereinsheim, Wallau">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Zusätzliche Infos (optional)</label>
+                        <textarea id="squadExtraInfo" rows="3" placeholder="z.B. Treffen Vereinsheim fällt aus wegen Pflanzenmarkt..."></textarea>
+                    </div>
+
+                    <button type="button" class="btn" onclick="generateSquad()">🎯 Kader zusammenstellen</button>
+                </form>
+
+                <div id="squadResult" style="margin-top: 30px;"></div>
+            </div>
+
             <div id="analysis" class="tab-content">
                 <h2>KI-gestützte Trainer-Analyse</h2>
                 <div class="analysis-controls">
@@ -422,6 +502,9 @@
                 name: document.getElementById('playerName').value,
                 age: document.getElementById('playerAge').value,
                 position: document.getElementById('playerPosition').value,
+                status: document.getElementById('playerStatus').value,
+                aYouth: document.getElementById('playerAYouth').value === 'true',
+                returnDate: document.getElementById('playerReturnDate').value,
                 skills: {
                     passing: parseInt(document.getElementById('skillPassing').value),
                     shooting: parseInt(document.getElementById('skillShooting').value),
@@ -481,15 +564,27 @@
                 const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
                             Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
                             Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
+                
+                const statusIcon = {
+                    'verfügbar': '✅',
+                    'verletzt': '🤕',
+                    'abwesend': '❌'
+                }[p.status || 'verfügbar'];
+                
+                const aYouthBadge = p.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 8px;border-radius:4px;font-size:0.8em;">A-Jugend</span>' : '';
+                const returnInfo = p.status === 'verletzt' && p.returnDate ? `<p><strong>Rückkehr:</strong> ${new Date(p.returnDate).toLocaleDateString('de-DE')}</p>` : '';
+                
                 list.innerHTML += `
                     <div class="player-card">
-                        <h3>${p.name} (${p.position}) - ${avg}/10</h3>
+                        <h3>${statusIcon} ${p.name} (${p.position}) - ${avg}/10${aYouthBadge}</h3>
                         <div class="player-info">
+                            <div class="info-item"><span class="info-label">Status:</span> ${p.status || 'verfügbar'}</div>
                             <div class="info-item"><span class="info-label">Pass:</span> ${p.skills.passing}</div>
                             <div class="info-item"><span class="info-label">Schuss:</span> ${p.skills.shooting}</div>
                             <div class="info-item"><span class="info-label">Tempo:</span> ${p.physical.speed}</div>
                             <div class="info-item"><span class="info-label">Intelligenz:</span> ${p.mental.intelligence}</div>
                         </div>
+                        ${returnInfo}
                         ${p.strengths ? '<p style="margin-top:10px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
                         ${p.weaknesses ? '<p><strong>Schwächen:</strong> '+p.weaknesses+'</p>' : ''}
                         <div class="action-buttons">
@@ -663,6 +758,95 @@
             } catch (err) {
                 div.innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}<br><br>Hinweis: Stelle sicher, dass das Backend deployed ist und die URL korrekt ist.</div>`;
             }
+        }
+
+        // Kader-Generator Funktion
+        function generateSquad() {
+            const opponent = document.getElementById('squadOpponent').value;
+            const gameType = document.getElementById('squadGameType').value;
+            const date = document.getElementById('squadDate').value;
+            const meetTime = document.getElementById('squadMeetTime').value;
+            const jerseyColor = document.getElementById('squadJerseyColor').value;
+            const meetLocation = document.getElementById('squadMeetLocation').value;
+            const extraInfo = document.getElementById('squadExtraInfo').value;
+
+            // Nur verfügbare Spieler
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length === 0) {
+                showMessage('Keine verfügbaren Spieler! Füge Spieler hinzu und setze Status auf "Verfügbar".', 'error');
+                return;
+            }
+
+            // Spieler nach Stammkraft sortieren (A-Jugend ans Ende)
+            const regularPlayers = availablePlayers.filter(p => !p.aYouth);
+            const aYouthPlayers = availablePlayers.filter(p => p.aYouth);
+            const sortedPlayers = [...regularPlayers, ...aYouthPlayers];
+
+            // Datum formatieren
+            const dateObj = new Date(date + 'T00:00:00');
+            const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+            const dayName = weekdays[dateObj.getDay()];
+            const formattedDate = dateObj.getDate() + '.' + (dateObj.getMonth() + 1) + '.';
+
+            // WhatsApp Nachricht zusammenstellen
+            let message = `⚽ ${gameType} gegen ${opponent} am ${dayName}.\n\n`;
+            
+            if (extraInfo) {
+                message += `${extraInfo}\n\n`;
+            }
+
+            message += `Spieltag: ${dayName} ${formattedDate}\n`;
+            
+            if (meetLocation) {
+                message += `Treffen ${meetLocation}: ${meetTime}\n`;
+            } else {
+                message += `Treffen: ${meetTime}\n`;
+            }
+
+            message += `👕 Farbe: ${jerseyColor}\n\n`;
+            message += `👥 Kader:\n`;
+            
+            sortedPlayers.forEach(p => {
+                const suffix = p.aYouth ? ' (A-Jugend)' : '';
+                message += `${p.name}${suffix}\n`;
+            });
+
+            message += `\n🔥 Auf geht's Männer!`;
+
+            // Anzeigen
+            const resultDiv = document.getElementById('squadResult');
+            resultDiv.innerHTML = `
+                <div class="analysis-section">
+                    <h2>📱 Kader-Nachricht</h2>
+                    <div class="analysis-content" style="white-space: pre-wrap;">${message}</div>
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="copySquadToClipboard()">📋 Kopieren</button>
+                        <button class="btn" onclick="shareSquadWhatsApp()">💬 In WhatsApp teilen</button>
+                    </div>
+                </div>
+            `;
+
+            // Nachricht speichern für Copy/Share
+            window.currentSquadMessage = message;
+        }
+
+        function copySquadToClipboard() {
+            if (!window.currentSquadMessage) return;
+            
+            navigator.clipboard.writeText(window.currentSquadMessage).then(() => {
+                showMessage('Kader in Zwischenablage kopiert!', 'success');
+            }).catch(err => {
+                showMessage('Kopieren fehlgeschlagen: ' + err.message, 'error');
+            });
+        }
+
+        function shareSquadWhatsApp() {
+            if (!window.currentSquadMessage) return;
+            
+            const encodedMessage = encodeURIComponent(window.currentSquadMessage);
+            const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
+            window.open(whatsappURL, '_blank');
         }
     </script>
 </body>
