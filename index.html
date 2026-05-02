@@ -589,6 +589,7 @@
                         ${p.strengths ? '<p style="margin-top:10px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
                         ${p.weaknesses ? '<p><strong>Schwächen:</strong> '+p.weaknesses+'</p>' : ''}
                         <div class="action-buttons">
+                            <button class="btn" onclick="editPlayer(${p.id})">✏️ Bearbeiten</button>
                             <button class="btn btn-danger" onclick="deletePlayer(${p.id})">Löschen</button>
                         </div>
                     </div>
@@ -647,6 +648,101 @@
                 renderPlayers();
                 updateDashboard();
             }
+        }
+
+        function editPlayer(id) {
+            const player = players.find(p => p.id === id);
+            if (!player) return;
+
+            // Formular mit Spieler-Daten füllen
+            document.getElementById('playerName').value = player.name;
+            document.getElementById('playerAge').value = player.age || '';
+            document.getElementById('playerPosition').value = player.position;
+            document.getElementById('playerStatus').value = player.status || 'verfügbar';
+            document.getElementById('playerAYouth').value = player.aYouth ? 'true' : 'false';
+            document.getElementById('playerReturnDate').value = player.returnDate || '';
+            
+            document.getElementById('skillPassing').value = player.skills.passing;
+            document.getElementById('skillShooting').value = player.skills.shooting;
+            document.getElementById('skillDribbling').value = player.skills.dribbling;
+            document.getElementById('skillHeading').value = player.skills.heading;
+            
+            document.getElementById('physSpeed').value = player.physical.speed;
+            document.getElementById('physStamina').value = player.physical.stamina;
+            document.getElementById('physTackling').value = player.physical.tackling;
+            
+            document.getElementById('mentalIntelligence').value = player.mental.intelligence;
+            document.getElementById('mentalLeadership').value = player.mental.leadership;
+            document.getElementById('mentalComposure').value = player.mental.composure;
+            
+            document.getElementById('playerStrengths').value = player.strengths || '';
+            document.getElementById('playerWeaknesses').value = player.weaknesses || '';
+
+            // Rating-Anzeigen aktualisieren
+            document.querySelectorAll('.rating-item input[type="range"]').forEach(slider => {
+                const display = slider.nextElementSibling;
+                display.textContent = slider.value;
+            });
+
+            // Zum Formular scrollen
+            document.getElementById('playerForm').scrollIntoView({ behavior: 'smooth' });
+
+            // Formular in Edit-Modus setzen
+            const submitBtn = document.querySelector('#playerForm button[type="submit"]');
+            submitBtn.textContent = '💾 Änderungen speichern';
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                savePlayerEdit(id);
+            };
+
+            showMessage('Spieler wird bearbeitet - Formular oben ausfüllen', 'success');
+        }
+
+        function savePlayerEdit(id) {
+            const playerIndex = players.findIndex(p => p.id === id);
+            if (playerIndex === -1) return;
+
+            players[playerIndex] = {
+                id: id,
+                name: document.getElementById('playerName').value,
+                age: document.getElementById('playerAge').value,
+                position: document.getElementById('playerPosition').value,
+                status: document.getElementById('playerStatus').value,
+                aYouth: document.getElementById('playerAYouth').value === 'true',
+                returnDate: document.getElementById('playerReturnDate').value,
+                skills: {
+                    passing: parseInt(document.getElementById('skillPassing').value),
+                    shooting: parseInt(document.getElementById('skillShooting').value),
+                    dribbling: parseInt(document.getElementById('skillDribbling').value),
+                    heading: parseInt(document.getElementById('skillHeading').value)
+                },
+                physical: {
+                    speed: parseInt(document.getElementById('physSpeed').value),
+                    stamina: parseInt(document.getElementById('physStamina').value),
+                    tackling: parseInt(document.getElementById('physTackling').value)
+                },
+                mental: {
+                    intelligence: parseInt(document.getElementById('mentalIntelligence').value),
+                    leadership: parseInt(document.getElementById('mentalLeadership').value),
+                    composure: parseInt(document.getElementById('mentalComposure').value)
+                },
+                strengths: document.getElementById('playerStrengths').value,
+                weaknesses: document.getElementById('playerWeaknesses').value
+            };
+
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            
+            // Formular zurücksetzen
+            document.getElementById('playerForm').reset();
+            document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
+            
+            const submitBtn = document.querySelector('#playerForm button[type="submit"]');
+            submitBtn.textContent = 'Spieler hinzufügen';
+            submitBtn.onclick = null;
+
+            renderPlayers();
+            updateDashboard();
+            showMessage('Spieler erfolgreich aktualisiert!', 'success');
         }
 
         function deleteOpponent(id) {
