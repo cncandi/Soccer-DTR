@@ -911,9 +911,7 @@
 
         async function generateTrainingPlan() {
             if (!players.length) return showMessage('Keine Spieler!', 'error');
-            const oppId = document.getElementById('analysisOpponent').value;
-            const opp = opponents.find(o => o.id == oppId);
-            await runAnalysis('Wochentrainingsplan', buildPrompt('training', opp));
+            await runAnalysis('Wochentrainingsplan', buildPrompt('training', null));
         }
 
         async function generateTactics() {
