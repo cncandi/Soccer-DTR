@@ -1692,11 +1692,67 @@
 
         function displayFormationOptions(aiResponse) {
             const container = document.getElementById('formationOptions');
-            container.innerHTML = `
-                <h3 style="margin-bottom: 15px;">🎯 KI-Taktik-Vorschläge:</h3>
-                <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 8px;">${aiResponse}</div>
-                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Wähle oben die passende Formation aus und passe sie an.</p>
-            `;
+            
+            // Parse the AI response to extract options
+            const options = [];
+            const optionBlocks = aiResponse.split(/(?=Option \d+:|## Option \d+:)/i);
+            
+            optionBlocks.forEach(block => {
+                const titleMatch = block.match(/(?:Option \d+:|## Option \d+:)\s*"([^"]+)"/i);
+                const formationMatch = block.match(/Formation:\s*([0-9\-]+)/i);
+                
+                if (titleMatch && formationMatch) {
+                    options.push({
+                        title: titleMatch[1],
+                        formation: formationMatch[1],
+                        description: block
+                    });
+                }
+            });
+            
+            if (options.length > 0) {
+                let html = '<h3 style="margin-bottom: 15px;">🎯 Wähle eine taktische Option:</h3>';
+                
+                options.forEach((opt, idx) => {
+                    html += `
+                        <div class="formation-option-card" onclick="selectFormationOption('${opt.formation}', ${idx})">
+                            <h3>Option ${idx + 1}: ${opt.title}</h3>
+                            <p><strong>Formation: ${opt.formation}</strong></p>
+                            <button class="btn" style="margin-top: 10px;">✓ Diese Formation wählen</button>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            } else {
+                // Fallback: Show raw text if parsing fails
+                container.innerHTML = `
+                    <h3 style="margin-bottom: 15px;">🎯 KI-Taktik-Vorschläge:</h3>
+                    <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 12px;">${aiResponse}</div>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Wähle oben die passende Formation aus dem Dropdown.</p>
+                `;
+            }
+        }
+        
+        function selectFormationOption(formation, optionIndex) {
+            // Set the formation dropdown
+            document.getElementById('formationSelect').value = formation;
+            selectedFormation = formation;
+            
+            // Highlight selected option
+            document.querySelectorAll('.formation-option-card').forEach((card, idx) => {
+                if (idx === optionIndex) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+            
+            // Render the pitch with new formation
+            renderPitch();
+            
+            // Scroll to pitch
+            document.getElementById('pitchContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function saveFormationImage() {
