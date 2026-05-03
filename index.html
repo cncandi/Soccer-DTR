@@ -1575,6 +1575,17 @@
 
             // Nachricht speichern für Copy/Share
             window.currentSquadMessage = message;
+            
+            // Wenn Spiel-Kontext vorhanden, Spiel aktualisieren
+            if (window.currentGameId) {
+                const gameIndex = games.findIndex(g => g.id === window.currentGameId);
+                if (gameIndex !== -1) {
+                    games[gameIndex].squad = selectedPlayers.map(p => p.id);
+                    games[gameIndex].status = 'kader_erstellt';
+                    localStorage.setItem('footballGames', JSON.stringify(games));
+                    console.log('Game updated with squad:', games[gameIndex]);
+                }
+            }
         }
 
         function copySquadToClipboard() {
@@ -2072,9 +2083,15 @@
                             <button class="btn" onclick="createSquadForGame(${game.id})">
                                 ${game.squad ? '✏️ Kader bearbeiten' : '👥 Kader erstellen'}
                             </button>
-                            <button class="btn" onclick="createFormationForGame(${game.id})" ${!game.squad ? 'disabled' : ''}>
-                                ${game.formation ? '✏️ Aufstellung bearbeiten' : '⚽ Aufstellung erstellen'}
-                            </button>
+                            ${game.squad ? `
+                                <button class="btn" onclick="createFormationForGame(${game.id})">
+                                    ${game.formation ? '✏️ Aufstellung bearbeiten' : '⚽ Aufstellung erstellen'}
+                                </button>
+                            ` : `
+                                <button class="btn" onclick="alert('Bitte erstelle zuerst einen Kader!')" style="opacity: 0.5; cursor: not-allowed;">
+                                    🔒 Aufstellung (erst Kader erstellen)
+                                </button>
+                            `}
                         ` : ''}
                         ${isPast && !game.result ? `
                             <button class="btn" onclick="enterGameResult(${game.id})">📊 Ergebnis eintragen</button>
