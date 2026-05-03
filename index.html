@@ -1252,6 +1252,13 @@
             // Nur nicht-verletzte Spieler (verfügbar + abwesend können ausgewählt werden)
             const selectablePlayers = players.filter(p => p.status !== 'verletzt');
             
+            // DEBUG: Log actual status values
+            console.log('=== PLAYER STATUS DEBUG ===');
+            players.forEach(p => {
+                console.log(`${p.name}: status="${p.status}" (type: ${typeof p.status})`);
+            });
+            console.log('=========================');
+            
             if (selectablePlayers.length === 0) {
                 container.innerHTML = '<p style="color: #666;">Keine Spieler vorhanden. Füge zuerst Spieler hinzu!</p>';
                 return;
@@ -1263,8 +1270,9 @@
                 
                 const statusIcon = {
                     'verfügbar': '✅',
-                    'abwesend': '❌'
-                }[player.status] || '❓';
+                    'abwesend': '❌',
+                    'verletzt': '🤕'
+                }[player.status] || `❓(${player.status})`;
                 
                 const aYouthLabel = player.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;">A-Jugend</span>' : '';
                 
