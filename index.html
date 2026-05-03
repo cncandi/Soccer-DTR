@@ -2100,10 +2100,27 @@
             const game = games.find(g => g.id === gameId);
             if (!game) return;
             
-            // Switch to squad tab and set game context
             window.currentGameId = gameId;
-            switchTab('squad');
-            showMessage(`Kader für Spiel gegen ${game.opponentName} wird erstellt`, 'success');
+            
+            // Hide main view, show squad view
+            document.getElementById('gamesMainView').style.display = 'none';
+            document.getElementById('gameFormationView').style.display = 'none';
+            
+            const squadView = document.getElementById('gameSquadView');
+            squadView.style.display = 'block';
+            
+            // Copy squad generator content
+            squadView.innerHTML = `
+                <button class="btn btn-secondary" onclick="backToGamesList()" style="margin-bottom: 20px;">← Zurück zu Spielen</button>
+                <h2>👥 Kader für: ${game.opponentName}</h2>
+                <p style="color: #667eea; margin-bottom: 20px;"><strong>Spiel am:</strong> ${new Date(game.date).toLocaleDateString('de-DE')} um ${game.time} Uhr</p>
+                ${document.getElementById('squad').innerHTML}
+            `;
+            
+            // Re-render player selection for this game
+            renderPlayerSelection();
+            
+            showMessage(`Kader für Spiel gegen ${game.opponentName}`, 'success');
         }
         
         function createFormationForGame(gameId) {
@@ -2115,10 +2132,35 @@
                 return;
             }
             
-            // Switch to formation tab and set game context
             window.currentGameId = gameId;
-            switchTab('formation');
-            showMessage(`Aufstellung für Spiel gegen ${game.opponentName} wird erstellt`, 'success');
+            
+            // Hide main view, show formation view
+            document.getElementById('gamesMainView').style.display = 'none';
+            document.getElementById('gameSquadView').style.display = 'none';
+            
+            const formationView = document.getElementById('gameFormationView');
+            formationView.style.display = 'block';
+            
+            // Copy formation content
+            formationView.innerHTML = `
+                <button class="btn btn-secondary" onclick="backToGamesList()" style="margin-bottom: 20px;">← Zurück zu Spielen</button>
+                <h2>⚽ Aufstellung für: ${game.opponentName}</h2>
+                <p style="color: #667eea; margin-bottom: 20px;"><strong>Spiel am:</strong> ${new Date(game.date).toLocaleDateString('de-DE')} um ${game.time} Uhr</p>
+                ${document.getElementById('formation').innerHTML}
+            `;
+            
+            // Reload and render formation
+            players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+            renderPitch();
+            
+            showMessage(`Aufstellung für Spiel gegen ${game.opponentName}`, 'success');
+        }
+        
+        function backToGamesList() {
+            document.getElementById('gamesMainView').style.display = 'block';
+            document.getElementById('gameSquadView').style.display = 'none';
+            document.getElementById('gameFormationView').style.display = 'none';
+            window.currentGameId = null;
         }
         
         function viewGameDetails(gameId) {
