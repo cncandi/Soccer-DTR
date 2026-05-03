@@ -823,7 +823,7 @@
                         <path d="M 690 1040 Q 680 1040 680 1030" fill="none" stroke="white" stroke-width="2"/>
                     </svg>
                     
-                    <div id="playersOnPitch" style="position: absolute; top: 20px; left: 20px; right: 20px; bottom: 20px; pointer-events: none;"></div>
+                    <div id="playersOnPitch" style="position: absolute; top: 20px; left: 20px; width: calc(100% - 40px); height: calc(100% - 40px); pointer-events: none;"></div>
                 </div>
 
                 <div style="margin-top: 20px; text-align: center;">
@@ -1636,8 +1636,13 @@
         function createJerseyElement(player, number, x, y) {
             const div = document.createElement('div');
             div.className = 'player-jersey';
-            div.style.left = x + 'px';
-            div.style.top = y + 'px';
+            
+            // Convert SVG viewBox coordinates (700x1050) to percentage
+            const xPercent = (x / 700) * 100;
+            const yPercent = (y / 1050) * 100;
+            
+            div.style.left = xPercent + '%';
+            div.style.top = yPercent + '%';
             
             div.innerHTML = `
                 <svg viewBox="0 0 100 100">
