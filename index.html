@@ -497,6 +497,7 @@
             <button class="tab" onclick="switchTab('players')">👥 Spieler</button>
             <button class="tab" onclick="switchTab('opponents')">🎯 Gegner</button>
             <button class="tab" onclick="switchTab('games')">🏆 Spiele</button>
+            <button class="tab" onclick="switchTab('formation')">⚽ Aufstellung</button>
             <button class="tab" onclick="switchTab('analysis')">🤖 KI-Analyse</button>
         </div>
 
@@ -951,7 +952,6 @@
             
             // Formation rendern wenn Aufstellung-Tab geöffnet wird
             if (tabName === 'formation') {
-                // Reload players from localStorage to get any fixes from Kader-Generator
                 players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
                 renderPitch();
             }
@@ -2083,15 +2083,6 @@
                             <button class="btn" onclick="createSquadForGame(${game.id})">
                                 ${game.squad ? '✏️ Kader bearbeiten' : '👥 Kader erstellen'}
                             </button>
-                            ${game.squad ? `
-                                <button class="btn" onclick="createFormationForGame(${game.id})">
-                                    ${game.formation ? '✏️ Aufstellung bearbeiten' : '⚽ Aufstellung erstellen'}
-                                </button>
-                            ` : `
-                                <button class="btn" onclick="alert('Bitte erstelle zuerst einen Kader!')" style="opacity: 0.5; cursor: not-allowed;">
-                                    🔒 Aufstellung (erst Kader erstellen)
-                                </button>
-                            `}
                         ` : ''}
                         ${isPast && !game.result ? `
                             <button class="btn" onclick="enterGameResult(${game.id})">📊 Ergebnis eintragen</button>
