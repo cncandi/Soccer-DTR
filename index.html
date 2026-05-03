@@ -1701,18 +1701,38 @@
             // Try to parse options from AI response
             const options = [];
             
-            // Split by "Option" markers (case insensitive, with or without ##)
-            const optionPattern = /(?:^|\n)(?:##\s*)?Option\s+(\d+):\s*["\"]?([^"\n]+)["\"]?/gi;
-            let match;
-            let lastIndex = 0;
-            const matches = [];
+            // Multiple patterns to try
+            const patterns = [
+                // Pattern 1: **Option 1: Title**
+                /\*\*Option\s+(\d+):\s*([^*\n]+)\*\*/gi,
+                // Pattern 2: ## Option 1: "Title"
+                /##\s*Option\s+(\d+):\s*["\"]([^"\n]+)["\"]/gi,
+                // Pattern 3: Option 1: "Title"
+                /Option\s+(\d+):\s*["\"]([^"\n]+)["\"]/gi,
+                // Pattern 4: Option 1: Title (without quotes)
+                /Option\s+(\d+):\s*([^\n]+)/gi
+            ];
             
-            while ((match = optionPattern.exec(aiResponse)) !== null) {
-                matches.push({
-                    index: match.index,
-                    number: match[1],
-                    title: match[2].trim()
-                });
+            let matches = [];
+            
+            // Try each pattern until we find matches
+            for (const pattern of patterns) {
+                const text = aiResponse;
+                let match;
+                const tempMatches = [];
+                
+                while ((match = pattern.exec(text)) !== null) {
+                    tempMatches.push({
+                        index: match.index,
+                        number: match[1],
+                        title: match[2].trim().replace(/\*\*/g, '') // Remove any remaining **
+                    });
+                }
+                
+                if (tempMatches.length >= 2) {
+                    matches = tempMatches;
+                    break;
+                }
             }
             
             // Extract content for each option
@@ -1739,20 +1759,20 @@
                 let html = '<h3 style="margin-bottom: 20px; color: #1e3c72;">🎯 Wähle eine taktische Option:</h3>';
                 
                 options.forEach((opt, idx) => {
-                    // Extract just the description part (remove the header)
-                    const descParts = opt.description.split(/Formation:/i);
-                    const afterFormation = descParts[1] || '';
+                    // Extract description after "Formation:"
+                    const descMatch = opt.description.match(/Formation:\s*[0-9\-]+\s*([\s\S]*)/i);
+                    const desc = descMatch ? descMatch[1].substring(0, 250) : '';
                     
                     html += `
                         <div class="formation-option-card" onclick="selectFormationOption('${opt.formation}', ${idx})">
                             <h3 style="color: #1e3c72; margin-bottom: 10px;">
-                                Option ${opt.number}: ${opt.title}
+                                ${opt.title}
                             </h3>
                             <p style="font-size: 1.1em; font-weight: 600; color: #667eea; margin: 10px 0;">
-                                📋 Formation: ${opt.formation}
+                                ⚽ Formation: ${opt.formation}
                             </p>
-                            <div style="color: #495057; font-size: 0.95em; line-height: 1.6;">
-                                ${afterFormation.substring(0, 200)}...
+                            <div style="color: #495057; font-size: 0.9em; line-height: 1.5;">
+                                ${desc.substring(0, 150)}...
                             </div>
                             <button class="btn" style="margin-top: 15px; width: 100%;">
                                 ✓ Diese Formation wählen
