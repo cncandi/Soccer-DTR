@@ -496,6 +496,7 @@
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab" onclick="switchTab('players')">Spielerverwaltung</button>
             <button class="tab" onclick="switchTab('opponents')">Gegneranalyse</button>
+            <button class="tab" onclick="switchTab('games')">Spiele</button>
             <button class="tab" onclick="switchTab('squad')">Kader-Generator</button>
             <button class="tab" onclick="switchTab('formation')">Aufstellung</button>
             <button class="tab" onclick="switchTab('analysis')">KI-Analyse</button>
@@ -697,6 +698,66 @@
                 <div class="opponent-list" id="opponentList"></div>
             </div>
 
+            <!-- Spiele Tab -->
+            <div id="games" class="tab-content">
+                <h2>🏆 Spiele</h2>
+                
+                <button class="btn" onclick="showNewGameForm()" style="margin-bottom: 30px;">➕ Neues Spiel anlegen</button>
+                
+                <div id="newGameForm" style="display: none; background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px;">Neues Spiel anlegen</h3>
+                    <form id="gameForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Gegner *</label>
+                                <select id="gameOpponent" required>
+                                    <option value="">-- Gegner wählen --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Spieltyp *</label>
+                                <select id="gameType" required>
+                                    <option value="heim">🏠 Heimspiel</option>
+                                    <option value="auswaerts">✈️ Auswärtsspiel</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Datum *</label>
+                                <input type="date" id="gameDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Uhrzeit *</label>
+                                <input type="time" id="gameTime" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Spielort</label>
+                            <input type="text" id="gameLocation" placeholder="z.B. Sportplatz Hauptstraße">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Notizen</label>
+                            <textarea id="gameNotes" rows="3" placeholder="Besondere Hinweise zum Spiel..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn">💾 Spiel speichern</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideNewGameForm()">Abbrechen</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <h3 style="margin-bottom: 20px;">📅 Kommende Spiele</h3>
+                <div id="upcomingGamesList"></div>
+                
+                <h3 style="margin: 40px 0 20px;">📊 Vergangene Spiele</h3>
+                <div id="pastGamesList"></div>
+            </div>
+
             <div id="squad" class="tab-content">
                 <h2>⚽ Kader-Generator für WhatsApp</h2>
                 
@@ -851,6 +912,7 @@
     <script>
         let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
+        let games = JSON.parse(localStorage.getItem('footballGames')) || [];
         
         // FIX: Normalisiere alte Spieler ohne Status
         players = players.map(p => {
@@ -867,6 +929,7 @@
             renderOpponents();
             updateDashboard();
             updateOpponentSelect();
+            renderGames();
         });
 
         function switchTab(tabName) {
@@ -885,6 +948,12 @@
                 // Reload players from localStorage to get any fixes from Kader-Generator
                 players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
                 renderPitch();
+            }
+            
+            // Spiele rendern wenn Spiele-Tab geöffnet wird
+            if (tabName === 'games') {
+                updateGameOpponentSelect();
+                renderGames();
             }
         }
 
@@ -1822,6 +1891,203 @@
 
         function shareFormationImage() {
             alert('Tipp: Mache einen Screenshot und teile diesen über WhatsApp!\n\niPhone: Screenshot → Teilen\nAndroid: Screenshot → Teilen');
+        }
+
+        // ===== SPIELE-MANAGEMENT =====
+        
+        function showNewGameForm() {
+            document.getElementById('newGameForm').style.display = 'block';
+            updateGameOpponentSelect();
+        }
+        
+        function hideNewGameForm() {
+            document.getElementById('newGameForm').style.display = 'none';
+            document.getElementById('gameForm').reset();
+        }
+        
+        function updateGameOpponentSelect() {
+            const select = document.getElementById('gameOpponent');
+            select.innerHTML = '<option value="">-- Gegner wählen --</option>';
+            opponents.forEach(opp => {
+                select.innerHTML += `<option value="${opp.id}">${opp.name}</option>`;
+            });
+        }
+        
+        document.getElementById('gameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const oppId = document.getElementById('gameOpponent').value;
+            const opponent = opponents.find(o => o.id == oppId);
+            
+            const game = {
+                id: Date.now(),
+                opponentId: oppId,
+                opponentName: opponent.name,
+                type: document.getElementById('gameType').value,
+                date: document.getElementById('gameDate').value,
+                time: document.getElementById('gameTime').value,
+                location: document.getElementById('gameLocation').value,
+                notes: document.getElementById('gameNotes').value,
+                status: 'geplant', // geplant, kader_erstellt, aufstellung_fertig, gespielt
+                createdAt: new Date().toISOString(),
+                squad: null, // Wird später gesetzt
+                formation: null, // Wird später gesetzt
+                result: null // Wird nach dem Spiel gesetzt
+            };
+            
+            games.push(game);
+            localStorage.setItem('footballGames', JSON.stringify(games));
+            
+            hideNewGameForm();
+            renderGames();
+            showMessage('Spiel erfolgreich angelegt!', 'success');
+        });
+        
+        function renderGames() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            const upcomingGames = games.filter(g => g.date >= today && g.status !== 'gespielt')
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            const pastGames = games.filter(g => g.date < today || g.status === 'gespielt')
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Upcoming games
+            const upcomingContainer = document.getElementById('upcomingGamesList');
+            if (upcomingGames.length === 0) {
+                upcomingContainer.innerHTML = '<p style="color: #666;">Keine kommenden Spiele. Lege ein neues Spiel an!</p>';
+            } else {
+                upcomingContainer.innerHTML = upcomingGames.map(game => createGameCard(game)).join('');
+            }
+            
+            // Past games
+            const pastContainer = document.getElementById('pastGamesList');
+            if (pastGames.length === 0) {
+                pastContainer.innerHTML = '<p style="color: #666;">Noch keine vergangenen Spiele.</p>';
+            } else {
+                pastContainer.innerHTML = pastGames.map(game => createGameCard(game, true)).join('');
+            }
+        }
+        
+        function createGameCard(game, isPast = false) {
+            const typeIcon = game.type === 'heim' ? '🏠' : '✈️';
+            const statusIcon = {
+                'geplant': '📋',
+                'kader_erstellt': '👥',
+                'aufstellung_fertig': '⚽',
+                'gespielt': '✅'
+            }[game.status] || '📋';
+            
+            const dateObj = new Date(game.date + 'T' + game.time);
+            const dateStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+            
+            return `
+                <div class="opponent-card" style="border-left-color: ${isPast ? '#6c757d' : '#28a745'};">
+                    <h3>${typeIcon} ${game.opponentName}</h3>
+                    <div class="player-info">
+                        <div class="info-item">
+                            <span class="info-label">Datum</span>
+                            ${dateStr}, ${game.time} Uhr
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status</span>
+                            ${statusIcon} ${getStatusText(game.status)}
+                        </div>
+                        ${game.location ? `
+                        <div class="info-item">
+                            <span class="info-label">Ort</span>
+                            ${game.location}
+                        </div>
+                        ` : ''}
+                        ${game.result ? `
+                        <div class="info-item">
+                            <span class="info-label">Ergebnis</span>
+                            <strong style="font-size: 1.2em;">${game.result}</strong>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="action-buttons" style="margin-top: 15px;">
+                        ${!isPast ? `
+                            <button class="btn" onclick="createSquadForGame(${game.id})">
+                                ${game.squad ? '✏️ Kader bearbeiten' : '👥 Kader erstellen'}
+                            </button>
+                            <button class="btn" onclick="createFormationForGame(${game.id})" ${!game.squad ? 'disabled' : ''}>
+                                ${game.formation ? '✏️ Aufstellung bearbeiten' : '⚽ Aufstellung erstellen'}
+                            </button>
+                        ` : ''}
+                        ${isPast && !game.result ? `
+                            <button class="btn" onclick="enterGameResult(${game.id})">📊 Ergebnis eintragen</button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="viewGameDetails(${game.id})">👁️ Details</button>
+                        <button class="btn btn-danger" onclick="deleteGame(${game.id})">Löschen</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getStatusText(status) {
+            const texts = {
+                'geplant': 'Geplant',
+                'kader_erstellt': 'Kader erstellt',
+                'aufstellung_fertig': 'Aufstellung fertig',
+                'gespielt': 'Gespielt'
+            };
+            return texts[status] || status;
+        }
+        
+        function createSquadForGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            // Switch to squad tab and set game context
+            window.currentGameId = gameId;
+            switchTab('squad');
+            showMessage(`Kader für Spiel gegen ${game.opponentName} wird erstellt`, 'success');
+        }
+        
+        function createFormationForGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            if (!game.squad) {
+                alert('Bitte erstelle zuerst einen Kader für dieses Spiel!');
+                return;
+            }
+            
+            // Switch to formation tab and set game context
+            window.currentGameId = gameId;
+            switchTab('formation');
+            showMessage(`Aufstellung für Spiel gegen ${game.opponentName} wird erstellt`, 'success');
+        }
+        
+        function viewGameDetails(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            alert(`Spiel-Details:\n\nGegner: ${game.opponentName}\nDatum: ${game.date}\nZeit: ${game.time}\nStatus: ${getStatusText(game.status)}\n\n${game.notes || 'Keine Notizen'}`);
+        }
+        
+        function deleteGame(gameId) {
+            if (!confirm('Spiel wirklich löschen?')) return;
+            
+            games = games.filter(g => g.id !== gameId);
+            localStorage.setItem('footballGames', JSON.stringify(games));
+            renderGames();
+            showMessage('Spiel gelöscht', 'success');
+        }
+        
+        function enterGameResult(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            const result = prompt(`Ergebnis eintragen für ${game.opponentName}:\n\nFormat: Unsere Tore : Gegner Tore\n(z.B. 3:1)`);
+            if (result) {
+                game.result = result;
+                game.status = 'gespielt';
+                localStorage.setItem('footballGames', JSON.stringify(games));
+                renderGames();
+                showMessage('Ergebnis gespeichert!', 'success');
+            }
         }
     </script>
 </body>
