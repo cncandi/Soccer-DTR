@@ -1522,7 +1522,10 @@
             const formationData = formations[selectedFormation];
             const availablePlayers = players.filter(p => p.status === 'verfügbar');
             
-            console.log('renderPitch called - Available players:', availablePlayers.length);
+            console.log('renderPitch called');
+            console.log('Total players:', players.length);
+            console.log('Available players:', availablePlayers.length);
+            console.log('Player statuses:', players.map(p => ({ name: p.name, status: p.status })));
             
             if (players.length === 0) {
                 container.innerHTML = `
@@ -1535,12 +1538,26 @@
             }
             
             if (availablePlayers.length < 11) {
+                // Detaillierte Status-Aufschlüsselung
+                const statusCounts = {
+                    'verfügbar': players.filter(p => p.status === 'verfügbar').length,
+                    'verletzt': players.filter(p => p.status === 'verletzt').length,
+                    'abwesend': players.filter(p => p.status === 'abwesend').length,
+                    'andere': players.filter(p => !['verfügbar', 'verletzt', 'abwesend'].includes(p.status)).length
+                };
+                
                 container.innerHTML = `
                     <div style="color: white; text-align: center; padding: 40px; font-size: 1.1em; line-height: 1.6;">
-                        <h3 style="margin-bottom: 20px;">⚠️ Nicht genug Spieler!</h3>
-                        <p>Du hast <strong>${availablePlayers.length}</strong> verfügbare Spieler.</p>
-                        <p>Es werden <strong>11</strong> Spieler mit Status "✅ Verfügbar" benötigt.</p>
-                        <p style="margin-top: 20px;">Gehe zu <strong>"Spielerverwaltung"</strong> und setze mehr Spieler auf "Verfügbar".</p>
+                        <h3 style="margin-bottom: 20px;">⚠️ Nicht genug verfügbare Spieler!</h3>
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                            <p><strong>Gesamt:</strong> ${players.length} Spieler</p>
+                            <p>✅ <strong>Verfügbar:</strong> ${statusCounts.verfügbar}</p>
+                            <p>🤕 <strong>Verletzt:</strong> ${statusCounts.verletzt}</p>
+                            <p>❌ <strong>Abwesend:</strong> ${statusCounts.abwesend}</p>
+                            ${statusCounts.andere > 0 ? `<p>❓ <strong>Unbekannt:</strong> ${statusCounts.andere}</p>` : ''}
+                        </div>
+                        <p style="margin-top: 20px;">Es werden <strong>11 verfügbare Spieler</strong> benötigt.</p>
+                        <p>Gehe zu <strong>"Spielerverwaltung"</strong> und setze mehr Spieler auf "✅ Verfügbar".</p>
                     </div>
                 `;
                 return;
