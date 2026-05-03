@@ -851,6 +851,16 @@
     <script>
         let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
+        
+        // FIX: Normalisiere alte Spieler ohne Status
+        players = players.map(p => {
+            if (!p.status || p.status === undefined || p.status === null || p.status === '') {
+                console.log(`⚠️ Fixing player ${p.name}: status was "${p.status}", setting to "verfügbar"`);
+                p.status = 'verfügbar';
+            }
+            return p;
+        });
+        localStorage.setItem('footballPlayers', JSON.stringify(players));
 
         document.addEventListener('DOMContentLoaded', function() {
             renderPlayers();
