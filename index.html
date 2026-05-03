@@ -496,8 +496,8 @@
             <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab" onclick="switchTab('players')">Spielerverwaltung</button>
             <button class="tab" onclick="switchTab('opponents')">Gegneranalyse</button>
-            <button class="tab" onclick="switchTab('formation')">Aufstellung</button>
             <button class="tab" onclick="switchTab('squad')">Kader-Generator</button>
+            <button class="tab" onclick="switchTab('formation')">Aufstellung</button>
             <button class="tab" onclick="switchTab('analysis')">KI-Analyse</button>
         </div>
 
@@ -1522,8 +1522,27 @@
             const formationData = formations[selectedFormation];
             const availablePlayers = players.filter(p => p.status === 'verfügbar');
             
+            console.log('renderPitch called - Available players:', availablePlayers.length);
+            
+            if (players.length === 0) {
+                container.innerHTML = `
+                    <div style="color: white; text-align: center; padding: 40px; font-size: 1.1em; line-height: 1.6;">
+                        <h3 style="margin-bottom: 20px;">⚽ Keine Spieler vorhanden!</h3>
+                        <p>Gehe zu <strong>"Spielerverwaltung"</strong> und füge Spieler hinzu.</p>
+                    </div>
+                `;
+                return;
+            }
+            
             if (availablePlayers.length < 11) {
-                container.innerHTML = '<div style="color: white; text-align: center; padding: 40px; font-size: 1.2em;">Mindestens 11 verfügbare Spieler benötigt!</div>';
+                container.innerHTML = `
+                    <div style="color: white; text-align: center; padding: 40px; font-size: 1.1em; line-height: 1.6;">
+                        <h3 style="margin-bottom: 20px;">⚠️ Nicht genug Spieler!</h3>
+                        <p>Du hast <strong>${availablePlayers.length}</strong> verfügbare Spieler.</p>
+                        <p>Es werden <strong>11</strong> Spieler mit Status "✅ Verfügbar" benötigt.</p>
+                        <p style="margin-top: 20px;">Gehe zu <strong>"Spielerverwaltung"</strong> und setze mehr Spieler auf "Verfügbar".</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -1548,6 +1567,8 @@
                 const jersey = createJerseyElement(p.player, p.number, p.x, p.y);
                 container.appendChild(jersey);
             });
+            
+            console.log('Formation rendered with', playersOnField.length, 'players');
         }
 
         function calculatePlayerRating(player) {
