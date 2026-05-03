@@ -1286,11 +1286,22 @@
                 const isAvailable = player.status === 'verfügbar';
                 const isSelected = selectedPlayerIds.has(player.id);
                 
+                // FORCE FIX: If status is undefined, fix it NOW
+                if (!player.status || player.status === 'undefined' || player.status === undefined) {
+                    console.log(`🔧 Emergency fix: ${player.name} status was ${player.status}, fixing to verfügbar`);
+                    player.status = 'verfügbar';
+                    // Update in main array
+                    const idx = players.findIndex(p => p.id === player.id);
+                    if (idx !== -1) players[idx].status = 'verfügbar';
+                    // Save immediately
+                    localStorage.setItem('footballPlayers', JSON.stringify(players));
+                }
+                
                 const statusIcon = {
                     'verfügbar': '✅',
                     'abwesend': '❌',
                     'verletzt': '🤕'
-                }[player.status] || `❓(${player.status})`;
+                }[player.status] || '✅'; // Default to ✅ if unknown
                 
                 const aYouthLabel = player.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;">A-Jugend</span>' : '';
                 
