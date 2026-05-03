@@ -1252,6 +1252,14 @@
             // Nur nicht-verletzte Spieler (verfügbar + abwesend können ausgewählt werden)
             const selectablePlayers = players.filter(p => p.status !== 'verletzt');
             
+            // AUTO-SELECT: Wenn noch keine Spieler ausgewählt wurden, wähle automatisch alle verfügbaren
+            if (selectedPlayerIds.size === 0) {
+                players.filter(p => p.status === 'verfügbar').forEach(p => {
+                    selectedPlayerIds.add(p.id);
+                });
+                console.log('Auto-selected', selectedPlayerIds.size, 'available players');
+            }
+            
             // DEBUG: Log actual status values
             console.log('=== PLAYER STATUS DEBUG ===');
             players.forEach(p => {
