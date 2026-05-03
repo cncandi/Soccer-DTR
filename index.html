@@ -903,6 +903,17 @@
             <div id="analysis" class="tab-content">
                 <h2>🤖 KI-gestützte Trainer-Analyse</h2>
                 
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #0d6efd;">
+                    <h3 style="margin-bottom: 15px; color: #0d6efd;">⏸️ Halbzeitanalyse</h3>
+                    <p style="color: #084298; margin-bottom: 20px;">Bewerte die erste Halbzeit und erhalte Empfehlungen für die zweite Halbzeit!</p>
+                    
+                    <button class="btn" onclick="startHalftimeAnalysis()" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); width: 100%;">
+                        ⏸️ Halbzeitanalyse starten
+                    </button>
+                    
+                    <div id="halftimeAnalysisForm" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
                     <h3 style="margin-bottom: 15px;">Allgemeine Analysen</h3>
                     <div class="analysis-controls">
@@ -1379,6 +1390,155 @@
             
             const prompt = buildPrompt('situation', null, config.prompt);
             await runAnalysis(config.title, prompt);
+        }
+
+        function startHalftimeAnalysis() {
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            const formContainer = document.getElementById('halftimeAnalysisForm');
+            formContainer.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">📊 Spielstand & Bewertung</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unsere Tore</label>
+                            <input type="number" id="htOurGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Gegner Tore</label>
+                            <input type="number" id="htOpponentGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Was läuft GUT? ✅</label>
+                        <textarea id="htGoodThings" rows="3" placeholder="z.B. Starkes Pressing, gute Chancenverwertung, stabile Abwehr..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Was läuft SCHLECHT? ❌</label>
+                        <textarea id="htBadThings" rows="3" placeholder="z.B. Zu viele Ballverluste, schwache Zweikampfquote, Müdigkeit..."></textarea>
+                    </div>
+                    
+                    <h4 style="margin: 30px 0 20px;">👥 Einzelkritik (1=sehr gut, 6=sehr schlecht)</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Bewerte die 11 Spieler der Startaufstellung:</p>
+                    
+                    <div id="halftimePlayerRatings" style="display: grid; gap: 15px;">
+            `;
+            
+            // Show first 11 available players for rating
+            availablePlayers.slice(0, 11).forEach((player, idx) => {
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${player.name}</strong>
+                            <span style="color: #666; margin-left: 10px;">${player.position}</span>
+                        </div>
+                        <select id="htRating${idx}" data-player-id="${player.id}" style="font-size: 1.1em; padding: 8px;">
+                            <option value="">Note</option>
+                            <option value="1">1 - Sehr gut</option>
+                            <option value="2">2 - Gut</option>
+                            <option value="3">3 - Befriedigend</option>
+                            <option value="4">4 - Ausreichend</option>
+                            <option value="5">5 - Mangelhaft</option>
+                            <option value="6">6 - Ungenügend</option>
+                        </select>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div style="margin-top: 30px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="generateHalftimeAnalysis()" style="flex: 1;">
+                            🤖 KI-Analyse für 2. Halbzeit
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelHalftimeAnalysis()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            formContainer.innerHTML = html;
+        }
+        
+        function cancelHalftimeAnalysis() {
+            document.getElementById('halftimeAnalysisForm').style.display = 'none';
+            document.getElementById('halftimeAnalysisForm').innerHTML = '';
+        }
+        
+        async function generateHalftimeAnalysis() {
+            const ourGoals = document.getElementById('htOurGoals').value;
+            const oppGoals = document.getElementById('htOpponentGoals').value;
+            const goodThings = document.getElementById('htGoodThings').value.trim();
+            const badThings = document.getElementById('htBadThings').value.trim();
+            
+            if (!goodThings || !badThings) {
+                alert('Bitte fülle "Was läuft gut" und "Was läuft schlecht" aus!');
+                return;
+            }
+            
+            // Collect player ratings
+            const ratings = [];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar').slice(0, 11);
+            
+            availablePlayers.forEach((player, idx) => {
+                const ratingSelect = document.getElementById(`htRating${idx}`);
+                const rating = ratingSelect ? ratingSelect.value : '';
+                
+                if (rating) {
+                    ratings.push({
+                        name: player.name,
+                        position: player.position,
+                        rating: rating,
+                        id: player.id
+                    });
+                }
+            });
+            
+            if (ratings.length === 0) {
+                alert('Bitte bewerte mindestens einen Spieler!');
+                return;
+            }
+            
+            // Build halftime analysis prompt
+            let prompt = `HALBZEITANALYSE\n\n`;
+            prompt += `SPIELSTAND: ${ourGoals}:${oppGoals}\n\n`;
+            prompt += `✅ WAS LÄUFT GUT:\n${goodThings}\n\n`;
+            prompt += `❌ WAS LÄUFT SCHLECHT:\n${badThings}\n\n`;
+            prompt += `EINZELKRITIK (1=sehr gut, 6=sehr schlecht):\n`;
+            
+            ratings.forEach(r => {
+                prompt += `${r.name} (${r.position}): Note ${r.rating}\n`;
+            });
+            
+            prompt += `\n\nAufgabe: Analysiere die erste Halbzeit und erstelle Empfehlungen für die zweite Halbzeit:\n\n`;
+            prompt += `1. ZUSAMMENFASSUNG: Was war das Hauptproblem? Was lief am besten?\n`;
+            prompt += `2. AUSWECHSLUNGEN: Welche Spieler sollten raus (mit Begründung)? Welche rein?\n`;
+            prompt += `3. TAKTISCHE ANPASSUNGEN: Formationsänderung? Spielweise ändern?\n`;
+            prompt += `4. INDIVIDUELLE ANWEISUNGEN: Was soll jeder Spieler anders machen?\n`;
+            prompt += `5. AUFSTELLUNG 2. HALBZEIT: Konkrete Aufstellung mit 11 Spielern\n\n`;
+            
+            prompt += `Verfügbare Spieler auf der Bank:\n`;
+            const benchPlayers = players.filter(p => p.status === 'verfügbar' && !ratings.find(r => r.id === p.id));
+            benchPlayers.forEach(p => {
+                prompt += `- ${p.name} (${p.position})\n`;
+            });
+            
+            await runAnalysis('⏸️ Halbzeitanalyse & Empfehlungen für 2. Halbzeit', prompt);
+            
+            // Hide form after analysis
+            cancelHalftimeAnalysis();
         }
 
         function buildPrompt(type, opp, customPrompt) {
