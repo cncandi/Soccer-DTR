@@ -1077,6 +1077,7 @@
                         ${o.strengths ? '<p><strong>Stärken:</strong> '+o.strengths+'</p>' : ''}
                         ${o.weaknesses ? '<p><strong>Schwächen:</strong> '+o.weaknesses+'</p>' : ''}
                         <div class="action-buttons">
+                            <button class="btn" onclick="editOpponent(${o.id})">✏️ Bearbeiten</button>
                             <button class="btn btn-danger" onclick="deleteOpponent(${o.id})">Löschen</button>
                         </div>
                     </div>
@@ -1218,6 +1219,60 @@
                 updateDashboard();
                 updateOpponentSelect();
             }
+        }
+
+        function editOpponent(id) {
+            const opponent = opponents.find(o => o.id === id);
+            if (!opponent) return;
+
+            // Fill form with opponent data
+            document.getElementById('opponentName').value = opponent.name;
+            document.getElementById('opponentFormation').value = opponent.formation || '';
+            document.getElementById('opponentStyle').value = opponent.style || '';
+            document.getElementById('opponentKeyPlayers').value = opponent.keyPlayers || '';
+            document.getElementById('opponentStrengths').value = opponent.strengths || '';
+            document.getElementById('opponentWeaknesses').value = opponent.weaknesses || '';
+
+            // Scroll to form
+            document.getElementById('opponentForm').scrollIntoView({ behavior: 'smooth' });
+
+            // Change submit button
+            const submitBtn = document.querySelector('#opponentForm button[type="submit"]');
+            submitBtn.textContent = '💾 Änderungen speichern';
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                saveOpponentEdit(id);
+            };
+
+            showMessage('Gegner wird bearbeitet - Formular oben ausfüllen', 'success');
+        }
+
+        function saveOpponentEdit(id) {
+            const opponentIndex = opponents.findIndex(o => o.id === id);
+            if (opponentIndex === -1) return;
+
+            opponents[opponentIndex] = {
+                id: id,
+                name: document.getElementById('opponentName').value,
+                formation: document.getElementById('opponentFormation').value,
+                style: document.getElementById('opponentStyle').value,
+                keyPlayers: document.getElementById('opponentKeyPlayers').value,
+                strengths: document.getElementById('opponentStrengths').value,
+                weaknesses: document.getElementById('opponentWeaknesses').value
+            };
+
+            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            
+            // Reset form
+            document.getElementById('opponentForm').reset();
+            const submitBtn = document.querySelector('#opponentForm button[type="submit"]');
+            submitBtn.textContent = 'Gegner speichern';
+            submitBtn.onclick = null;
+
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+            showMessage('Gegner erfolgreich aktualisiert!', 'success');
         }
 
         function showMessage(msg, type) {
