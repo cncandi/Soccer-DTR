@@ -901,16 +901,47 @@
             </div>
 
             <div id="analysis" class="tab-content">
-                <h2>KI-gestützte Trainer-Analyse</h2>
-                <div class="analysis-controls">
-                    <select id="analysisOpponent" class="opponent-select">
-                        <option value="">-- Gegner wählen --</option>
-                    </select>
-                    <button class="btn" onclick="generateLineup()">Aufstellung</button>
-                    <button class="btn" onclick="generateTrainingPlan()">Trainingsplan</button>
-                    <button class="btn" onclick="generateTactics()">Taktik</button>
-                    <button class="btn" onclick="generateLongTermGoals()">Langfristziele</button>
+                <h2>🤖 KI-gestützte Trainer-Analyse</h2>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px;">Allgemeine Analysen</h3>
+                    <div class="analysis-controls">
+                        <select id="analysisOpponent" class="opponent-select">
+                            <option value="">-- Gegner wählen --</option>
+                        </select>
+                        <button class="btn" onclick="generateLineup()">📋 Aufstellung</button>
+                        <button class="btn" onclick="generateTrainingPlan()">🏃 Trainingsplan</button>
+                        <button class="btn" onclick="generateTactics()">🎯 Taktik</button>
+                        <button class="btn" onclick="generateLongTermGoals()">📈 Langfristziele</button>
+                    </div>
                 </div>
+                
+                <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #ffc107;">
+                    <h3 style="margin-bottom: 15px; color: #856404;">⚡ Spielsituationen-Analyse</h3>
+                    <p style="color: #856404; margin-bottom: 20px;">Wähle eine Spielsituation für taktische Empfehlungen:</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                        <button class="btn" onclick="analyzeSituation('fuehrung_halten')" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            ✅ Führung halten
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('fuehrung_auswechslung')" style="background: linear-gradient(135deg, #28a745, #17a2b8);">
+                            🔄 Führung + Wechsel
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('stand_halten')" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            🟰 Stand halten
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('stand_auswechslung')" style="background: linear-gradient(135deg, #ffc107, #17a2b8);">
+                            🔄 Stand + Wechsel
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('rueckstand_aufholen')" style="background: linear-gradient(135deg, #dc3545, #fd7e14);">
+                            ⚠️ Rückstand aufholen
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('rueckstand_auswechslung')" style="background: linear-gradient(135deg, #dc3545, #17a2b8);">
+                            🔄 Rückstand + Wechsel
+                        </button>
+                    </div>
+                </div>
+                
                 <div id="analysisResults"></div>
             </div>
         </div>
@@ -1313,7 +1344,44 @@
             await runAnalysis('Langfristige Ziele (3 Monate)', buildPrompt('longterm'));
         }
 
-        function buildPrompt(type, opp) {
+        async function analyzeSituation(situation) {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            
+            const situations = {
+                'fuehrung_halten': {
+                    title: '✅ Führung halten - Keine Auswechslung',
+                    prompt: 'Du führst im Spiel. Wie sicherst du die Führung OHNE Auswechslungen? Taktische Tipps zur Spielkontrolle, Zeitmanagement und Defensivverhalten.'
+                },
+                'fuehrung_auswechslung': {
+                    title: '🔄 Führung halten - Mit Auswechslung',
+                    prompt: 'Du führst im Spiel. Welche Auswechslungen sichern die Führung? Defensive Wechsel, frische Kräfte in der Abwehr, Zeit von der Uhr nehmen.'
+                },
+                'stand_halten': {
+                    title: '🟰 Unentschieden halten - Keine Auswechslung',
+                    prompt: 'Das Spiel steht unentschieden. Wie hältst du den Stand OHNE Wechsel? Balance zwischen Defensive und Offensive, Spielkontrolle.'
+                },
+                'stand_auswechslung': {
+                    title: '🔄 Unentschieden - Mit Auswechslung',
+                    prompt: 'Unentschieden - welche Wechsel bringen den Sieg? Offensive Impulse, frische Energie, taktische Umstellung für die Schlussphase.'
+                },
+                'rueckstand_aufholen': {
+                    title: '⚠️ Rückstand aufholen - Keine Auswechslung',
+                    prompt: 'Du liegst zurück. Wie holst du auf OHNE Wechsel? Taktische Umstellung auf mehr Offensive, Pressing, Risikobereitschaft.'
+                },
+                'rueckstand_auswechslung': {
+                    title: '🔄 Rückstand aufholen - Mit Auswechslung',
+                    prompt: 'Rückstand - welche Wechsel bringen das Tor? Offensive Spieler einwechseln, Formation ändern, alles nach vorne.'
+                }
+            };
+            
+            const config = situations[situation];
+            if (!config) return;
+            
+            const prompt = buildPrompt('situation', null, config.prompt);
+            await runAnalysis(config.title, prompt);
+        }
+
+        function buildPrompt(type, opp, customPrompt) {
             let data = `MEIN TEAM:\nKader: ${players.length} Spieler\n\n`;
             const pos = {};
             players.forEach(p => pos[p.position] = (pos[p.position]||0)+1);
@@ -1333,6 +1401,11 @@
                 data += `\n\nGEGNER: ${opp.name}\n${opp.formation}, ${opp.style}\n`;
                 if (opp.strengths) data += `Stärken: ${opp.strengths}\n`;
                 if (opp.weaknesses) data += `Schwächen: ${opp.weaknesses}\n`;
+            }
+            
+            // If custom prompt provided (for situations), use it
+            if (customPrompt) {
+                return data + '\n\n' + customPrompt;
             }
 
             const prompts = {
