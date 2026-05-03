@@ -1693,43 +1693,79 @@
         function displayFormationOptions(aiResponse) {
             const container = document.getElementById('formationOptions');
             
-            // Parse the AI response to extract options
+            // Try to parse options from AI response
             const options = [];
-            const optionBlocks = aiResponse.split(/(?=Option \d+:|## Option \d+:)/i);
             
-            optionBlocks.forEach(block => {
-                const titleMatch = block.match(/(?:Option \d+:|## Option \d+:)\s*"([^"]+)"/i);
-                const formationMatch = block.match(/Formation:\s*([0-9\-]+)/i);
+            // Split by "Option" markers (case insensitive, with or without ##)
+            const optionPattern = /(?:^|\n)(?:##\s*)?Option\s+(\d+):\s*["\"]?([^"\n]+)["\"]?/gi;
+            let match;
+            let lastIndex = 0;
+            const matches = [];
+            
+            while ((match = optionPattern.exec(aiResponse)) !== null) {
+                matches.push({
+                    index: match.index,
+                    number: match[1],
+                    title: match[2].trim()
+                });
+            }
+            
+            // Extract content for each option
+            matches.forEach((m, idx) => {
+                const startIndex = m.index;
+                const endIndex = idx < matches.length - 1 ? matches[idx + 1].index : aiResponse.length;
+                const optionText = aiResponse.substring(startIndex, endIndex);
                 
-                if (titleMatch && formationMatch) {
+                // Try to extract formation
+                const formationMatch = optionText.match(/Formation:\s*([0-9\-]+)/i);
+                
+                if (formationMatch) {
                     options.push({
-                        title: titleMatch[1],
+                        number: m.number,
+                        title: m.title,
                         formation: formationMatch[1],
-                        description: block
+                        description: optionText.trim()
                     });
                 }
             });
             
-            if (options.length > 0) {
-                let html = '<h3 style="margin-bottom: 15px;">🎯 Wähle eine taktische Option:</h3>';
+            // If we successfully parsed options, show them as cards
+            if (options.length >= 2) {
+                let html = '<h3 style="margin-bottom: 20px; color: #1e3c72;">🎯 Wähle eine taktische Option:</h3>';
                 
                 options.forEach((opt, idx) => {
+                    // Extract just the description part (remove the header)
+                    const descParts = opt.description.split(/Formation:/i);
+                    const afterFormation = descParts[1] || '';
+                    
                     html += `
                         <div class="formation-option-card" onclick="selectFormationOption('${opt.formation}', ${idx})">
-                            <h3>Option ${idx + 1}: ${opt.title}</h3>
-                            <p><strong>Formation: ${opt.formation}</strong></p>
-                            <button class="btn" style="margin-top: 10px;">✓ Diese Formation wählen</button>
+                            <h3 style="color: #1e3c72; margin-bottom: 10px;">
+                                Option ${opt.number}: ${opt.title}
+                            </h3>
+                            <p style="font-size: 1.1em; font-weight: 600; color: #667eea; margin: 10px 0;">
+                                📋 Formation: ${opt.formation}
+                            </p>
+                            <div style="color: #495057; font-size: 0.95em; line-height: 1.6;">
+                                ${afterFormation.substring(0, 200)}...
+                            </div>
+                            <button class="btn" style="margin-top: 15px; width: 100%;">
+                                ✓ Diese Formation wählen
+                            </button>
                         </div>
                     `;
                 });
                 
+                html += '<p style="color: #666; font-size: 0.9em; margin-top: 15px; text-align: center;">Klicke auf eine Karte um die Formation zu laden</p>';
                 container.innerHTML = html;
             } else {
-                // Fallback: Show raw text if parsing fails
+                // Fallback: Show as text with manual dropdown instruction
                 container.innerHTML = `
-                    <h3 style="margin-bottom: 15px;">🎯 KI-Taktik-Vorschläge:</h3>
-                    <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 12px;">${aiResponse}</div>
-                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Wähle oben die passende Formation aus dem Dropdown.</p>
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="color: #856404; margin-bottom: 10px;">ℹ️ KI-Antwort</h3>
+                        <p style="color: #856404;">Die KI-Antwort konnte nicht in Options-Karten umgewandelt werden. Lies die Empfehlung und wähle die Formation manuell aus dem Dropdown oben.</p>
+                    </div>
+                    <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 12px; border: 2px solid #e9ecef;">${aiResponse}</div>
                 `;
             }
         }
