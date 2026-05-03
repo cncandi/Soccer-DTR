@@ -493,13 +493,11 @@
         </header>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
-            <button class="tab" onclick="switchTab('players')">Spielerverwaltung</button>
-            <button class="tab" onclick="switchTab('opponents')">Gegneranalyse</button>
-            <button class="tab" onclick="switchTab('games')">Spiele</button>
-            <button class="tab" onclick="switchTab('squad')">Kader-Generator</button>
-            <button class="tab" onclick="switchTab('formation')">Aufstellung</button>
-            <button class="tab" onclick="switchTab('analysis')">KI-Analyse</button>
+            <button class="tab active" onclick="switchTab('dashboard')">📊 Übersicht</button>
+            <button class="tab" onclick="switchTab('players')">👥 Spieler</button>
+            <button class="tab" onclick="switchTab('opponents')">🎯 Gegner</button>
+            <button class="tab" onclick="switchTab('games')">🏆 Spiele</button>
+            <button class="tab" onclick="switchTab('analysis')">🤖 KI-Analyse</button>
         </div>
 
         <div class="content">
@@ -700,62 +698,70 @@
 
             <!-- Spiele Tab -->
             <div id="games" class="tab-content">
-                <h2>🏆 Spiele</h2>
-                
-                <button class="btn" onclick="showNewGameForm()" style="margin-bottom: 30px;">➕ Neues Spiel anlegen</button>
-                
-                <div id="newGameForm" style="display: none; background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
-                    <h3 style="margin-bottom: 20px;">Neues Spiel anlegen</h3>
-                    <form id="gameForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Gegner *</label>
-                                <select id="gameOpponent" required>
-                                    <option value="">-- Gegner wählen --</option>
-                                </select>
+                <div id="gamesMainView">
+                    <h2>🏆 Spiele</h2>
+                    
+                    <button class="btn" onclick="showNewGameForm()" style="margin-bottom: 30px;">➕ Neues Spiel anlegen</button>
+                    
+                    <div id="newGameForm" style="display: none; background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 20px;">Neues Spiel anlegen</h3>
+                        <form id="gameForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Gegner *</label>
+                                    <select id="gameOpponent" required>
+                                        <option value="">-- Gegner wählen --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Spieltyp *</label>
+                                    <select id="gameType" required>
+                                        <option value="heim">🏠 Heimspiel</option>
+                                        <option value="auswaerts">✈️ Auswärtsspiel</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Spieltyp *</label>
-                                <select id="gameType" required>
-                                    <option value="heim">🏠 Heimspiel</option>
-                                    <option value="auswaerts">✈️ Auswärtsspiel</option>
-                                </select>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Datum *</label>
+                                    <input type="date" id="gameDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Uhrzeit *</label>
+                                    <input type="time" id="gameTime" required>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="form-row">
+                            
                             <div class="form-group">
-                                <label>Datum *</label>
-                                <input type="date" id="gameDate" required>
+                                <label>Spielort</label>
+                                <input type="text" id="gameLocation" placeholder="z.B. Sportplatz Hauptstraße">
                             </div>
+                            
                             <div class="form-group">
-                                <label>Uhrzeit *</label>
-                                <input type="time" id="gameTime" required>
+                                <label>Notizen</label>
+                                <textarea id="gameNotes" rows="3" placeholder="Besondere Hinweise zum Spiel..."></textarea>
                             </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Spielort</label>
-                            <input type="text" id="gameLocation" placeholder="z.B. Sportplatz Hauptstraße">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Notizen</label>
-                            <textarea id="gameNotes" rows="3" placeholder="Besondere Hinweise zum Spiel..."></textarea>
-                        </div>
-                        
-                        <div style="display: flex; gap: 10px;">
-                            <button type="submit" class="btn">💾 Spiel speichern</button>
-                            <button type="button" class="btn btn-secondary" onclick="hideNewGameForm()">Abbrechen</button>
-                        </div>
-                    </form>
+                            
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn">💾 Spiel speichern</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideNewGameForm()">Abbrechen</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 20px;">📅 Kommende Spiele</h3>
+                    <div id="upcomingGamesList"></div>
+                    
+                    <h3 style="margin: 40px 0 20px;">📊 Vergangene Spiele</h3>
+                    <div id="pastGamesList"></div>
                 </div>
                 
-                <h3 style="margin-bottom: 20px;">📅 Kommende Spiele</h3>
-                <div id="upcomingGamesList"></div>
+                <!-- Kader Sub-View (hidden by default) -->
+                <div id="gameSquadView" style="display: none;"></div>
                 
-                <h3 style="margin: 40px 0 20px;">📊 Vergangene Spiele</h3>
-                <div id="pastGamesList"></div>
+                <!-- Formation Sub-View (hidden by default) -->
+                <div id="gameFormationView" style="display: none;"></div>
             </div>
 
             <div id="squad" class="tab-content">
