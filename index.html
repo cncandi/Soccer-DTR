@@ -903,6 +903,36 @@
             <div id="analysis" class="tab-content">
                 <h2>🤖 KI-gestützte Trainer-Analyse</h2>
                 
+                <div style="background: #d1ecf1; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #17a2b8;">
+                    <h3 style="margin-bottom: 15px; color: #0c5460;">🎤 Freie Frage an die KI</h3>
+                    <p style="color: #0c5460; margin-bottom: 20px;">Stelle eine beliebige Frage zum Training, Taktik oder Team!</p>
+                    
+                    <div class="form-group">
+                        <textarea id="freeQuestionText" rows="3" placeholder="z.B. Wie trainiere ich Kontersituationen? Welche Formation gegen starke Flügelspieler?"></textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="askFreeQuestion()" style="flex: 1; background: linear-gradient(135deg, #17a2b8, #138496);">
+                            💬 Frage stellen
+                        </button>
+                        <button class="btn" onclick="startVoiceInput()" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                            🎤 Sprechen
+                        </button>
+                    </div>
+                    <p id="voiceStatus" style="margin-top: 10px; color: #0c5460; font-size: 0.9em;"></p>
+                </div>
+                
+                <div style="background: #f8d7da; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #dc3545;">
+                    <h3 style="margin-bottom: 15px; color: #721c24;">📝 Nach-dem-Spiel Bewertung</h3>
+                    <p style="color: #721c24; margin-bottom: 20px;">Bewerte alle Spieler nach dem Spiel (wird gespeichert, keine KI-Analyse):</p>
+                    
+                    <button class="btn" onclick="startPostGameEvaluation()" style="background: linear-gradient(135deg, #dc3545, #bd2130); width: 100%;">
+                        📝 Spielerbewertung starten
+                    </button>
+                    
+                    <div id="postGameEvaluationForm" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
                 <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #0d6efd;">
                     <h3 style="margin-bottom: 15px; color: #0d6efd;">⏸️ Halbzeitanalyse</h3>
                     <p style="color: #084298; margin-bottom: 20px;">Bewerte die erste Halbzeit und erhalte Empfehlungen für die zweite Halbzeit!</p>
@@ -1539,6 +1569,214 @@
             
             // Hide form after analysis
             cancelHalftimeAnalysis();
+        }
+
+        // ===== POST-GAME EVALUATION =====
+        
+        function startPostGameEvaluation() {
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length === 0) {
+                alert('Keine verfügbaren Spieler!');
+                return;
+            }
+            
+            const formContainer = document.getElementById('postGameEvaluationForm');
+            formContainer.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">📊 Endstand</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unsere Tore</label>
+                            <input type="number" id="pgOurGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Gegner Tore</label>
+                            <input type="number" id="pgOpponentGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <h4 style="margin: 30px 0 20px;">👥 Spielerbewertung (1=sehr gut, 6=sehr schlecht)</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Bewerte alle Spieler die gespielt haben:</p>
+                    
+                    <div id="postGamePlayerRatings" style="display: grid; gap: 15px;">
+            `;
+            
+            availablePlayers.forEach((player, idx) => {
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong>${player.name}</strong>
+                            <span style="color: #666; margin-left: 10px;">${player.position}</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label style="margin: 0;">
+                                <input type="checkbox" id="pgPlayed${idx}" data-player-id="${player.id}" style="margin-right: 5px;">
+                                Gespielt
+                            </label>
+                            <select id="pgRating${idx}" data-player-id="${player.id}" style="font-size: 1.1em; padding: 8px;">
+                                <option value="">Note</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 30px;">
+                        <label>Notizen zum Spiel (optional)</label>
+                        <textarea id="pgNotes" rows="4" placeholder="Was war besonders? Besondere Vorkommnisse? Learnings?"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="savePostGameEvaluation()" style="flex: 1;">
+                            💾 Bewertung speichern
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelPostGameEvaluation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            formContainer.innerHTML = html;
+        }
+        
+        function cancelPostGameEvaluation() {
+            document.getElementById('postGameEvaluationForm').style.display = 'none';
+            document.getElementById('postGameEvaluationForm').innerHTML = '';
+        }
+        
+        function savePostGameEvaluation() {
+            const ourGoals = document.getElementById('pgOurGoals').value;
+            const oppGoals = document.getElementById('pgOpponentGoals').value;
+            const notes = document.getElementById('pgNotes').value.trim();
+            
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            const evaluations = [];
+            
+            availablePlayers.forEach((player, idx) => {
+                const playedCheckbox = document.getElementById(`pgPlayed${idx}`);
+                const ratingSelect = document.getElementById(`pgRating${idx}`);
+                
+                if (playedCheckbox && playedCheckbox.checked) {
+                    const rating = ratingSelect ? ratingSelect.value : '';
+                    
+                    if (rating) {
+                        evaluations.push({
+                            playerId: player.id,
+                            playerName: player.name,
+                            position: player.position,
+                            rating: rating
+                        });
+                    }
+                }
+            });
+            
+            if (evaluations.length === 0) {
+                alert('Bitte markiere mindestens einen Spieler als "Gespielt" und bewerte ihn!');
+                return;
+            }
+            
+            // Save to localStorage
+            const postGameData = {
+                date: new Date().toISOString(),
+                score: `${ourGoals}:${oppGoals}`,
+                evaluations: evaluations,
+                notes: notes
+            };
+            
+            let postGameHistory = JSON.parse(localStorage.getItem('postGameEvaluations')) || [];
+            postGameHistory.push(postGameData);
+            localStorage.setItem('postGameEvaluations', JSON.stringify(postGameHistory));
+            
+            showMessage(`Spielerbewertung gespeichert! (${evaluations.length} Spieler)`, 'success');
+            cancelPostGameEvaluation();
+            
+            // Show summary
+            let summary = `📊 BEWERTUNG GESPEICHERT\n\n`;
+            summary += `Endstand: ${ourGoals}:${oppGoals}\n\n`;
+            summary += `Bewertete Spieler:\n`;
+            evaluations.forEach(e => {
+                summary += `${e.playerName} (${e.position}): Note ${e.rating}\n`;
+            });
+            if (notes) summary += `\nNotizen: ${notes}`;
+            
+            alert(summary);
+        }
+        
+        // ===== FREE AI QUESTION WITH VOICE =====
+        
+        let recognition = null;
+        
+        function startVoiceInput() {
+            const statusEl = document.getElementById('voiceStatus');
+            
+            // Check browser support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                statusEl.textContent = '❌ Spracherkennung wird von diesem Browser nicht unterstützt';
+                statusEl.style.color = '#dc3545';
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = function() {
+                statusEl.textContent = '🎤 Spreche jetzt...';
+                statusEl.style.color = '#dc3545';
+            };
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('freeQuestionText').value = transcript;
+                statusEl.textContent = '✅ Erkannt: "' + transcript + '"';
+                statusEl.style.color = '#28a745';
+            };
+            
+            recognition.onerror = function(event) {
+                statusEl.textContent = '❌ Fehler: ' + event.error;
+                statusEl.style.color = '#dc3545';
+            };
+            
+            recognition.onend = function() {
+                if (statusEl.textContent.includes('Spreche jetzt')) {
+                    statusEl.textContent = '❌ Keine Sprache erkannt';
+                    statusEl.style.color = '#dc3545';
+                }
+            };
+            
+            recognition.start();
+        }
+        
+        async function askFreeQuestion() {
+            const question = document.getElementById('freeQuestionText').value.trim();
+            
+            if (!question) {
+                alert('Bitte stelle eine Frage oder nutze das Mikrofon!');
+                return;
+            }
+            
+            const prompt = buildPrompt('situation', null, question);
+            await runAnalysis('💬 Antwort auf deine Frage', prompt);
+            
+            // Clear question after asking
+            document.getElementById('freeQuestionText').value = '';
+            document.getElementById('voiceStatus').textContent = '';
         }
 
         function buildPrompt(type, opp, customPrompt) {
