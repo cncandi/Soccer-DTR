@@ -846,8 +846,19 @@
             <div id="formation" class="tab-content">
                 <h2>⚽ Aufstellung</h2>
                 
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #0d6efd;">
+                    <h3 style="margin-bottom: 15px; color: #0d6efd;">🎨 Eigene Aufstellung erstellen & bewerten</h3>
+                    <p style="color: #084298; margin-bottom: 20px;">Erstelle deine eigene Aufstellung und lass sie von der KI analysieren!</p>
+                    
+                    <button class="btn" onclick="showCustomFormationBuilder()" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); width: 100%;">
+                        🎨 Eigene Aufstellung bauen
+                    </button>
+                    
+                    <div id="customFormationBuilder" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px;"><strong>Formation wählen:</strong></label>
+                    <label style="display: block; margin-bottom: 10px;"><strong>Vordefinierte Formation wählen:</strong></label>
                     <select id="formationSelect" onchange="loadFormation()" style="padding: 10px; font-size: 1em; width: 200px;">
                         <option value="4-3-3">4-3-3 (Offensiv)</option>
                         <option value="4-4-2">4-4-2 (Ausgewogen)</option>
@@ -960,6 +971,16 @@
                 <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #ffc107;">
                     <h3 style="margin-bottom: 15px; color: #856404;">⚡ Spielsituationen-Analyse</h3>
                     <p style="color: #856404; margin-bottom: 20px;">Wähle eine Spielsituation für taktische Empfehlungen:</p>
+                    
+                    <div style="background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin-bottom: 10px; color: #856404;">💡 Eigene Situation erstellen</h4>
+                        <button class="btn" onclick="showCustomSituationCreator()" style="background: linear-gradient(135deg, #ffc107, #fd7e14); width: 100%;">
+                            ✍️ Eigene Spielsituation definieren
+                        </button>
+                        <div id="customSituationCreator" style="display: none; margin-top: 15px;"></div>
+                    </div>
+                    
+                    <h4 style="margin-bottom: 10px; color: #856404;">🎯 Vordefinierte Situationen:</h4>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                         <button class="btn" onclick="analyzeSituation('fuehrung_halten')" style="background: linear-gradient(135deg, #28a745, #20c997);">
@@ -1777,6 +1798,273 @@
             // Clear question after asking
             document.getElementById('freeQuestionText').value = '';
             document.getElementById('voiceStatus').textContent = '';
+        }
+
+        // ===== CUSTOM FORMATION BUILDER =====
+        
+        function showCustomFormationBuilder() {
+            const container = document.getElementById('customFormationBuilder');
+            container.style.display = 'block';
+            
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                container.innerHTML = '<p style="color: #dc3545;">⚠️ Mindestens 11 verfügbare Spieler benötigt!</p>';
+                return;
+            }
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">🎨 Baue deine eigene Aufstellung</h4>
+                    
+                    <div class="form-group">
+                        <label>Formationsname</label>
+                        <input type="text" id="customFormationName" placeholder="z.B. Meine 4-2-3-1 Ultra-Offensiv" style="width: 100%;">
+                    </div>
+                    
+                    <h4 style="margin: 20px 0 10px;">Wähle 11 Spieler und ihre Positionen:</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Ziehe Spieler auf Positionen oder wähle aus Dropdown</p>
+                    
+                    <div id="customFormationPlayers" style="display: grid; gap: 10px;">
+            `;
+            
+            for (let i = 1; i <= 11; i++) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                        <strong>Position ${i}:</strong>
+                        <div style="display: flex; gap: 10px; margin-top: 8px;">
+                            <select id="customPlayer${i}" style="flex: 2;">
+                                <option value="">-- Spieler wählen --</option>
+                                ${availablePlayers.map(p => `<option value="${p.id}">${p.name} (${p.position})</option>`).join('')}
+                            </select>
+                            <select id="customPos${i}" style="flex: 1;">
+                                <option value="">-- Position --</option>
+                                <option value="TW">TW</option>
+                                <option value="IV">IV</option>
+                                <option value="LV">LV</option>
+                                <option value="RV">RV</option>
+                                <option value="LM">LM</option>
+                                <option value="RM">RM</option>
+                                <option value="ZM">ZM</option>
+                                <option value="OM">OM</option>
+                                <option value="DM">DM</option>
+                                <option value="ST">ST</option>
+                                <option value="LF">LF</option>
+                                <option value="RF">RF</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Was ist deine taktische Idee hinter dieser Aufstellung?</label>
+                        <textarea id="customFormationIdea" rows="3" placeholder="z.B. Maximale Breite durch Außenverteidiger, kompaktes Mittelfeld, zwei schnelle Stürmer für Konter..."></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="evaluateCustomFormation()" style="flex: 1;">
+                            🤖 Von KI bewerten lassen
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelCustomFormation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function cancelCustomFormation() {
+            document.getElementById('customFormationBuilder').style.display = 'none';
+            document.getElementById('customFormationBuilder').innerHTML = '';
+        }
+        
+        async function evaluateCustomFormation() {
+            const formationName = document.getElementById('customFormationName').value.trim();
+            const tacticalIdea = document.getElementById('customFormationIdea').value.trim();
+            
+            // Collect selected players and positions
+            const lineup = [];
+            for (let i = 1; i <= 11; i++) {
+                const playerId = document.getElementById(`customPlayer${i}`).value;
+                const position = document.getElementById(`customPos${i}`).value;
+                
+                if (playerId && position) {
+                    const player = players.find(p => p.id == playerId);
+                    if (player) {
+                        lineup.push({
+                            name: player.name,
+                            position: position,
+                            originalPosition: player.position
+                        });
+                    }
+                }
+            }
+            
+            if (lineup.length < 11) {
+                alert('Bitte wähle 11 Spieler mit Positionen!');
+                return;
+            }
+            
+            // Build evaluation prompt
+            let prompt = `BEWERTUNG EIGENER AUFSTELLUNG\n\n`;
+            prompt += formationName ? `Formation: ${formationName}\n\n` : '';
+            prompt += `AUFSTELLUNG:\n`;
+            lineup.forEach((p, idx) => {
+                prompt += `${idx + 1}. ${p.name} - ${p.position}`;
+                if (p.position !== p.originalPosition) {
+                    prompt += ` (normalerweise ${p.originalPosition})`;
+                }
+                prompt += `\n`;
+            });
+            
+            if (tacticalIdea) {
+                prompt += `\nTAKTISCHE IDEE:\n${tacticalIdea}\n`;
+            }
+            
+            prompt += `\n\nAufgabe: Bewerte diese Aufstellung kritisch und konstruktiv:\n\n`;
+            prompt += `1. FORMATION-ANALYSE: Welche Formation ist das? Wie ausbalanciert ist sie?\n`;
+            prompt += `2. STÄRKEN: Was sind die 3 größten Vorteile dieser Aufstellung?\n`;
+            prompt += `3. SCHWÄCHEN: Was sind die 3 größten Risiken/Probleme?\n`;
+            prompt += `4. SPIELER-POSITIONEN: Wer spielt auf falscher Position? Wer passt perfekt?\n`;
+            prompt += `5. GEGNER: Gegen welche Gegner-Typen funktioniert diese Aufstellung gut/schlecht?\n`;
+            prompt += `6. VERBESSERUNGSVORSCHLÄGE: Konkrete 2-3 Änderungen die die Aufstellung besser machen\n`;
+            prompt += `7. GESAMTNOTE: Bewertung von 1 (sehr gut) bis 6 (ungenügend) mit Begründung\n`;
+            
+            await runAnalysis(`🎨 Bewertung: ${formationName || 'Deine Aufstellung'}`, prompt);
+            cancelCustomFormation();
+        }
+        
+        // ===== CUSTOM SITUATION CREATOR =====
+        
+        function showCustomSituationCreator() {
+            const container = document.getElementById('customSituationCreator');
+            container.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">✍️ Eigene Spielsituation definieren</h4>
+                    
+                    <div class="form-group">
+                        <label><strong>Spielsituation beschreiben</strong></label>
+                        <textarea id="customSituationDesc" rows="4" placeholder="Beschreibe die Situation genau, z.B.:&#10;&#10;'Es ist die 75. Minute, wir führen 2:1. Der Gegner hat gerade gewechselt und spielt jetzt mit 3 Stürmern. Unsere Außenverteidiger sind müde. Was sollen wir tun?'&#10;&#10;Oder:&#10;&#10;'Rote Karte für unseren Innenverteidiger in Minute 30, noch 0:0. Wie stellen wir um?'"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Aktueller Spielstand (optional)</label>
+                            <input type="text" id="customSituationScore" placeholder="z.B. 1:1, 2:0, 0:3">
+                        </div>
+                        <div class="form-group">
+                            <label>Spielminute (optional)</label>
+                            <input type="number" id="customSituationMinute" min="1" max="90" placeholder="z.B. 65">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><strong>Was möchtest du von der KI?</strong></label>
+                        <select id="customSituationType" style="width: 100%;">
+                            <option value="vorschlag">Taktischen Vorschlag für Reaktion</option>
+                            <option value="bewertung">Bewertung meiner geplanten Reaktion</option>
+                            <option value="optionen">Mehrere Handlungsoptionen mit Vor-/Nachteilen</option>
+                        </select>
+                    </div>
+                    
+                    <div id="customReactionInput" style="display: none;" class="form-group">
+                        <label>Deine geplante Reaktion (zur Bewertung)</label>
+                        <textarea id="customReaction" rows="3" placeholder="z.B. Ich würde auf 5-4-1 umstellen und den schnellsten Stürmer vorne lassen..."></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="analyzeCustomSituation()" style="flex: 1; background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            🤖 KI-Analyse starten
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelCustomSituation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Show/hide reaction input based on type
+            document.getElementById('customSituationType').addEventListener('change', function() {
+                const reactionDiv = document.getElementById('customReactionInput');
+                reactionDiv.style.display = this.value === 'bewertung' ? 'block' : 'none';
+            });
+        }
+        
+        function cancelCustomSituation() {
+            document.getElementById('customSituationCreator').style.display = 'none';
+            document.getElementById('customSituationCreator').innerHTML = '';
+        }
+        
+        async function analyzeCustomSituation() {
+            const situation = document.getElementById('customSituationDesc').value.trim();
+            const score = document.getElementById('customSituationScore').value.trim();
+            const minute = document.getElementById('customSituationMinute').value;
+            const type = document.getElementById('customSituationType').value;
+            const reaction = document.getElementById('customReaction') ? document.getElementById('customReaction').value.trim() : '';
+            
+            if (!situation) {
+                alert('Bitte beschreibe die Spielsituation!');
+                return;
+            }
+            
+            // Build analysis prompt
+            let prompt = `SPIELSITUATION-ANALYSE\n\n`;
+            prompt += `SITUATION:\n${situation}\n\n`;
+            
+            if (score) prompt += `Spielstand: ${score}\n`;
+            if (minute) prompt += `Minute: ${minute}\n`;
+            prompt += `\n`;
+            
+            // Different prompts based on type
+            if (type === 'vorschlag') {
+                prompt += `Aufgabe: Analysiere diese Situation und gib konkrete taktische Empfehlungen:\n\n`;
+                prompt += `1. SITUATIONSANALYSE: Was ist das Hauptproblem/die Hauptchance?\n`;
+                prompt += `2. SOFORT-MASSNAHMEN: Was muss sofort passieren?\n`;
+                prompt += `3. TAKTISCHE ANPASSUNG: Welche Formation/Spielweise?\n`;
+                prompt += `4. AUSWECHSLUNGEN: Wer raus, wer rein, warum?\n`;
+                prompt += `5. INDIVIDUELLE ANWEISUNGEN: Was sollen Schlüsselspieler tun?\n`;
+                prompt += `6. RISIKO-BEWERTUNG: Was kann schiefgehen?\n`;
+            } else if (type === 'bewertung') {
+                if (!reaction) {
+                    alert('Bitte beschreibe deine geplante Reaktion!');
+                    return;
+                }
+                prompt += `GEPLANTE REAKTION:\n${reaction}\n\n`;
+                prompt += `Aufgabe: Bewerte diese Reaktion kritisch:\n\n`;
+                prompt += `1. STÄRKEN: Was ist gut an dieser Reaktion?\n`;
+                prompt += `2. SCHWÄCHEN: Welche Risiken/Probleme siehst du?\n`;
+                prompt += `3. ALTERNATIVE: Gibt es eine bessere Lösung?\n`;
+                prompt += `4. GESAMTBEWERTUNG: Note 1-6 mit Begründung\n`;
+            } else {  // optionen
+                prompt += `Aufgabe: Präsentiere 3 verschiedene Handlungsoptionen:\n\n`;
+                prompt += `Option 1 (Defensiv): Sicherheit first, Ergebnis halten\n`;
+                prompt += `Option 2 (Balanced): Ausgewogen, flexibel reagieren\n`;
+                prompt += `Option 3 (Offensiv): Risikoreich, auf Sieg spielen\n\n`;
+                prompt += `Für jede Option:\n`;
+                prompt += `- Konkrete taktische Maßnahmen\n`;
+                prompt += `- Auswechslungen wenn sinnvoll\n`;
+                prompt += `- Vorteile und Nachteile\n`;
+                prompt += `- Erfolgswahrscheinlichkeit\n`;
+            }
+            
+            const titles = {
+                'vorschlag': '💡 Taktischer Vorschlag für deine Situation',
+                'bewertung': '⚖️ Bewertung deiner Reaktion',
+                'optionen': '🎯 3 Handlungsoptionen'
+            };
+            
+            await runAnalysis(titles[type], prompt);
+            cancelCustomSituation();
         }
 
         function buildPrompt(type, opp, customPrompt) {
