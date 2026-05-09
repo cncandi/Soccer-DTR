@@ -526,12 +526,35 @@
                         <div class="stat-label">Ø Team-Rating</div>
                     </div>
                 </div>
+                
+                <!-- DATA BACKUP SECTION -->
+                <div style="background: linear-gradient(135deg, #dc3545, #c82333); padding: 20px; border-radius: 12px; margin-bottom: 30px; color: white; border: 3px solid #a71d2a;">
+                    <h3 style="margin-bottom: 15px; color: white;">⚠️ WICHTIG: Datensicherung</h3>
+                    <p style="margin-bottom: 15px; line-height: 1.6;">
+                        <strong>Safari Cache löschen = ALLE Daten weg!</strong><br>
+                        Sichere deine Spieler und Gegner regelmäßig:
+                    </p>
+                    <div style="display: grid; gap: 10px;">
+                        <button class="btn" onclick="exportAllData()" style="background: linear-gradient(135deg, #28a745, #20c997); width: 100%; padding: 14px;">
+                            💾 Daten exportieren (Backup erstellen)
+                        </button>
+                        <button class="btn" onclick="document.getElementById('importFileInput').click()" style="background: linear-gradient(135deg, #17a2b8, #138496); width: 100%; padding: 14px;">
+                            📂 Daten importieren (Backup laden)
+                        </button>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;" onchange="importAllData(event)">
+                    </div>
+                    <p style="margin-top: 15px; font-size: 14px; opacity: 0.9;">
+                        💡 Tipp: Export-Datei auf iCloud/Google Drive speichern!
+                    </p>
+                </div>
+                
                 <h2>Schnellstart</h2>
                 <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten!</p>
                 <ol style="line-height: 2; margin-left: 20px;">
                     <li>Füge deine <strong>Spieler</strong> hinzu</li>
                     <li>Analysiere deine <strong>Gegner</strong></li>
                     <li>Lass die <strong>KI</strong> Aufstellungen und Trainingspläne erstellen</li>
+                    <li><strong>⚠️ Exportiere deine Daten regelmäßig!</strong></li>
                 </ol>
             </div>
 
@@ -3127,6 +3150,188 @@
         
         function cancelFormationEdit() {
             document.getElementById('formationOptions').innerHTML = '';
+        }
+
+        // ===== DATA EXPORT/IMPORT & AUTO-BACKUP =====
+        
+        // Export all data
+        function exportAllData() {
+            const data = {
+                version: '2.0',
+                exportDate: new Date().toISOString(),
+                players: players,
+                opponents: opponents,
+                games: games
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `soccer-dtr-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            showMessage('✅ Backup erfolgreich heruntergeladen!', 'success');
+        }
+        
+        // Import all data
+        function importAllData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm(`Backup vom ${new Date(data.exportDate).toLocaleDateString('de-DE')} gefunden!\n\n` +
+                               `${data.players.length} Spieler\n` +
+                               `${data.opponents.length} Gegner\n` +
+                               `${data.games.length} Spiele\n\n` +
+                               `ALLE aktuellen Daten werden überschrieben!\n\nFortfahren?`)) {
+                        
+                        players = data.players || [];
+                        opponents = data.opponents || [];
+                        games = data.games || [];
+                        
+                        localStorage.setItem('footballPlayers', JSON.stringify(players));
+                        localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+                        localStorage.setItem('footballGames', JSON.stringify(games));
+                        
+                        renderPlayers();
+                        renderOpponents();
+                        renderGames();
+                        updateDashboard();
+                        
+                        showMessage(`✅ ${data.players.length} Spieler erfolgreich importiert!`, 'success');
+                        
+                        // Reset file input
+                        event.target.value = '';
+                    }
+                } catch (error) {
+                    alert('❌ Fehler beim Import! Datei beschädigt oder falsches Format.');
+                    console.error('Import error:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Automatic backup every 5 minutes
+        setInterval(function() {
+            const backupData = {
+                players: players,
+                opponents: opponents,
+                games: games,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('footballBackup', JSON.stringify(backupData));
+            console.log('Auto-backup created:', new Date().toLocaleTimeString());
+        }, 5 * 60 * 1000); // 5 minutes
+        
+        // Restore from auto-backup if main data is lost
+        function checkAndRestoreBackup() {
+            if (players.length === 0 && opponents.length === 0) {
+                const backup = localStorage.getItem('footballBackup');
+                if (backup) {
+                    try {
+                        const data = JSON.parse(backup);
+                        if (data.players && data.players.length > 0) {
+                            if (confirm(`Auto-Backup gefunden vom ${new Date(data.timestamp).toLocaleString('de-DE')}!\n\n` +
+                                       `${data.players.length} Spieler\n${data.opponents.length} Gegner\n\n` +
+                                       `Wiederherstellen?`)) {
+                                players = data.players;
+                                opponents = data.opponents;
+                                games = data.games || [];
+                                
+                                localStorage.setItem('footballPlayers', JSON.stringify(players));
+                                localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+                                localStorage.setItem('footballGames', JSON.stringify(games));
+                                
+                                renderPlayers();
+                                renderOpponents();
+                                renderGames();
+                                updateDashboard();
+                                
+                                showMessage('✅ Daten aus Auto-Backup wiederhergestellt!', 'success');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Backup restore error:', error);
+                    }
+                }
+            }
+        }
+        
+        // Check for backup on page load
+        window.addEventListener('load', function() {
+            setTimeout(checkAndRestoreBackup, 1000);
+        });
+        
+        // BULK IMPORT FOR ANDREAS'S PLAYERS
+        function importAndreasPlayers() {
+            const andreasPlayers = [
+                {name: "Schmitt, Benjamin-Oliver", position: "TW", jerseyNumber: "", age: 34, status: "verfügbar"},
+                {name: "Stark, Lucas", position: "IV", jerseyNumber: "", age: 24, status: "verfügbar"},
+                {name: "Teklemariam Weldetinsae, Yohannes", position: "IV", jerseyNumber: "", age: 27, status: "verfügbar"},
+                {name: "Tudor, David-Alexandru", position: "IV", jerseyNumber: "", age: 20, status: "verfügbar"},
+                {name: "Weber, Marvin", position: "IV", jerseyNumber: "", age: 17, status: "verfügbar"},
+                {name: "Gaz, Ben Renan", position: "LV", jerseyNumber: "", age: 34, status: "verfügbar"},
+                {name: "Gaz, Jonathan", position: "RV", jerseyNumber: "", age: 30, status: "verfügbar"},
+                {name: "Ibrahim, Mustafa", position: "ZM", jerseyNumber: "", age: 18, status: "verfügbar"},
+                {name: "Reitz, Maximilian", position: "ZM", jerseyNumber: "8", age: 21, status: "verfügbar"},
+                {name: "Schultz, Jan", position: "ZM", jerseyNumber: "12", age: 17, status: "verfügbar"},
+                {name: "Weigand, Jakob", position: "ZM", jerseyNumber: "13", age: 18, status: "verfügbar"},
+                {name: "Denysov, Arsenii", position: "OM", jerseyNumber: "14", age: 18, status: "verfügbar"},
+                {name: "Boehle, Fynn", position: "ST", jerseyNumber: "17", age: 18, status: "verfügbar"},
+                {name: "Becker, Luca-Finn", position: "ST", jerseyNumber: "18", age: 21, status: "verfügbar"},
+                {name: "Ruppersberger, Thore", position: "ST", jerseyNumber: "11", age: 20, status: "verfügbar"},
+                {name: "Schwind, Jonas", position: "LF", jerseyNumber: "15", age: 17, status: "verfügbar"},
+                {name: "Gashi, Ibush", position: "RF", jerseyNumber: "16", age: 40, status: "verfügbar"},
+                {name: "Damm, Johannes", position: "ST", jerseyNumber: "19", age: 38, status: "verfügbar"},
+                {name: "Sallija, Festim", position: "ZM", jerseyNumber: "5", age: 24, status: "verfügbar"},
+                {name: "Bierau, Fabian", position: "TW", jerseyNumber: "6", age: 35, status: "verfügbar"},
+                {name: "Gaschler, Ole", position: "ZM", jerseyNumber: "23", age: 22, status: "verfügbar"},
+                {name: "Pollmann, Luis", position: "ZM", jerseyNumber: "2", age: 18, status: "verfügbar"},
+                {name: "Alsaleh, Mohammad", position: "ZM", jerseyNumber: "3", age: 18, status: "verfügbar"},
+                {name: "Cegledi, Jan Marek", position: "ZM", jerseyNumber: "4", age: 35, status: "verfügbar"},
+                {name: "Seipp, Tristan", position: "ZM", jerseyNumber: "7", age: 33, status: "verfügbar"},
+                {name: "Medjic, Alen", position: "ST", jerseyNumber: "9", age: 18, status: "verfügbar"},
+                {name: "Plack, Nikolas", position: "ZM", jerseyNumber: "10", age: 30, status: "verfügbar"}
+            ];
+            
+            // Add default ratings
+            andreasPlayers.forEach((p, idx) => {
+                players.push({
+                    id: Date.now() + idx,
+                    name: p.name,
+                    age: p.age,
+                    position: p.position,
+                    jerseyNumber: p.jerseyNumber,
+                    status: p.status,
+                    aYouth: false,
+                    skills: { passing: 5, shooting: 5, dribbling: 5, speed: 5 },
+                    physical: { stamina: 5, strength: 5, tackling: 5 },
+                    mental: { intelligence: 5, leadership: 5, composure: 5 },
+                    strengths: '',
+                    weaknesses: ''
+                });
+            });
+            
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            renderPlayers();
+            updateDashboard();
+            showMessage(`✅ ${andreasPlayers.length} Spieler importiert!`, 'success');
+        }
+        
+        // Auto-run on first load if no players exist
+        if (players.length === 0) {
+            setTimeout(function() {
+                if (confirm('Möchtest du die 27 Spieler aus deinem Team automatisch importieren?\n\nDu kannst sie später noch anpassen!')) {
+                    importAndreasPlayers();
+                }
+            }, 2000);
         }
     </script>
 </body>
