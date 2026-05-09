@@ -1,0 +1,18 @@
+[Unit]
+Description=Soccer-DTR Trainer App Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/soccer-dtr
+ExecStart=/usr/bin/node /var/www/soccer-dtr/server.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=soccer-dtr
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
