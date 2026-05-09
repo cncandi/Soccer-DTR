@@ -1096,9 +1096,11 @@
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
         let games = JSON.parse(localStorage.getItem('footballGames')) || [];
         
-        // Save default players on first load
-        if (players.length === 27 && !localStorage.getItem('footballPlayers')) {
-            console.log('✅ Loading 27 default players for first time!');
+        // Save default players if not in localStorage
+        const storedPlayers = localStorage.getItem('footballPlayers');
+        if (!storedPlayers || storedPlayers === 'null' || storedPlayers === '[]') {
+            console.log('✅ No players in localStorage - loading 27 default players!');
+            players = DEFAULT_PLAYERS;
             localStorage.setItem('footballPlayers', JSON.stringify(players));
         }
         
