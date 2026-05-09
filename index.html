@@ -1092,27 +1092,32 @@
             {id: 27, name: "Plack, Nikolas", age: 30, position: "ZM", jerseyNumber: "10", status: "verfügbar", aYouth: false, skills: {passing: 5, shooting: 5, dribbling: 5, speed: 5}, physical: {stamina: 5, strength: 5, tackling: 5}, mental: {intelligence: 5, leadership: 5, composure: 5}, strengths: "", weaknesses: ""}
         ];
 
-        let players = JSON.parse(localStorage.getItem('footballPlayers')) || DEFAULT_PLAYERS;
+        // FORCE LOAD: Check localStorage and load defaults if empty/broken
+        let storedPlayersRaw = localStorage.getItem('footballPlayers');
+        let players = [];
+        
+        try {
+            if (storedPlayersRaw && storedPlayersRaw !== 'null' && storedPlayersRaw !== '[]') {
+                players = JSON.parse(storedPlayersRaw);
+            }
+        } catch (e) {
+            console.error('Error parsing stored players:', e);
+        }
+        
+        // If still empty, force load defaults
+        if (!players || players.length === 0) {
+            console.log('🚨 FORCE LOADING 27 DEFAULT PLAYERS!');
+            players = DEFAULT_PLAYERS.map(p => ({...p})); // Deep copy
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            console.log('✅ Saved', players.length, 'players to localStorage');
+        } else {
+            console.log('✅ Loaded', players.length, 'players from localStorage');
+        }
+        
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
         let games = JSON.parse(localStorage.getItem('footballGames')) || [];
         
-        // Save default players if not in localStorage
-        const storedPlayers = localStorage.getItem('footballPlayers');
-        if (!storedPlayers || storedPlayers === 'null' || storedPlayers === '[]') {
-            console.log('✅ No players in localStorage - loading 27 default players!');
-            players = DEFAULT_PLAYERS;
-            localStorage.setItem('footballPlayers', JSON.stringify(players));
-        }
-        
-        // FIX: Normalisiere alte Spieler ohne Status
-        players = players.map(p => {
-            if (!p.status || p.status === undefined || p.status === null || p.status === '') {
-                console.log(`⚠️ Fixing player ${p.name}: status was "${p.status}", setting to "verfügbar"`);
-                p.status = 'verfügbar';
-            }
-            return p;
-        });
-        localStorage.setItem('footballPlayers', JSON.stringify(players));
+        console.log('📊 Final player count:', players.length);
 
         document.addEventListener('DOMContentLoaded', function() {
             renderPlayers();
