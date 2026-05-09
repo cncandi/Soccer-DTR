@@ -548,6 +548,20 @@
                     </p>
                 </div>
                 
+                <!-- QUICK IMPORT FOR ANDREAS -->
+                <div style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); padding: 20px; border-radius: 12px; margin-bottom: 30px; color: white; border: 3px solid #0a58ca;">
+                    <h3 style="margin-bottom: 15px; color: white;">⚽ Team schnell laden</h3>
+                    <p style="margin-bottom: 15px; line-height: 1.6;">
+                        <strong>Deine 27 Spieler mit einem Klick importieren:</strong>
+                    </p>
+                    <button class="btn" onclick="importAndreasPlayers()" style="background: linear-gradient(135deg, #ffc107, #fd7e14); width: 100%; padding: 16px; font-size: 18px;">
+                        🎯 27 Spieler jetzt laden!
+                    </button>
+                    <p style="margin-top: 15px; font-size: 14px; opacity: 0.9;">
+                        Alle Spieler aus deinem Team mit Namen, Positionen und Trikotnummern
+                    </p>
+                </div>
+                
                 <h2>Schnellstart</h2>
                 <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten!</p>
                 <ol style="line-height: 2; margin-left: 20px;">
@@ -3301,6 +3315,13 @@
                 {name: "Plack, Nikolas", position: "ZM", jerseyNumber: "10", age: 30, status: "verfügbar"}
             ];
             
+            if (players.length > 0) {
+                if (!confirm(`Du hast bereits ${players.length} Spieler!\n\nAlle löschen und die 27 Team-Spieler importieren?`)) {
+                    return;
+                }
+                players = [];
+            }
+            
             // Add default ratings
             andreasPlayers.forEach((p, idx) => {
                 players.push({
@@ -3322,16 +3343,14 @@
             localStorage.setItem('footballPlayers', JSON.stringify(players));
             renderPlayers();
             updateDashboard();
-            showMessage(`✅ ${andreasPlayers.length} Spieler importiert!`, 'success');
-        }
-        
-        // Auto-run on first load if no players exist
-        if (players.length === 0) {
+            showMessage(`✅ ${andreasPlayers.length} Spieler erfolgreich importiert!`, 'success');
+            
+            // Auto-export after import
             setTimeout(function() {
-                if (confirm('Möchtest du die 27 Spieler aus deinem Team automatisch importieren?\n\nDu kannst sie später noch anpassen!')) {
-                    importAndreasPlayers();
+                if (confirm('Möchtest du jetzt ein Backup exportieren?\n\nEmpfohlen: JA!')) {
+                    exportAllData();
                 }
-            }, 2000);
+            }, 1000);
         }
     </script>
 </body>
