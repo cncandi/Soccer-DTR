@@ -2,31 +2,40 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Soccer-DTR">
     <title>Fußball-Trainer Assistent</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
+            -webkit-overflow-scrolling: touch;
         }
         
         .container { 
-            max-width: 1400px; 
+            max-width: 100%; 
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             overflow: hidden;
         }
         
         header {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
-            padding: 50px 40px;
+            padding: 20px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -172,15 +181,24 @@
             padding: 14px 16px;
             border: 2px solid #e9ecef;
             border-radius: 12px;
-            font-size: 1em;
-            transition: all 0.3s;
+            font-size: 16px;
+            transition: all 0.2s;
             font-family: inherit;
+            -webkit-appearance: none;
+            appearance: none;
         }
         
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+        
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
         }
         
         .rating-group {
@@ -218,22 +236,21 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 14px 32px;
+            padding: 16px 24px;
+            min-height: 48px;
             border-radius: 12px;
-            font-size: 1em;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         
         .btn:active {
-            transform: translateY(-1px);
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
         }
         
         .btn-secondary {
@@ -241,17 +258,9 @@
             box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
         }
         
-        .btn-secondary:hover {
-            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
-        }
-        
         .btn-danger { 
             background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-        }
-        
-        .btn-danger:hover {
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
         }
         
         .player-list, .opponent-list { margin-top: 30px; }
@@ -859,14 +868,19 @@
                 
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 10px;"><strong>Vordefinierte Formation wählen:</strong></label>
-                    <select id="formationSelect" onchange="loadFormation()" style="padding: 10px; font-size: 1em; width: 200px;">
-                        <option value="4-3-3">4-3-3 (Offensiv)</option>
-                        <option value="4-4-2">4-4-2 (Ausgewogen)</option>
-                        <option value="4-2-3-1">4-2-3-1 (Flexibel)</option>
-                        <option value="3-5-2">3-5-2 (Breit)</option>
-                        <option value="4-1-4-1">4-1-4-1 (Defensiv)</option>
-                    </select>
-                    <button class="btn" onclick="generateFormationOptions()" style="margin-left: 10px;">🤖 3 KI-Vorschläge</button>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <select id="formationSelect" onchange="loadFormation()" style="padding: 14px; font-size: 16px; flex: 1; min-width: 150px; border-radius: 8px; border: 2px solid #ddd; -webkit-appearance: none;">
+                            <option value="4-3-3">4-3-3 (Offensiv)</option>
+                            <option value="4-4-2">4-4-2 (Ausgewogen)</option>
+                            <option value="4-2-3-1">4-2-3-1 (Flexibel)</option>
+                            <option value="3-5-2">3-5-2 (Breit)</option>
+                            <option value="4-1-4-1">4-1-4-1 (Defensiv)</option>
+                        </select>
+                        <button class="btn" onclick="editCurrentFormation()" style="white-space: nowrap; padding: 14px 20px; background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            ✏️
+                        </button>
+                    </div>
+                    <button class="btn" onclick="generateFormationOptions()" style="margin-top: 10px; width: 100%; padding: 14px;">🤖 3 KI-Vorschläge</button>
                 </div>
 
                 <div id="formationOptions" style="margin-bottom: 30px;"></div>
@@ -2958,6 +2972,161 @@
                 renderGames();
                 showMessage('Ergebnis gespeichert!', 'success');
             }
+        }
+
+        // ===== FORMATION EDITING & PLAYER FILTERING =====
+        
+        let playersOnField = []; // Track players currently on field
+        
+        function editCurrentFormation() {
+            const formationType = document.getElementById('formationSelect').value;
+            
+            if (!formationType) {
+                alert('Bitte wähle zuerst eine Formation aus!');
+                return;
+            }
+            
+            const formationData = formations[formationType];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            // Build editing interface
+            let html = `
+                <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #ffc107;">
+                    <h3 style="margin-bottom: 15px; color: #856404;">✏️ Formation ${formationType} bearbeiten</h3>
+                    <p style="color: #856404; margin-bottom: 20px;">Weise jedem Spieler seine Position zu. Bereits gewählte Spieler verschwinden aus den anderen Listen.</p>
+                    
+                    <div style="display: grid; gap: 12px;">
+            `;
+            
+            // Get current lineup or create new one
+            const currentLineup = playersOnField.length === 11 ? playersOnField : [];
+            
+            formationData.positions.forEach((pos, idx) => {
+                const currentPlayer = currentLineup[idx] ? currentLineup[idx].player : null;
+                
+                html += `
+                    <div style="background: white; padding: 14px; border-radius: 8px;">
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #1e3c72; font-size: 15px;">${pos.role} (Pos. ${idx + 1})</strong>
+                        </div>
+                        <select id="editPlayer${idx}" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 6px; border: 2px solid #ddd; -webkit-appearance: none;">
+                            <option value="">-- Spieler wählen --</option>
+                        </select>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="saveFormationEdit('${formationType}')" style="flex: 1; padding: 16px; font-size: 16px;">
+                            💾 Speichern
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelFormationEdit()" style="padding: 16px;">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('formationOptions').innerHTML = html;
+            
+            // Populate dropdowns and add change listeners
+            formationData.positions.forEach((pos, idx) => {
+                updatePlayerDropdown(idx, formationType, currentLineup[idx] ? currentLineup[idx].player : null);
+                
+                document.getElementById(`editPlayer${idx}`).addEventListener('change', function() {
+                    formationData.positions.forEach((p, i) => {
+                        if (i !== idx) {
+                            const currentVal = document.getElementById(`editPlayer${i}`).value;
+                            const currentP = currentVal ? players.find(pl => pl.id == currentVal) : null;
+                            updatePlayerDropdown(i, formationType, currentP);
+                        }
+                    });
+                });
+            });
+        }
+        
+        function updatePlayerDropdown(posIdx, formationType, currentPlayer) {
+            const select = document.getElementById(`editPlayer${posIdx}`);
+            if (!select) return;
+            
+            const formationData = formations[formationType];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            const selectedIds = new Set();
+            
+            // Collect all selected players except current position
+            formationData.positions.forEach((pos, idx) => {
+                if (idx !== posIdx) {
+                    const s = document.getElementById(`editPlayer${idx}`);
+                    if (s && s.value) {
+                        selectedIds.add(parseInt(s.value));
+                    }
+                }
+            });
+            
+            // Filter available players
+            const filteredPlayers = availablePlayers.filter(p => 
+                !selectedIds.has(p.id) || (currentPlayer && p.id === currentPlayer.id)
+            );
+            
+            const currentValue = currentPlayer ? currentPlayer.id : '';
+            
+            select.innerHTML = '<option value="">-- Spieler wählen --</option>' +
+                filteredPlayers.map(p => `
+                    <option value="${p.id}" ${currentValue == p.id ? 'selected' : ''}>
+                        ${p.name} (${p.position})
+                    </option>
+                `).join('');
+        }
+        
+        function saveFormationEdit(formationType) {
+            const formationData = formations[formationType];
+            const newLineup = [];
+            
+            // Collect selected players
+            for (let idx = 0; idx < formationData.positions.length; idx++) {
+                const select = document.getElementById(`editPlayer${idx}`);
+                const playerId = select ? parseInt(select.value) : null;
+                
+                if (!playerId) {
+                    alert(`Bitte wähle einen Spieler für ${formationData.positions[idx].role} (Position ${idx + 1})!`);
+                    return;
+                }
+                
+                const player = players.find(p => p.id === playerId);
+                newLineup.push({
+                    player: player,
+                    x: formationData.positions[idx].x,
+                    y: formationData.positions[idx].y,
+                    number: idx + 1
+                });
+            }
+            
+            // Update global lineup
+            playersOnField = newLineup;
+            
+            // Render on pitch
+            const container = document.getElementById('playersOnPitch');
+            container.innerHTML = '';
+            
+            playersOnField.forEach(p => {
+                const jersey = createJerseyElement(p.player, p.number, p.x, p.y);
+                container.appendChild(jersey);
+            });
+            
+            cancelFormationEdit();
+            showMessage('Aufstellung gespeichert! ⚽', 'success');
+        }
+        
+        function cancelFormationEdit() {
+            document.getElementById('formationOptions').innerHTML = '';
         }
     </script>
 </body>
