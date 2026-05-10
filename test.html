@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Soccer-DTR - Minimal Working</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 { font-size: 2em; margin-bottom: 10px; }
+        .players-list {
+            padding: 20px;
+        }
+        .player-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #0d6efd;
+        }
+        .player-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+        .player-info { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚽ Fußball-Trainer</h1>
+            <p>Deine 27 Spieler</p>
+        </header>
+        
+        <div class="players-list" id="playersList"></div>
+    </div>
+
+    <script>
+        // 27 HARDCODED PLAYERS
+        const players = [
+            {name:"Schmitt, Benjamin-Oliver",age:34,position:"TW",number:""},
+            {name:"Stark, Lucas",age:24,position:"IV",number:""},
+            {name:"Teklemariam Weldetinsae, Yohannes",age:27,position:"IV",number:""},
+            {name:"Tudor, David-Alexandru",age:20,position:"IV",number:""},
+            {name:"Weber, Marvin",age:17,position:"IV",number:""},
+            {name:"Gaz, Ben Renan",age:34,position:"LV",number:""},
+            {name:"Gaz, Jonathan",age:30,position:"RV",number:""},
+            {name:"Ibrahim, Mustafa",age:18,position:"ZM",number:""},
+            {name:"Reitz, Maximilian",age:21,position:"ZM",number:"8"},
+            {name:"Schultz, Jan",age:17,position:"ZM",number:"12"},
+            {name:"Weigand, Jakob",age:18,position:"ZM",number:"13"},
+            {name:"Denysov, Arsenii",age:18,position:"OM",number:"14"},
+            {name:"Boehle, Fynn",age:18,position:"ST",number:"17"},
+            {name:"Becker, Luca-Finn",age:21,position:"ST",number:"18"},
+            {name:"Ruppersberger, Thore",age:20,position:"ST",number:"11"},
+            {name:"Schwind, Jonas",age:17,position:"LF",number:"15"},
+            {name:"Gashi, Ibush",age:40,position:"RF",number:"16"},
+            {name:"Damm, Johannes",age:38,position:"ST",number:"19"},
+            {name:"Sallija, Festim",age:24,position:"ZM",number:"5"},
+            {name:"Bierau, Fabian",age:35,position:"TW",number:"6"},
+            {name:"Gaschler, Ole",age:22,position:"ZM",number:"23"},
+            {name:"Pollmann, Luis",age:18,position:"ZM",number:"2"},
+            {name:"Alsaleh, Mohammad",age:18,position:"ZM",number:"3"},
+            {name:"Cegledi, Jan Marek",age:35,position:"ZM",number:"4"},
+            {name:"Seipp, Tristan",age:33,position:"ZM",number:"7"},
+            {name:"Medjic, Alen",age:18,position:"ST",number:"9"},
+            {name:"Plack, Nikolas",age:30,position:"ZM",number:"10"}
+        ];
+
+        // RENDER PLAYERS
+        const container = document.getElementById('playersList');
+        players.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            card.innerHTML = `
+                <div class="player-name">${p.name} ${p.number ? '#' + p.number : ''}</div>
+                <div class="player-info">${p.position} • ${p.age} Jahre</div>
+            `;
+            container.appendChild(card);
+        });
+    </script>
+</body>
+</html>
