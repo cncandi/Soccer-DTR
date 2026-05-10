@@ -3,96 +3,3166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soccer-DTR - Minimal Working</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Soccer-DTR">
+    <title>Fußball-Trainer Assistent</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 10px;
+            -webkit-overflow-scrolling: touch;
         }
-        .container {
-            max-width: 100%;
+        
+        .container { 
+            max-width: 100%; 
             margin: 0 auto;
             background: white;
             border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             overflow: hidden;
         }
+        
         header {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             padding: 20px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
         }
-        h1 { font-size: 2em; margin-bottom: 10px; }
-        .players-list {
-            padding: 20px;
+        
+        header::before {
+            content: '⚽';
+            position: absolute;
+            font-size: 250px;
+            opacity: 0.08;
+            top: -60px;
+            right: -60px;
+            animation: rotate 20s linear infinite;
         }
-        .player-card {
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        h1 { 
+            font-size: 2.8em; 
+            font-weight: 800; 
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .subtitle { 
+            font-size: 1.15em; 
+            opacity: 0.95; 
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tabs { 
+            display: flex; 
             background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border-left: 4px solid #0d6efd;
+            border-bottom: 3px solid #e9ecef;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 5px;
+            padding: 12px 20px 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            position: relative;
         }
-        .player-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
-        .player-info { color: #666; font-size: 14px; }
+        
+        .tabs::after {
+            content: '→';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, transparent, #f8f9fa 50%);
+            color: #667eea;
+            padding: 10px 15px;
+            font-size: 1.5em;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        @media (min-width: 900px) {
+            .tabs::after {
+                display: none;
+            }
+        }
+        
+        .tabs::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .tabs::-webkit-scrollbar-track {
+            background: #e9ecef;
+        }
+        
+        .tabs::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+        
+        .tab {
+            background: transparent;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 12px 12px 0 0;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #6c757d;
+            white-space: nowrap;
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .tab {
+                padding: 12px 16px;
+                font-size: 0.8em;
+            }
+        }
+        
+        .tab:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .tab.active {
+            background: white;
+            color: #1e3c72;
+            box-shadow: 0 -3px 15px rgba(0,0,0,0.08);
+        }
+        
+        .content { 
+            padding: 40px;
+            animation: fadeIn 0.4s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .form-group { margin-bottom: 24px; }
+        
+        label { 
+            display: block; 
+            margin-bottom: 10px; 
+            font-weight: 600; 
+            color: #495057;
+            font-size: 0.95em;
+        }
+        
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.2s;
+            font-family: inherit;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+        
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+        
+        .rating-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        
+        .rating-item label { margin: 0; font-weight: 600; color: #495057; }
+        .rating-item input[type="range"] { width: 120px; margin: 0 12px; }
+        
+        .rating-value {
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            min-width: 40px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            min-height: 48px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .player-list, .opponent-list { margin-top: 30px; }
+        
+        .player-card, .opponent-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 28px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .player-card:hover, .opponent-card:hover {
+            transform: translateX(8px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .player-card h3, .opponent-card h3 { 
+            color: #1e3c72; 
+            margin-bottom: 16px;
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+        
+        .player-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+        
+        .info-item { 
+            font-size: 0.95em;
+            background: rgba(102, 126, 234, 0.05);
+            padding: 10px 14px;
+            border-radius: 8px;
+        }
+        
+        .info-label { 
+            font-weight: 700; 
+            color: #667eea;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .action-buttons { 
+            margin-top: 20px; 
+            display: flex; 
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .analysis-section { 
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 16px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .analysis-section h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+        
+        .analysis-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            color: #495057;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .loading { 
+            text-align: center; 
+            padding: 60px 20px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 5px solid #dc3545;
+            font-weight: 500;
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 5px solid #28a745;
+            font-weight: 500;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 32px 24px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+        }
+        
+        .stat-number { 
+            font-size: 3.2em; 
+            font-weight: 800;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-label { 
+            font-size: 1em; 
+            opacity: 0.95;
+            font-weight: 500;
+        }
+        
+        .analysis-controls {
+            display: flex !important;
+            gap: 15px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .analysis-controls .btn {
+            flex-shrink: 0;
+        }
+        
+        select.opponent-select { 
+            flex: 1; 
+            min-width: 250px;
+        }
+        
+        .player-jersey {
+            position: absolute;
+            text-align: center;
+            user-select: none;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .player-jersey svg {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        .player-jersey .player-name {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            margin-top: 2px;
+        }
+        .player-jersey .jersey-number {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .formation-option-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1e3c72;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .formation-option-card:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        .formation-option-card h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+        .formation-option-card.selected {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>⚽ Fußball-Trainer</h1>
-            <p>Deine 27 Spieler</p>
+            <h1>⚽ Fußball-Trainer Assistent</h1>
+            <p class="subtitle">KI-gestützte Trainingsplanung, Taktikanalyse und Spielerverwaltung</p>
         </header>
-        
-        <div class="players-list" id="playersList"></div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">📊 Übersicht</button>
+            <button class="tab" onclick="switchTab('players')">👥 Spieler</button>
+            <button class="tab" onclick="switchTab('opponents')">🎯 Gegner</button>
+            <button class="tab" onclick="switchTab('games')">🏆 Spiele</button>
+            <button class="tab" onclick="switchTab('formation')">⚽ Aufstellung</button>
+            <button class="tab" onclick="switchTab('analysis')">🤖 KI-Analyse</button>
+        </div>
+
+        <div class="content">
+            <div id="dashboard" class="tab-content active">
+                <div class="stats-overview">
+                    <div class="stat-card">
+                        <div class="stat-number" id="playerCount">0</div>
+                        <div class="stat-label">Spieler</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="opponentCount">0</div>
+                        <div class="stat-label">Gegner analysiert</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgTeamRating">0</div>
+                        <div class="stat-label">Ø Team-Rating</div>
+                    </div>
+                </div>
+                <h2>Schnellstart</h2>
+                <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten!</p>
+                <ol style="line-height: 2; margin-left: 20px;">
+                    <li>Füge deine <strong>Spieler</strong> hinzu</li>
+                    <li>Analysiere deine <strong>Gegner</strong></li>
+                    <li>Lass die <strong>KI</strong> Aufstellungen und Trainingspläne erstellen</li>
+                </ol>
+            </div>
+
+            <div id="players" class="tab-content">
+                <h2>Neuen Spieler hinzufügen</h2>
+                <form id="playerForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name *</label>
+                            <input type="text" id="playerName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Alter</label>
+                            <input type="number" id="playerAge" min="15" max="45">
+                        </div>
+                        <div class="form-group">
+                            <label>Hauptposition *</label>
+                            <select id="playerPosition" required>
+                                <option value="">-- Wählen --</option>
+                                <option value="TW">Torwart</option>
+                                <option value="IV">Innenverteidiger</option>
+                                <option value="LV">Linksverteidiger</option>
+                                <option value="RV">Rechtsverteidiger</option>
+                                <option value="DM">Defensives Mittelfeld</option>
+                                <option value="ZM">Zentrales Mittelfeld</option>
+                                <option value="OM">Offensives Mittelfeld</option>
+                                <option value="ST">Stürmer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="playerStatus">
+                                <option value="verfügbar">✅ Verfügbar</option>
+                                <option value="verletzt">🤕 Verletzt</option>
+                                <option value="abwesend">❌ Nicht dabei</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>A-Jugend Ergänzung</label>
+                            <select id="playerAYouth">
+                                <option value="false">Nein</option>
+                                <option value="true">Ja (A-Jugend)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rückkehr (bei Verletzung)</label>
+                            <input type="date" id="playerReturnDate">
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Technische Fähigkeiten (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Passspiel</label>
+                            <input type="range" id="skillPassing" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Schuss</label>
+                            <input type="range" id="skillShooting" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Dribbling</label>
+                            <input type="range" id="skillDribbling" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Kopfball</label>
+                            <input type="range" id="skillHeading" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Physische Attribute (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Schnelligkeit</label>
+                            <input type="range" id="physSpeed" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Ausdauer</label>
+                            <input type="range" id="physStamina" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Zweikampf</label>
+                            <input type="range" id="physTackling" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px 0;">Mentale Eigenschaften (1-10)</h3>
+                    <div class="rating-group">
+                        <div class="rating-item">
+                            <label>Spielintelligenz</label>
+                            <input type="range" id="mentalIntelligence" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Führungsqualität</label>
+                            <input type="range" id="mentalLeadership" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                        <div class="rating-item">
+                            <label>Nervenstärke</label>
+                            <input type="range" id="mentalComposure" min="1" max="10" value="5" oninput="updateRatingDisplay(this)">
+                            <span class="rating-value">5</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Besondere Stärken</label>
+                        <textarea id="playerStrengths" rows="3" placeholder="z.B. Exzellentes Stellungsspiel..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Entwicklungsbereiche / Schwächen</label>
+                        <textarea id="playerWeaknesses" rows="3" placeholder="z.B. Schwacher rechter Fuß..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">Spieler hinzufügen</button>
+                </form>
+                <div class="player-list" id="playerList"></div>
+            </div>
+
+            <div id="opponents" class="tab-content">
+                <h2>Gegner analysieren</h2>
+                <form id="opponentForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Mannschaftsname *</label>
+                            <input type="text" id="opponentName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Grundformation *</label>
+                            <select id="opponentFormation" required>
+                                <option value="">-- Wählen --</option>
+                                <option value="4-4-2">4-4-2</option>
+                                <option value="4-3-3">4-3-3</option>
+                                <option value="4-2-3-1">4-2-3-1</option>
+                                <option value="3-5-2">3-5-2</option>
+                                <option value="5-3-2">5-3-2</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Spielweise</label>
+                            <select id="opponentStyle">
+                                <option value="Ballbesitzorientiert">Ballbesitzorientiert</option>
+                                <option value="Konterfußball">Konterfußball</option>
+                                <option value="Pressing">Hohes Pressing</option>
+                                <option value="Defensiv">Defensiv</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Schlüsselspieler</label>
+                        <textarea id="opponentKeyPlayers" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Stärken des Gegners</label>
+                        <textarea id="opponentStrengths" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Schwächen des Gegners</label>
+                        <textarea id="opponentWeaknesses" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Gegner speichern</button>
+                </form>
+                <div class="opponent-list" id="opponentList"></div>
+            </div>
+
+            <!-- Spiele Tab -->
+            <div id="games" class="tab-content">
+                <div id="gamesMainView">
+                    <h2>🏆 Spiele</h2>
+                    
+                    <button class="btn" onclick="showNewGameForm()" style="margin-bottom: 30px;">➕ Neues Spiel anlegen</button>
+                    
+                    <div id="newGameForm" style="display: none; background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 20px;">Neues Spiel anlegen</h3>
+                        <form id="gameForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Gegner *</label>
+                                    <select id="gameOpponent" required>
+                                        <option value="">-- Gegner wählen --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Spieltyp *</label>
+                                    <select id="gameType" required>
+                                        <option value="heim">🏠 Heimspiel</option>
+                                        <option value="auswaerts">✈️ Auswärtsspiel</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Datum *</label>
+                                    <input type="date" id="gameDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Uhrzeit *</label>
+                                    <input type="time" id="gameTime" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Spielort</label>
+                                <input type="text" id="gameLocation" placeholder="z.B. Sportplatz Hauptstraße">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Notizen</label>
+                                <textarea id="gameNotes" rows="3" placeholder="Besondere Hinweise zum Spiel..."></textarea>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn">💾 Spiel speichern</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideNewGameForm()">Abbrechen</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 20px;">📅 Kommende Spiele</h3>
+                    <div id="upcomingGamesList"></div>
+                    
+                    <h3 style="margin: 40px 0 20px;">📊 Vergangene Spiele</h3>
+                    <div id="pastGamesList"></div>
+                </div>
+                
+                <!-- Kader Sub-View (hidden by default) -->
+                <div id="gameSquadView" style="display: none;"></div>
+                
+                <!-- Formation Sub-View (hidden by default) -->
+                <div id="gameFormationView" style="display: none;"></div>
+            </div>
+
+            <div id="squad" class="tab-content">
+                <h2>⚽ Kader-Generator für WhatsApp</h2>
+                
+                <!-- Schritt 1: Spieler auswählen -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px;">Schritt 1: Spieler für den Kader auswählen</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Wähle alle Spieler aus, die für dieses Spiel zur Verfügung stehen:</p>
+                    
+                    <div id="playerSelectionList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;"></div>
+                    
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-secondary" onclick="selectAllPlayers()" style="margin-right: 10px;">✅ Alle auswählen</button>
+                        <button class="btn btn-secondary" onclick="deselectAllPlayers()">❌ Alle abwählen</button>
+                        <button class="btn btn-secondary" onclick="selectOnlyAvailable()" style="margin-left: 10px;">🎯 Nur Verfügbare</button>
+                    </div>
+                    
+                    <p style="margin-top: 15px; font-weight: bold; color: #1e3c72;">
+                        Ausgewählt: <span id="selectedPlayerCount">0</span> Spieler
+                    </p>
+                </div>
+
+                <!-- Schritt 2: Spiel-Details -->
+                <h3 style="margin-bottom: 15px;">Schritt 2: Spiel-Details</h3>
+                <form id="squadForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Gegner *</label>
+                            <input type="text" id="squadOpponent" placeholder="z.B. Wallau" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Spieltyp</label>
+                            <select id="squadGameType">
+                                <option value="Auswärtsspiel">Auswärtsspiel</option>
+                                <option value="Heimspiel">Heimspiel</option>
+                                <option value="Freundschaftsspiel">Freundschaftsspiel</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Datum *</label>
+                            <input type="date" id="squadDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Treffpunkt Zeit *</label>
+                            <input type="time" id="squadMeetTime" value="13:45" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Trikotfarbe</label>
+                            <select id="squadJerseyColor">
+                                <option value="Rot">🔴 Rot</option>
+                                <option value="Blau">🔵 Blau</option>
+                                <option value="Grün">🟢 Grün</option>
+                                <option value="Gelb">🟡 Gelb</option>
+                                <option value="Weiß">⚪ Weiß</option>
+                                <option value="Schwarz">⚫ Schwarz</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Treffpunkt Ort</label>
+                        <input type="text" id="squadMeetLocation" placeholder="z.B. Vereinsheim, Wallau">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Zusätzliche Infos (optional)</label>
+                        <textarea id="squadExtraInfo" rows="3" placeholder="z.B. Treffen Vereinsheim fällt aus wegen Pflanzenmarkt..."></textarea>
+                    </div>
+
+                    <button type="button" class="btn" onclick="generateSquad()">🎯 Kader zusammenstellen</button>
+                </form>
+
+                <div id="squadResult" style="margin-top: 30px;"></div>
+            </div>
+
+            <!-- Formation Tab -->
+            <div id="formation" class="tab-content">
+                <h2>⚽ Aufstellung</h2>
+                
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #0d6efd;">
+                    <h3 style="margin-bottom: 15px; color: #0d6efd;">🎨 Eigene Aufstellung erstellen & bewerten</h3>
+                    <p style="color: #084298; margin-bottom: 20px;">Erstelle deine eigene Aufstellung und lass sie von der KI analysieren!</p>
+                    
+                    <button class="btn" onclick="showCustomFormationBuilder()" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); width: 100%;">
+                        🎨 Eigene Aufstellung bauen
+                    </button>
+                    
+                    <div id="customFormationBuilder" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px;"><strong>Vordefinierte Formation wählen:</strong></label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <select id="formationSelect" onchange="loadFormation()" style="padding: 14px; font-size: 16px; flex: 1; min-width: 150px; border-radius: 8px; border: 2px solid #ddd; -webkit-appearance: none;">
+                            <option value="4-3-3">4-3-3 (Offensiv)</option>
+                            <option value="4-4-2">4-4-2 (Ausgewogen)</option>
+                            <option value="4-2-3-1">4-2-3-1 (Flexibel)</option>
+                            <option value="3-5-2">3-5-2 (Breit)</option>
+                            <option value="4-1-4-1">4-1-4-1 (Defensiv)</option>
+                        </select>
+                        <button class="btn" onclick="editCurrentFormation()" style="white-space: nowrap; padding: 14px 20px; background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            ✏️
+                        </button>
+                    </div>
+                    <button class="btn" onclick="generateFormationOptions()" style="margin-top: 10px; width: 100%; padding: 14px;">🤖 3 KI-Vorschläge</button>
+                </div>
+
+                <div id="formationOptions" style="margin-bottom: 30px;"></div>
+
+                <div id="pitchContainer" style="max-width: 800px; margin: 20px auto; position: relative; background: #2d5016; border-radius: 10px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <svg id="footballPitch" viewBox="0 0 700 1050" style="width: 100%; border: 3px solid white; border-radius: 8px; background: linear-gradient(180deg, #2d5016 0%, #3a6b1f 50%, #2d5016 100%);">
+                        <!-- Spielfeld -->
+                        <rect x="10" y="10" width="680" height="1030" fill="none" stroke="white" stroke-width="3"/>
+                        
+                        <!-- Mittellinie -->
+                        <line x1="10" y1="525" x2="690" y2="525" stroke="white" stroke-width="3"/>
+                        
+                        <!-- Mittelkreis -->
+                        <circle cx="350" cy="525" r="80" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="525" r="3" fill="white"/>
+                        
+                        <!-- Strafraum oben -->
+                        <rect x="190" y="10" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                        <rect x="270" y="10" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                        <path d="M 350 160 A 80 80 0 0 0 270 160" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="120" r="3" fill="white"/>
+                        
+                        <!-- Strafraum unten -->
+                        <rect x="190" y="890" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                        <rect x="270" y="990" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                        <path d="M 270 890 A 80 80 0 0 0 430 890" fill="none" stroke="white" stroke-width="3"/>
+                        <circle cx="350" cy="930" r="3" fill="white"/>
+                        
+                        <!-- Ecken -->
+                        <path d="M 10 10 Q 20 10 20 20" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 690 10 Q 680 10 680 20" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 10 1040 Q 20 1040 20 1030" fill="none" stroke="white" stroke-width="2"/>
+                        <path d="M 690 1040 Q 680 1040 680 1030" fill="none" stroke="white" stroke-width="2"/>
+                    </svg>
+                    
+                    <div id="playersOnPitch" style="position: absolute; top: 20px; left: 20px; width: calc(100% - 40px); height: calc(100% - 40px); pointer-events: none;"></div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn" onclick="saveFormationImage()">💾 Aufstellung speichern</button>
+                    <button class="btn btn-secondary" onclick="shareFormationImage()">📱 Als Bild teilen</button>
+                </div>
+            </div>
+
+            <div id="analysis" class="tab-content">
+                <h2>🤖 KI-gestützte Trainer-Analyse</h2>
+                
+                <div style="background: #d1ecf1; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #17a2b8;">
+                    <h3 style="margin-bottom: 15px; color: #0c5460;">🎤 Freie Frage an die KI</h3>
+                    <p style="color: #0c5460; margin-bottom: 20px;">Stelle eine beliebige Frage zum Training, Taktik oder Team!</p>
+                    
+                    <div class="form-group">
+                        <textarea id="freeQuestionText" rows="3" placeholder="z.B. Wie trainiere ich Kontersituationen? Welche Formation gegen starke Flügelspieler?"></textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="askFreeQuestion()" style="flex: 1; background: linear-gradient(135deg, #17a2b8, #138496);">
+                            💬 Frage stellen
+                        </button>
+                        <button class="btn" onclick="startVoiceInput()" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                            🎤 Sprechen
+                        </button>
+                    </div>
+                    <p id="voiceStatus" style="margin-top: 10px; color: #0c5460; font-size: 0.9em;"></p>
+                </div>
+                
+                <div style="background: #f8d7da; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #dc3545;">
+                    <h3 style="margin-bottom: 15px; color: #721c24;">📝 Nach-dem-Spiel Bewertung</h3>
+                    <p style="color: #721c24; margin-bottom: 20px;">Bewerte alle Spieler nach dem Spiel (wird gespeichert, keine KI-Analyse):</p>
+                    
+                    <button class="btn" onclick="startPostGameEvaluation()" style="background: linear-gradient(135deg, #dc3545, #bd2130); width: 100%;">
+                        📝 Spielerbewertung starten
+                    </button>
+                    
+                    <div id="postGameEvaluationForm" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #0d6efd;">
+                    <h3 style="margin-bottom: 15px; color: #0d6efd;">⏸️ Halbzeitanalyse</h3>
+                    <p style="color: #084298; margin-bottom: 20px;">Bewerte die erste Halbzeit und erhalte Empfehlungen für die zweite Halbzeit!</p>
+                    
+                    <button class="btn" onclick="startHalftimeAnalysis()" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); width: 100%;">
+                        ⏸️ Halbzeitanalyse starten
+                    </button>
+                    
+                    <div id="halftimeAnalysisForm" style="display: none; margin-top: 20px;"></div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px;">Allgemeine Analysen</h3>
+                    <div class="analysis-controls">
+                        <select id="analysisOpponent" class="opponent-select">
+                            <option value="">-- Gegner wählen --</option>
+                        </select>
+                        <button class="btn" onclick="generateLineup()">📋 Aufstellung</button>
+                        <button class="btn" onclick="generateTrainingPlan()">🏃 Trainingsplan</button>
+                        <button class="btn" onclick="generateTactics()">🎯 Taktik</button>
+                        <button class="btn" onclick="generateLongTermGoals()">📈 Langfristziele</button>
+                    </div>
+                </div>
+                
+                <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #ffc107;">
+                    <h3 style="margin-bottom: 15px; color: #856404;">⚡ Spielsituationen-Analyse</h3>
+                    <p style="color: #856404; margin-bottom: 20px;">Wähle eine Spielsituation für taktische Empfehlungen:</p>
+                    
+                    <div style="background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin-bottom: 10px; color: #856404;">💡 Eigene Situation erstellen</h4>
+                        <button class="btn" onclick="showCustomSituationCreator()" style="background: linear-gradient(135deg, #ffc107, #fd7e14); width: 100%;">
+                            ✍️ Eigene Spielsituation definieren
+                        </button>
+                        <div id="customSituationCreator" style="display: none; margin-top: 15px;"></div>
+                    </div>
+                    
+                    <h4 style="margin-bottom: 10px; color: #856404;">🎯 Vordefinierte Situationen:</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                        <button class="btn" onclick="analyzeSituation('fuehrung_halten')" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            ✅ Führung halten
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('fuehrung_auswechslung')" style="background: linear-gradient(135deg, #28a745, #17a2b8);">
+                            🔄 Führung + Wechsel
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('stand_halten')" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            🟰 Stand halten
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('stand_auswechslung')" style="background: linear-gradient(135deg, #ffc107, #17a2b8);">
+                            🔄 Stand + Wechsel
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('rueckstand_aufholen')" style="background: linear-gradient(135deg, #dc3545, #fd7e14);">
+                            ⚠️ Rückstand aufholen
+                        </button>
+                        <button class="btn" onclick="analyzeSituation('rueckstand_auswechslung')" style="background: linear-gradient(135deg, #dc3545, #17a2b8);">
+                            🔄 Rückstand + Wechsel
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="analysisResults"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 27 HARDCODED PLAYERS
-        const players = [
-            {name:"Schmitt, Benjamin-Oliver",age:34,position:"TW",number:""},
-            {name:"Stark, Lucas",age:24,position:"IV",number:""},
-            {name:"Teklemariam Weldetinsae, Yohannes",age:27,position:"IV",number:""},
-            {name:"Tudor, David-Alexandru",age:20,position:"IV",number:""},
-            {name:"Weber, Marvin",age:17,position:"IV",number:""},
-            {name:"Gaz, Ben Renan",age:34,position:"LV",number:""},
-            {name:"Gaz, Jonathan",age:30,position:"RV",number:""},
-            {name:"Ibrahim, Mustafa",age:18,position:"ZM",number:""},
-            {name:"Reitz, Maximilian",age:21,position:"ZM",number:"8"},
-            {name:"Schultz, Jan",age:17,position:"ZM",number:"12"},
-            {name:"Weigand, Jakob",age:18,position:"ZM",number:"13"},
-            {name:"Denysov, Arsenii",age:18,position:"OM",number:"14"},
-            {name:"Boehle, Fynn",age:18,position:"ST",number:"17"},
-            {name:"Becker, Luca-Finn",age:21,position:"ST",number:"18"},
-            {name:"Ruppersberger, Thore",age:20,position:"ST",number:"11"},
-            {name:"Schwind, Jonas",age:17,position:"LF",number:"15"},
-            {name:"Gashi, Ibush",age:40,position:"RF",number:"16"},
-            {name:"Damm, Johannes",age:38,position:"ST",number:"19"},
-            {name:"Sallija, Festim",age:24,position:"ZM",number:"5"},
-            {name:"Bierau, Fabian",age:35,position:"TW",number:"6"},
-            {name:"Gaschler, Ole",age:22,position:"ZM",number:"23"},
-            {name:"Pollmann, Luis",age:18,position:"ZM",number:"2"},
-            {name:"Alsaleh, Mohammad",age:18,position:"ZM",number:"3"},
-            {name:"Cegledi, Jan Marek",age:35,position:"ZM",number:"4"},
-            {name:"Seipp, Tristan",age:33,position:"ZM",number:"7"},
-            {name:"Medjic, Alen",age:18,position:"ST",number:"9"},
-            {name:"Plack, Nikolas",age:30,position:"ZM",number:"10"}
-        ];
-
-        // RENDER PLAYERS
-        const container = document.getElementById('playersList');
-        players.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'player-card';
-            card.innerHTML = `
-                <div class="player-name">${p.name} ${p.number ? '#' + p.number : ''}</div>
-                <div class="player-info">${p.position} • ${p.age} Jahre</div>
-            `;
-            container.appendChild(card);
+        // Load players from localStorage or use defaults
+        let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+        
+        // If empty, load 27 default players
+        if (players.length === 0) {
+            players = [
+                {id:1,name:"Schmitt, Benjamin-Oliver",age:34,position:"TW",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:2,name:"Stark, Lucas",age:24,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:3,name:"Teklemariam Weldetinsae, Yohannes",age:27,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:4,name:"Tudor, David-Alexandru",age:20,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:5,name:"Weber, Marvin",age:17,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:6,name:"Gaz, Ben Renan",age:34,position:"LV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:7,name:"Gaz, Jonathan",age:30,position:"RV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:8,name:"Ibrahim, Mustafa",age:18,position:"ZM",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:9,name:"Reitz, Maximilian",age:21,position:"ZM",jerseyNumber:"8",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:10,name:"Schultz, Jan",age:17,position:"ZM",jerseyNumber:"12",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:11,name:"Weigand, Jakob",age:18,position:"ZM",jerseyNumber:"13",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:12,name:"Denysov, Arsenii",age:18,position:"OM",jerseyNumber:"14",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:13,name:"Boehle, Fynn",age:18,position:"ST",jerseyNumber:"17",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:14,name:"Becker, Luca-Finn",age:21,position:"ST",jerseyNumber:"18",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:15,name:"Ruppersberger, Thore",age:20,position:"ST",jerseyNumber:"11",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:16,name:"Schwind, Jonas",age:17,position:"LF",jerseyNumber:"15",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:17,name:"Gashi, Ibush",age:40,position:"RF",jerseyNumber:"16",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:18,name:"Damm, Johannes",age:38,position:"ST",jerseyNumber:"19",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:19,name:"Sallija, Festim",age:24,position:"ZM",jerseyNumber:"5",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:20,name:"Bierau, Fabian",age:35,position:"TW",jerseyNumber:"6",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:21,name:"Gaschler, Ole",age:22,position:"ZM",jerseyNumber:"23",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:22,name:"Pollmann, Luis",age:18,position:"ZM",jerseyNumber:"2",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:23,name:"Alsaleh, Mohammad",age:18,position:"ZM",jerseyNumber:"3",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:24,name:"Cegledi, Jan Marek",age:35,position:"ZM",jerseyNumber:"4",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:25,name:"Seipp, Tristan",age:33,position:"ZM",jerseyNumber:"7",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:26,name:"Medjic, Alen",age:18,position:"ST",jerseyNumber:"9",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
+                {id:27,name:"Plack, Nikolas",age:30,position:"ZM",jerseyNumber:"10",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""}
+            ];
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+        }
+        let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
+        let games = JSON.parse(localStorage.getItem('footballGames')) || [];
+        
+        // FIX: Normalisiere alte Spieler ohne Status
+        players = players.map(p => {
+            if (!p.status || p.status === undefined || p.status === null || p.status === '') {
+                console.log(`⚠️ Fixing player ${p.name}: status was "${p.status}", setting to "verfügbar"`);
+                p.status = 'verfügbar';
+            }
+            return p;
         });
+        localStorage.setItem('footballPlayers', JSON.stringify(players));
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderPlayers();
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+            renderGames();
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // Spieler-Auswahl rendern wenn Kader-Tab geöffnet wird
+            if (tabName === 'squad') {
+                renderPlayerSelection();
+            }
+            
+            // Formation rendern wenn Aufstellung-Tab geöffnet wird
+            if (tabName === 'formation') {
+                players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+                renderPitch();
+            }
+            
+            // Spiele rendern wenn Spiele-Tab geöffnet wird
+            if (tabName === 'games') {
+                updateGameOpponentSelect();
+                renderGames();
+            }
+        }
+
+        function updateRatingDisplay(slider) {
+            slider.nextElementSibling.textContent = slider.value;
+        }
+
+        document.getElementById('playerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const player = {
+                id: Date.now(),
+                name: document.getElementById('playerName').value,
+                age: document.getElementById('playerAge').value,
+                position: document.getElementById('playerPosition').value,
+                status: document.getElementById('playerStatus').value,
+                aYouth: document.getElementById('playerAYouth').value === 'true',
+                returnDate: document.getElementById('playerReturnDate').value,
+                skills: {
+                    passing: parseInt(document.getElementById('skillPassing').value),
+                    shooting: parseInt(document.getElementById('skillShooting').value),
+                    dribbling: parseInt(document.getElementById('skillDribbling').value),
+                    heading: parseInt(document.getElementById('skillHeading').value)
+                },
+                physical: {
+                    speed: parseInt(document.getElementById('physSpeed').value),
+                    stamina: parseInt(document.getElementById('physStamina').value),
+                    tackling: parseInt(document.getElementById('physTackling').value)
+                },
+                mental: {
+                    intelligence: parseInt(document.getElementById('mentalIntelligence').value),
+                    leadership: parseInt(document.getElementById('mentalLeadership').value),
+                    composure: parseInt(document.getElementById('mentalComposure').value)
+                },
+                strengths: document.getElementById('playerStrengths').value,
+                weaknesses: document.getElementById('playerWeaknesses').value
+            };
+            players.push(player);
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            this.reset();
+            document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
+            renderPlayers();
+            updateDashboard();
+            showMessage('Spieler hinzugefügt!', 'success');
+        });
+
+        document.getElementById('opponentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const opponent = {
+                id: Date.now(),
+                name: document.getElementById('opponentName').value,
+                formation: document.getElementById('opponentFormation').value,
+                style: document.getElementById('opponentStyle').value,
+                keyPlayers: document.getElementById('opponentKeyPlayers').value,
+                strengths: document.getElementById('opponentStrengths').value,
+                weaknesses: document.getElementById('opponentWeaknesses').value
+            };
+            opponents.push(opponent);
+            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            this.reset();
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+            showMessage('Gegner gespeichert!', 'success');
+        });
+
+        function renderPlayers() {
+            const list = document.getElementById('playerList');
+            if (!players.length) {
+                list.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Noch keine Spieler vorhanden.</p>';
+                return;
+            }
+            list.innerHTML = '<h2 style="margin:20px 0;">Dein Kader (' + players.length + ')</h2>';
+            players.forEach(p => {
+                const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                            Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                            Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
+                
+                const statusIcon = {
+                    'verfügbar': '✅',
+                    'verletzt': '🤕',
+                    'abwesend': '❌'
+                }[p.status || 'verfügbar'];
+                
+                const aYouthBadge = p.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 8px;border-radius:4px;font-size:0.8em;">A-Jugend</span>' : '';
+                const returnInfo = p.status === 'verletzt' && p.returnDate ? `<p><strong>Rückkehr:</strong> ${new Date(p.returnDate).toLocaleDateString('de-DE')}</p>` : '';
+                
+                list.innerHTML += `
+                    <div class="player-card">
+                        <h3>${statusIcon} ${p.name} (${p.position}) - ${avg}/10${aYouthBadge}</h3>
+                        <div class="player-info">
+                            <div class="info-item"><span class="info-label">Status:</span> ${p.status || 'verfügbar'}</div>
+                            <div class="info-item"><span class="info-label">Pass:</span> ${p.skills.passing}</div>
+                            <div class="info-item"><span class="info-label">Schuss:</span> ${p.skills.shooting}</div>
+                            <div class="info-item"><span class="info-label">Tempo:</span> ${p.physical.speed}</div>
+                            <div class="info-item"><span class="info-label">Intelligenz:</span> ${p.mental.intelligence}</div>
+                        </div>
+                        ${returnInfo}
+                        ${p.strengths ? '<p style="margin-top:10px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
+                        ${p.weaknesses ? '<p><strong>Schwächen:</strong> '+p.weaknesses+'</p>' : ''}
+                        <div class="action-buttons">
+                            <button class="btn" onclick="editPlayer(${p.id})">✏️ Bearbeiten</button>
+                            <button class="btn btn-danger" onclick="deletePlayer(${p.id})">Löschen</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderOpponents() {
+            const list = document.getElementById('opponentList');
+            if (!opponents.length) {
+                list.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Noch keine Gegner.</p>';
+                return;
+            }
+            list.innerHTML = '<h2 style="margin:20px 0;">Gegner (' + opponents.length + ')</h2>';
+            opponents.forEach(o => {
+                list.innerHTML += `
+                    <div class="opponent-card">
+                        <h3>${o.name} (${o.formation})</h3>
+                        <p><strong>Spielweise:</strong> ${o.style}</p>
+                        ${o.strengths ? '<p><strong>Stärken:</strong> '+o.strengths+'</p>' : ''}
+                        ${o.weaknesses ? '<p><strong>Schwächen:</strong> '+o.weaknesses+'</p>' : ''}
+                        <div class="action-buttons">
+                            <button class="btn" onclick="editOpponent(${o.id})">✏️ Bearbeiten</button>
+                            <button class="btn btn-danger" onclick="deleteOpponent(${o.id})">Löschen</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateDashboard() {
+            document.getElementById('playerCount').textContent = players.length;
+            document.getElementById('opponentCount').textContent = opponents.length;
+            if (players.length) {
+                const avg = players.map(p => {
+                    return (Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                           Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                           Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3;
+                });
+                document.getElementById('avgTeamRating').textContent = 
+                    (avg.reduce((a,b)=>a+b,0)/players.length).toFixed(1);
+            }
+        }
+
+        function updateOpponentSelect() {
+            const select = document.getElementById('analysisOpponent');
+            select.innerHTML = '<option value="">-- Gegner wählen --</option>';
+            opponents.forEach(o => {
+                select.innerHTML += `<option value="${o.id}">${o.name}</option>`;
+            });
+        }
+
+        function deletePlayer(id) {
+            if (confirm('Spieler löschen?')) {
+                players = players.filter(p => p.id !== id);
+                localStorage.setItem('footballPlayers', JSON.stringify(players));
+                renderPlayers();
+                updateDashboard();
+            }
+        }
+
+        function editPlayer(id) {
+            const player = players.find(p => p.id === id);
+            if (!player) return;
+
+            // Formular mit Spieler-Daten füllen
+            document.getElementById('playerName').value = player.name;
+            document.getElementById('playerAge').value = player.age || '';
+            document.getElementById('playerPosition').value = player.position;
+            document.getElementById('playerStatus').value = player.status || 'verfügbar';
+            document.getElementById('playerAYouth').value = player.aYouth ? 'true' : 'false';
+            document.getElementById('playerReturnDate').value = player.returnDate || '';
+            
+            document.getElementById('skillPassing').value = player.skills.passing;
+            document.getElementById('skillShooting').value = player.skills.shooting;
+            document.getElementById('skillDribbling').value = player.skills.dribbling;
+            document.getElementById('skillHeading').value = player.skills.heading;
+            
+            document.getElementById('physSpeed').value = player.physical.speed;
+            document.getElementById('physStamina').value = player.physical.stamina;
+            document.getElementById('physTackling').value = player.physical.tackling;
+            
+            document.getElementById('mentalIntelligence').value = player.mental.intelligence;
+            document.getElementById('mentalLeadership').value = player.mental.leadership;
+            document.getElementById('mentalComposure').value = player.mental.composure;
+            
+            document.getElementById('playerStrengths').value = player.strengths || '';
+            document.getElementById('playerWeaknesses').value = player.weaknesses || '';
+
+            // Rating-Anzeigen aktualisieren
+            document.querySelectorAll('.rating-item input[type="range"]').forEach(slider => {
+                const display = slider.nextElementSibling;
+                display.textContent = slider.value;
+            });
+
+            // Zum Formular scrollen
+            document.getElementById('playerForm').scrollIntoView({ behavior: 'smooth' });
+
+            // Formular in Edit-Modus setzen
+            const submitBtn = document.querySelector('#playerForm button[type="submit"]');
+            submitBtn.textContent = '💾 Änderungen speichern';
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                savePlayerEdit(id);
+            };
+
+            showMessage('Spieler wird bearbeitet - Formular oben ausfüllen', 'success');
+        }
+
+        function savePlayerEdit(id) {
+            const playerIndex = players.findIndex(p => p.id === id);
+            if (playerIndex === -1) return;
+
+            players[playerIndex] = {
+                id: id,
+                name: document.getElementById('playerName').value,
+                age: document.getElementById('playerAge').value,
+                position: document.getElementById('playerPosition').value,
+                status: document.getElementById('playerStatus').value,
+                aYouth: document.getElementById('playerAYouth').value === 'true',
+                returnDate: document.getElementById('playerReturnDate').value,
+                skills: {
+                    passing: parseInt(document.getElementById('skillPassing').value),
+                    shooting: parseInt(document.getElementById('skillShooting').value),
+                    dribbling: parseInt(document.getElementById('skillDribbling').value),
+                    heading: parseInt(document.getElementById('skillHeading').value)
+                },
+                physical: {
+                    speed: parseInt(document.getElementById('physSpeed').value),
+                    stamina: parseInt(document.getElementById('physStamina').value),
+                    tackling: parseInt(document.getElementById('physTackling').value)
+                },
+                mental: {
+                    intelligence: parseInt(document.getElementById('mentalIntelligence').value),
+                    leadership: parseInt(document.getElementById('mentalLeadership').value),
+                    composure: parseInt(document.getElementById('mentalComposure').value)
+                },
+                strengths: document.getElementById('playerStrengths').value,
+                weaknesses: document.getElementById('playerWeaknesses').value
+            };
+
+            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            
+            // Formular zurücksetzen
+            document.getElementById('playerForm').reset();
+            document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
+            
+            const submitBtn = document.querySelector('#playerForm button[type="submit"]');
+            submitBtn.textContent = 'Spieler hinzufügen';
+            submitBtn.onclick = null;
+
+            renderPlayers();
+            updateDashboard();
+            showMessage('Spieler erfolgreich aktualisiert!', 'success');
+        }
+
+        function deleteOpponent(id) {
+            if (confirm('Gegner löschen?')) {
+                opponents = opponents.filter(o => o.id !== id);
+                localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+                renderOpponents();
+                updateDashboard();
+                updateOpponentSelect();
+            }
+        }
+
+        function editOpponent(id) {
+            const opponent = opponents.find(o => o.id === id);
+            if (!opponent) return;
+
+            // Fill form with opponent data
+            document.getElementById('opponentName').value = opponent.name;
+            document.getElementById('opponentFormation').value = opponent.formation || '';
+            document.getElementById('opponentStyle').value = opponent.style || '';
+            document.getElementById('opponentKeyPlayers').value = opponent.keyPlayers || '';
+            document.getElementById('opponentStrengths').value = opponent.strengths || '';
+            document.getElementById('opponentWeaknesses').value = opponent.weaknesses || '';
+
+            // Scroll to form
+            document.getElementById('opponentForm').scrollIntoView({ behavior: 'smooth' });
+
+            // Change submit button
+            const submitBtn = document.querySelector('#opponentForm button[type="submit"]');
+            submitBtn.textContent = '💾 Änderungen speichern';
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                saveOpponentEdit(id);
+            };
+
+            showMessage('Gegner wird bearbeitet - Formular oben ausfüllen', 'success');
+        }
+
+        function saveOpponentEdit(id) {
+            const opponentIndex = opponents.findIndex(o => o.id === id);
+            if (opponentIndex === -1) return;
+
+            opponents[opponentIndex] = {
+                id: id,
+                name: document.getElementById('opponentName').value,
+                formation: document.getElementById('opponentFormation').value,
+                style: document.getElementById('opponentStyle').value,
+                keyPlayers: document.getElementById('opponentKeyPlayers').value,
+                strengths: document.getElementById('opponentStrengths').value,
+                weaknesses: document.getElementById('opponentWeaknesses').value
+            };
+
+            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            
+            // Reset form
+            document.getElementById('opponentForm').reset();
+            const submitBtn = document.querySelector('#opponentForm button[type="submit"]');
+            submitBtn.textContent = 'Gegner speichern';
+            submitBtn.onclick = null;
+
+            renderOpponents();
+            updateDashboard();
+            updateOpponentSelect();
+            showMessage('Gegner erfolgreich aktualisiert!', 'success');
+        }
+
+        function showMessage(msg, type) {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = msg;
+            document.getElementById('analysisResults').insertBefore(div, document.getElementById('analysisResults').firstChild);
+            setTimeout(() => div.remove(), 4000);
+        }
+
+        async function generateLineup() {
+            if (players.length < 11) return showMessage('Mindestens 11 Spieler nötig!', 'error');
+            const oppId = document.getElementById('analysisOpponent').value;
+            const opp = opponents.find(o => o.id == oppId);
+            await runAnalysis('Optimale Aufstellung', buildPrompt('lineup', opp));
+        }
+
+        async function generateTrainingPlan() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            await runAnalysis('Wochentrainingsplan', buildPrompt('training', null));
+        }
+
+        async function generateTactics() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            const oppId = document.getElementById('analysisOpponent').value;
+            const opp = opponents.find(o => o.id == oppId);
+            await runAnalysis('Taktik-Ansprache', buildPrompt('tactics', opp));
+        }
+
+        async function generateLongTermGoals() {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            await runAnalysis('Langfristige Ziele (3 Monate)', buildPrompt('longterm'));
+        }
+
+        async function analyzeSituation(situation) {
+            if (!players.length) return showMessage('Keine Spieler!', 'error');
+            
+            const situations = {
+                'fuehrung_halten': {
+                    title: '✅ Führung halten - Keine Auswechslung',
+                    prompt: 'Du führst im Spiel. Wie sicherst du die Führung OHNE Auswechslungen? Taktische Tipps zur Spielkontrolle, Zeitmanagement und Defensivverhalten.'
+                },
+                'fuehrung_auswechslung': {
+                    title: '🔄 Führung halten - Mit Auswechslung',
+                    prompt: 'Du führst im Spiel. Welche Auswechslungen sichern die Führung? Defensive Wechsel, frische Kräfte in der Abwehr, Zeit von der Uhr nehmen.'
+                },
+                'stand_halten': {
+                    title: '🟰 Unentschieden halten - Keine Auswechslung',
+                    prompt: 'Das Spiel steht unentschieden. Wie hältst du den Stand OHNE Wechsel? Balance zwischen Defensive und Offensive, Spielkontrolle.'
+                },
+                'stand_auswechslung': {
+                    title: '🔄 Unentschieden - Mit Auswechslung',
+                    prompt: 'Unentschieden - welche Wechsel bringen den Sieg? Offensive Impulse, frische Energie, taktische Umstellung für die Schlussphase.'
+                },
+                'rueckstand_aufholen': {
+                    title: '⚠️ Rückstand aufholen - Keine Auswechslung',
+                    prompt: 'Du liegst zurück. Wie holst du auf OHNE Wechsel? Taktische Umstellung auf mehr Offensive, Pressing, Risikobereitschaft.'
+                },
+                'rueckstand_auswechslung': {
+                    title: '🔄 Rückstand aufholen - Mit Auswechslung',
+                    prompt: 'Rückstand - welche Wechsel bringen das Tor? Offensive Spieler einwechseln, Formation ändern, alles nach vorne.'
+                }
+            };
+            
+            const config = situations[situation];
+            if (!config) return;
+            
+            const prompt = buildPrompt('situation', null, config.prompt);
+            await runAnalysis(config.title, prompt);
+        }
+
+        function startHalftimeAnalysis() {
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            const formContainer = document.getElementById('halftimeAnalysisForm');
+            formContainer.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">📊 Spielstand & Bewertung</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unsere Tore</label>
+                            <input type="number" id="htOurGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Gegner Tore</label>
+                            <input type="number" id="htOpponentGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Was läuft GUT? ✅</label>
+                        <textarea id="htGoodThings" rows="3" placeholder="z.B. Starkes Pressing, gute Chancenverwertung, stabile Abwehr..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Was läuft SCHLECHT? ❌</label>
+                        <textarea id="htBadThings" rows="3" placeholder="z.B. Zu viele Ballverluste, schwache Zweikampfquote, Müdigkeit..."></textarea>
+                    </div>
+                    
+                    <h4 style="margin: 30px 0 20px;">👥 Einzelkritik (1=sehr gut, 6=sehr schlecht)</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Bewerte die 11 Spieler der Startaufstellung:</p>
+                    
+                    <div id="halftimePlayerRatings" style="display: grid; gap: 15px;">
+            `;
+            
+            // Show first 11 available players for rating
+            availablePlayers.slice(0, 11).forEach((player, idx) => {
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${player.name}</strong>
+                            <span style="color: #666; margin-left: 10px;">${player.position}</span>
+                        </div>
+                        <select id="htRating${idx}" data-player-id="${player.id}" style="font-size: 1.1em; padding: 8px;">
+                            <option value="">Note</option>
+                            <option value="1">1 - Sehr gut</option>
+                            <option value="2">2 - Gut</option>
+                            <option value="3">3 - Befriedigend</option>
+                            <option value="4">4 - Ausreichend</option>
+                            <option value="5">5 - Mangelhaft</option>
+                            <option value="6">6 - Ungenügend</option>
+                        </select>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div style="margin-top: 30px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="generateHalftimeAnalysis()" style="flex: 1;">
+                            🤖 KI-Analyse für 2. Halbzeit
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelHalftimeAnalysis()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            formContainer.innerHTML = html;
+        }
+        
+        function cancelHalftimeAnalysis() {
+            document.getElementById('halftimeAnalysisForm').style.display = 'none';
+            document.getElementById('halftimeAnalysisForm').innerHTML = '';
+        }
+        
+        async function generateHalftimeAnalysis() {
+            const ourGoals = document.getElementById('htOurGoals').value;
+            const oppGoals = document.getElementById('htOpponentGoals').value;
+            const goodThings = document.getElementById('htGoodThings').value.trim();
+            const badThings = document.getElementById('htBadThings').value.trim();
+            
+            if (!goodThings || !badThings) {
+                alert('Bitte fülle "Was läuft gut" und "Was läuft schlecht" aus!');
+                return;
+            }
+            
+            // Collect player ratings
+            const ratings = [];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar').slice(0, 11);
+            
+            availablePlayers.forEach((player, idx) => {
+                const ratingSelect = document.getElementById(`htRating${idx}`);
+                const rating = ratingSelect ? ratingSelect.value : '';
+                
+                if (rating) {
+                    ratings.push({
+                        name: player.name,
+                        position: player.position,
+                        rating: rating,
+                        id: player.id
+                    });
+                }
+            });
+            
+            if (ratings.length === 0) {
+                alert('Bitte bewerte mindestens einen Spieler!');
+                return;
+            }
+            
+            // Build halftime analysis prompt
+            let prompt = `HALBZEITANALYSE\n\n`;
+            prompt += `SPIELSTAND: ${ourGoals}:${oppGoals}\n\n`;
+            prompt += `✅ WAS LÄUFT GUT:\n${goodThings}\n\n`;
+            prompt += `❌ WAS LÄUFT SCHLECHT:\n${badThings}\n\n`;
+            prompt += `EINZELKRITIK (1=sehr gut, 6=sehr schlecht):\n`;
+            
+            ratings.forEach(r => {
+                prompt += `${r.name} (${r.position}): Note ${r.rating}\n`;
+            });
+            
+            prompt += `\n\nAufgabe: Analysiere die erste Halbzeit und erstelle Empfehlungen für die zweite Halbzeit:\n\n`;
+            prompt += `1. ZUSAMMENFASSUNG: Was war das Hauptproblem? Was lief am besten?\n`;
+            prompt += `2. AUSWECHSLUNGEN: Welche Spieler sollten raus (mit Begründung)? Welche rein?\n`;
+            prompt += `3. TAKTISCHE ANPASSUNGEN: Formationsänderung? Spielweise ändern?\n`;
+            prompt += `4. INDIVIDUELLE ANWEISUNGEN: Was soll jeder Spieler anders machen?\n`;
+            prompt += `5. AUFSTELLUNG 2. HALBZEIT: Konkrete Aufstellung mit 11 Spielern\n\n`;
+            
+            prompt += `Verfügbare Spieler auf der Bank:\n`;
+            const benchPlayers = players.filter(p => p.status === 'verfügbar' && !ratings.find(r => r.id === p.id));
+            benchPlayers.forEach(p => {
+                prompt += `- ${p.name} (${p.position})\n`;
+            });
+            
+            await runAnalysis('⏸️ Halbzeitanalyse & Empfehlungen für 2. Halbzeit', prompt);
+            
+            // Hide form after analysis
+            cancelHalftimeAnalysis();
+        }
+
+        // ===== POST-GAME EVALUATION =====
+        
+        function startPostGameEvaluation() {
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length === 0) {
+                alert('Keine verfügbaren Spieler!');
+                return;
+            }
+            
+            const formContainer = document.getElementById('postGameEvaluationForm');
+            formContainer.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">📊 Endstand</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unsere Tore</label>
+                            <input type="number" id="pgOurGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Gegner Tore</label>
+                            <input type="number" id="pgOpponentGoals" min="0" value="0" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <h4 style="margin: 30px 0 20px;">👥 Spielerbewertung (1=sehr gut, 6=sehr schlecht)</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Bewerte alle Spieler die gespielt haben:</p>
+                    
+                    <div id="postGamePlayerRatings" style="display: grid; gap: 15px;">
+            `;
+            
+            availablePlayers.forEach((player, idx) => {
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong>${player.name}</strong>
+                            <span style="color: #666; margin-left: 10px;">${player.position}</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label style="margin: 0;">
+                                <input type="checkbox" id="pgPlayed${idx}" data-player-id="${player.id}" style="margin-right: 5px;">
+                                Gespielt
+                            </label>
+                            <select id="pgRating${idx}" data-player-id="${player.id}" style="font-size: 1.1em; padding: 8px;">
+                                <option value="">Note</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 30px;">
+                        <label>Notizen zum Spiel (optional)</label>
+                        <textarea id="pgNotes" rows="4" placeholder="Was war besonders? Besondere Vorkommnisse? Learnings?"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="savePostGameEvaluation()" style="flex: 1;">
+                            💾 Bewertung speichern
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelPostGameEvaluation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            formContainer.innerHTML = html;
+        }
+        
+        function cancelPostGameEvaluation() {
+            document.getElementById('postGameEvaluationForm').style.display = 'none';
+            document.getElementById('postGameEvaluationForm').innerHTML = '';
+        }
+        
+        function savePostGameEvaluation() {
+            const ourGoals = document.getElementById('pgOurGoals').value;
+            const oppGoals = document.getElementById('pgOpponentGoals').value;
+            const notes = document.getElementById('pgNotes').value.trim();
+            
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            const evaluations = [];
+            
+            availablePlayers.forEach((player, idx) => {
+                const playedCheckbox = document.getElementById(`pgPlayed${idx}`);
+                const ratingSelect = document.getElementById(`pgRating${idx}`);
+                
+                if (playedCheckbox && playedCheckbox.checked) {
+                    const rating = ratingSelect ? ratingSelect.value : '';
+                    
+                    if (rating) {
+                        evaluations.push({
+                            playerId: player.id,
+                            playerName: player.name,
+                            position: player.position,
+                            rating: rating
+                        });
+                    }
+                }
+            });
+            
+            if (evaluations.length === 0) {
+                alert('Bitte markiere mindestens einen Spieler als "Gespielt" und bewerte ihn!');
+                return;
+            }
+            
+            // Save to localStorage
+            const postGameData = {
+                date: new Date().toISOString(),
+                score: `${ourGoals}:${oppGoals}`,
+                evaluations: evaluations,
+                notes: notes
+            };
+            
+            let postGameHistory = JSON.parse(localStorage.getItem('postGameEvaluations')) || [];
+            postGameHistory.push(postGameData);
+            localStorage.setItem('postGameEvaluations', JSON.stringify(postGameHistory));
+            
+            showMessage(`Spielerbewertung gespeichert! (${evaluations.length} Spieler)`, 'success');
+            cancelPostGameEvaluation();
+            
+            // Show summary
+            let summary = `📊 BEWERTUNG GESPEICHERT\n\n`;
+            summary += `Endstand: ${ourGoals}:${oppGoals}\n\n`;
+            summary += `Bewertete Spieler:\n`;
+            evaluations.forEach(e => {
+                summary += `${e.playerName} (${e.position}): Note ${e.rating}\n`;
+            });
+            if (notes) summary += `\nNotizen: ${notes}`;
+            
+            alert(summary);
+        }
+        
+        // ===== FREE AI QUESTION WITH VOICE =====
+        
+        let recognition = null;
+        
+        function startVoiceInput() {
+            const statusEl = document.getElementById('voiceStatus');
+            
+            // Check browser support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                statusEl.textContent = '❌ Spracherkennung wird von diesem Browser nicht unterstützt';
+                statusEl.style.color = '#dc3545';
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = function() {
+                statusEl.textContent = '🎤 Spreche jetzt...';
+                statusEl.style.color = '#dc3545';
+            };
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('freeQuestionText').value = transcript;
+                statusEl.textContent = '✅ Erkannt: "' + transcript + '"';
+                statusEl.style.color = '#28a745';
+            };
+            
+            recognition.onerror = function(event) {
+                statusEl.textContent = '❌ Fehler: ' + event.error;
+                statusEl.style.color = '#dc3545';
+            };
+            
+            recognition.onend = function() {
+                if (statusEl.textContent.includes('Spreche jetzt')) {
+                    statusEl.textContent = '❌ Keine Sprache erkannt';
+                    statusEl.style.color = '#dc3545';
+                }
+            };
+            
+            recognition.start();
+        }
+        
+        async function askFreeQuestion() {
+            const question = document.getElementById('freeQuestionText').value.trim();
+            
+            if (!question) {
+                alert('Bitte stelle eine Frage oder nutze das Mikrofon!');
+                return;
+            }
+            
+            const prompt = buildPrompt('situation', null, question);
+            await runAnalysis('💬 Antwort auf deine Frage', prompt);
+            
+            // Clear question after asking
+            document.getElementById('freeQuestionText').value = '';
+            document.getElementById('voiceStatus').textContent = '';
+        }
+
+        // ===== CUSTOM FORMATION BUILDER =====
+        
+        function showCustomFormationBuilder() {
+            const container = document.getElementById('customFormationBuilder');
+            container.style.display = 'block';
+            
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                container.innerHTML = '<p style="color: #dc3545;">⚠️ Mindestens 11 verfügbare Spieler benötigt!</p>';
+                return;
+            }
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">🎨 Baue deine eigene Aufstellung</h4>
+                    
+                    <div class="form-group">
+                        <label>Formationsname</label>
+                        <input type="text" id="customFormationName" placeholder="z.B. Meine 4-2-3-1 Ultra-Offensiv" style="width: 100%;">
+                    </div>
+                    
+                    <h4 style="margin: 20px 0 10px;">Wähle 11 Spieler und ihre Positionen:</h4>
+                    <p style="color: #666; margin-bottom: 20px;">Ziehe Spieler auf Positionen oder wähle aus Dropdown</p>
+                    
+                    <div id="customFormationPlayers" style="display: grid; gap: 10px;">
+            `;
+            
+            for (let i = 1; i <= 11; i++) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                        <strong>Position ${i}:</strong>
+                        <div style="display: flex; gap: 10px; margin-top: 8px;">
+                            <select id="customPlayer${i}" style="flex: 2;">
+                                <option value="">-- Spieler wählen --</option>
+                                ${availablePlayers.map(p => `<option value="${p.id}">${p.name} (${p.position})</option>`).join('')}
+                            </select>
+                            <select id="customPos${i}" style="flex: 1;">
+                                <option value="">-- Position --</option>
+                                <option value="TW">TW</option>
+                                <option value="IV">IV</option>
+                                <option value="LV">LV</option>
+                                <option value="RV">RV</option>
+                                <option value="LM">LM</option>
+                                <option value="RM">RM</option>
+                                <option value="ZM">ZM</option>
+                                <option value="OM">OM</option>
+                                <option value="DM">DM</option>
+                                <option value="ST">ST</option>
+                                <option value="LF">LF</option>
+                                <option value="RF">RF</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Was ist deine taktische Idee hinter dieser Aufstellung?</label>
+                        <textarea id="customFormationIdea" rows="3" placeholder="z.B. Maximale Breite durch Außenverteidiger, kompaktes Mittelfeld, zwei schnelle Stürmer für Konter..."></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="evaluateCustomFormation()" style="flex: 1;">
+                            🤖 Von KI bewerten lassen
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelCustomFormation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function cancelCustomFormation() {
+            document.getElementById('customFormationBuilder').style.display = 'none';
+            document.getElementById('customFormationBuilder').innerHTML = '';
+        }
+        
+        async function evaluateCustomFormation() {
+            const formationName = document.getElementById('customFormationName').value.trim();
+            const tacticalIdea = document.getElementById('customFormationIdea').value.trim();
+            
+            // Collect selected players and positions
+            const lineup = [];
+            for (let i = 1; i <= 11; i++) {
+                const playerId = document.getElementById(`customPlayer${i}`).value;
+                const position = document.getElementById(`customPos${i}`).value;
+                
+                if (playerId && position) {
+                    const player = players.find(p => p.id == playerId);
+                    if (player) {
+                        lineup.push({
+                            name: player.name,
+                            position: position,
+                            originalPosition: player.position
+                        });
+                    }
+                }
+            }
+            
+            if (lineup.length < 11) {
+                alert('Bitte wähle 11 Spieler mit Positionen!');
+                return;
+            }
+            
+            // Build evaluation prompt
+            let prompt = `BEWERTUNG EIGENER AUFSTELLUNG\n\n`;
+            prompt += formationName ? `Formation: ${formationName}\n\n` : '';
+            prompt += `AUFSTELLUNG:\n`;
+            lineup.forEach((p, idx) => {
+                prompt += `${idx + 1}. ${p.name} - ${p.position}`;
+                if (p.position !== p.originalPosition) {
+                    prompt += ` (normalerweise ${p.originalPosition})`;
+                }
+                prompt += `\n`;
+            });
+            
+            if (tacticalIdea) {
+                prompt += `\nTAKTISCHE IDEE:\n${tacticalIdea}\n`;
+            }
+            
+            prompt += `\n\nAufgabe: Bewerte diese Aufstellung kritisch und konstruktiv:\n\n`;
+            prompt += `1. FORMATION-ANALYSE: Welche Formation ist das? Wie ausbalanciert ist sie?\n`;
+            prompt += `2. STÄRKEN: Was sind die 3 größten Vorteile dieser Aufstellung?\n`;
+            prompt += `3. SCHWÄCHEN: Was sind die 3 größten Risiken/Probleme?\n`;
+            prompt += `4. SPIELER-POSITIONEN: Wer spielt auf falscher Position? Wer passt perfekt?\n`;
+            prompt += `5. GEGNER: Gegen welche Gegner-Typen funktioniert diese Aufstellung gut/schlecht?\n`;
+            prompt += `6. VERBESSERUNGSVORSCHLÄGE: Konkrete 2-3 Änderungen die die Aufstellung besser machen\n`;
+            prompt += `7. GESAMTNOTE: Bewertung von 1 (sehr gut) bis 6 (ungenügend) mit Begründung\n`;
+            
+            await runAnalysis(`🎨 Bewertung: ${formationName || 'Deine Aufstellung'}`, prompt);
+            cancelCustomFormation();
+        }
+        
+        // ===== CUSTOM SITUATION CREATOR =====
+        
+        function showCustomSituationCreator() {
+            const container = document.getElementById('customSituationCreator');
+            container.style.display = 'block';
+            
+            let html = `
+                <div style="background: white; padding: 20px; border-radius: 12px;">
+                    <h4 style="margin-bottom: 20px;">✍️ Eigene Spielsituation definieren</h4>
+                    
+                    <div class="form-group">
+                        <label><strong>Spielsituation beschreiben</strong></label>
+                        <textarea id="customSituationDesc" rows="4" placeholder="Beschreibe die Situation genau, z.B.:&#10;&#10;'Es ist die 75. Minute, wir führen 2:1. Der Gegner hat gerade gewechselt und spielt jetzt mit 3 Stürmern. Unsere Außenverteidiger sind müde. Was sollen wir tun?'&#10;&#10;Oder:&#10;&#10;'Rote Karte für unseren Innenverteidiger in Minute 30, noch 0:0. Wie stellen wir um?'"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Aktueller Spielstand (optional)</label>
+                            <input type="text" id="customSituationScore" placeholder="z.B. 1:1, 2:0, 0:3">
+                        </div>
+                        <div class="form-group">
+                            <label>Spielminute (optional)</label>
+                            <input type="number" id="customSituationMinute" min="1" max="90" placeholder="z.B. 65">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><strong>Was möchtest du von der KI?</strong></label>
+                        <select id="customSituationType" style="width: 100%;">
+                            <option value="vorschlag">Taktischen Vorschlag für Reaktion</option>
+                            <option value="bewertung">Bewertung meiner geplanten Reaktion</option>
+                            <option value="optionen">Mehrere Handlungsoptionen mit Vor-/Nachteilen</option>
+                        </select>
+                    </div>
+                    
+                    <div id="customReactionInput" style="display: none;" class="form-group">
+                        <label>Deine geplante Reaktion (zur Bewertung)</label>
+                        <textarea id="customReaction" rows="3" placeholder="z.B. Ich würde auf 5-4-1 umstellen und den schnellsten Stürmer vorne lassen..."></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="analyzeCustomSituation()" style="flex: 1; background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            🤖 KI-Analyse starten
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelCustomSituation()">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Show/hide reaction input based on type
+            document.getElementById('customSituationType').addEventListener('change', function() {
+                const reactionDiv = document.getElementById('customReactionInput');
+                reactionDiv.style.display = this.value === 'bewertung' ? 'block' : 'none';
+            });
+        }
+        
+        function cancelCustomSituation() {
+            document.getElementById('customSituationCreator').style.display = 'none';
+            document.getElementById('customSituationCreator').innerHTML = '';
+        }
+        
+        async function analyzeCustomSituation() {
+            const situation = document.getElementById('customSituationDesc').value.trim();
+            const score = document.getElementById('customSituationScore').value.trim();
+            const minute = document.getElementById('customSituationMinute').value;
+            const type = document.getElementById('customSituationType').value;
+            const reaction = document.getElementById('customReaction') ? document.getElementById('customReaction').value.trim() : '';
+            
+            if (!situation) {
+                alert('Bitte beschreibe die Spielsituation!');
+                return;
+            }
+            
+            // Build analysis prompt
+            let prompt = `SPIELSITUATION-ANALYSE\n\n`;
+            prompt += `SITUATION:\n${situation}\n\n`;
+            
+            if (score) prompt += `Spielstand: ${score}\n`;
+            if (minute) prompt += `Minute: ${minute}\n`;
+            prompt += `\n`;
+            
+            // Different prompts based on type
+            if (type === 'vorschlag') {
+                prompt += `Aufgabe: Analysiere diese Situation und gib konkrete taktische Empfehlungen:\n\n`;
+                prompt += `1. SITUATIONSANALYSE: Was ist das Hauptproblem/die Hauptchance?\n`;
+                prompt += `2. SOFORT-MASSNAHMEN: Was muss sofort passieren?\n`;
+                prompt += `3. TAKTISCHE ANPASSUNG: Welche Formation/Spielweise?\n`;
+                prompt += `4. AUSWECHSLUNGEN: Wer raus, wer rein, warum?\n`;
+                prompt += `5. INDIVIDUELLE ANWEISUNGEN: Was sollen Schlüsselspieler tun?\n`;
+                prompt += `6. RISIKO-BEWERTUNG: Was kann schiefgehen?\n`;
+            } else if (type === 'bewertung') {
+                if (!reaction) {
+                    alert('Bitte beschreibe deine geplante Reaktion!');
+                    return;
+                }
+                prompt += `GEPLANTE REAKTION:\n${reaction}\n\n`;
+                prompt += `Aufgabe: Bewerte diese Reaktion kritisch:\n\n`;
+                prompt += `1. STÄRKEN: Was ist gut an dieser Reaktion?\n`;
+                prompt += `2. SCHWÄCHEN: Welche Risiken/Probleme siehst du?\n`;
+                prompt += `3. ALTERNATIVE: Gibt es eine bessere Lösung?\n`;
+                prompt += `4. GESAMTBEWERTUNG: Note 1-6 mit Begründung\n`;
+            } else {  // optionen
+                prompt += `Aufgabe: Präsentiere 3 verschiedene Handlungsoptionen:\n\n`;
+                prompt += `Option 1 (Defensiv): Sicherheit first, Ergebnis halten\n`;
+                prompt += `Option 2 (Balanced): Ausgewogen, flexibel reagieren\n`;
+                prompt += `Option 3 (Offensiv): Risikoreich, auf Sieg spielen\n\n`;
+                prompt += `Für jede Option:\n`;
+                prompt += `- Konkrete taktische Maßnahmen\n`;
+                prompt += `- Auswechslungen wenn sinnvoll\n`;
+                prompt += `- Vorteile und Nachteile\n`;
+                prompt += `- Erfolgswahrscheinlichkeit\n`;
+            }
+            
+            const titles = {
+                'vorschlag': '💡 Taktischer Vorschlag für deine Situation',
+                'bewertung': '⚖️ Bewertung deiner Reaktion',
+                'optionen': '🎯 3 Handlungsoptionen'
+            };
+            
+            await runAnalysis(titles[type], prompt);
+            cancelCustomSituation();
+        }
+
+        function buildPrompt(type, opp, customPrompt) {
+            let data = `MEIN TEAM:\nKader: ${players.length} Spieler\n\n`;
+            const pos = {};
+            players.forEach(p => pos[p.position] = (pos[p.position]||0)+1);
+            data += 'Positionen:\n' + Object.entries(pos).map(([k,v]) => `- ${k}: ${v}`).join('\n') + '\n\n';
+            data += 'SPIELER:\n';
+            players.forEach(p => {
+                const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
+                            Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
+                            Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
+                data += `\n${p.name} (${p.position}) - ${avg}/10\n`;
+                data += `  Pass ${p.skills.passing}, Schuss ${p.skills.shooting}, Tempo ${p.physical.speed}\n`;
+                if (p.strengths) data += `  Stärken: ${p.strengths}\n`;
+                if (p.weaknesses) data += `  Schwächen: ${p.weaknesses}\n`;
+            });
+            
+            if (opp) {
+                data += `\n\nGEGNER: ${opp.name}\n${opp.formation}, ${opp.style}\n`;
+                if (opp.strengths) data += `Stärken: ${opp.strengths}\n`;
+                if (opp.weaknesses) data += `Schwächen: ${opp.weaknesses}\n`;
+            }
+            
+            // If custom prompt provided (for situations), use it
+            if (customPrompt) {
+                return data + '\n\n' + customPrompt;
+            }
+
+            const prompts = {
+                lineup: 'Erstelle die OPTIMALE STARTAUFSTELLUNG (11 Spieler mit Positionen).\nBegründe taktisch, zeige Matchups, Einwechseloptionen, Plan B.',
+                training: 'Erstelle WOCHENTRAININGSPLAN (Mo-Fr).\nJe Tag: Schwerpunkt, 2-3 Übungen, Dauer, welche Schwächen werden trainiert.',
+                tactics: 'Erstelle ANSPRACHEN-STICHPUNKTE:\n1. MANNSCHAFT (Motivation + 3 Hauptpunkte)\n2. GRUPPENTAKTIK (Defensive/Mittelfeld/Offensive)\n3. INDIVIDUELLE ANWEISUNGEN (5 Schlüsselspieler)',
+                longterm: 'Erstelle 3-MONATS-ENTWICKLUNGSPLAN:\n1. Team-Ziele (Schwächen beheben)\n2. Top 5 Spieler-Entwicklungsziele\n3. Trainings-Periodisierung\n4. Erfolgs-Indikatoren',
+                formation_options: 'Erstelle GENAU 3 TAKTISCHE OPTIONEN für die Aufstellung:\n\nOption 1: [Titel]\nFormation: [z.B. 4-3-3]\nBeschreibung: [2-3 Sätze warum diese Formation]\nVorteile: [Stichpunkte]\n\nOption 2: [Titel]\nFormation: [z.B. 4-4-2]\nBeschreibung: [2-3 Sätze]\nVorteile: [Stichpunkte]\n\nOption 3: [Titel]\nFormation: [z.B. 3-5-2]\nBeschreibung: [2-3 Sätze]\nVorteile: [Stichpunkte]\n\nBeachte: Jede Option soll eine ANDERE taktische Herangehensweise bieten.'
+            };
+
+            return data + '\n\n' + prompts[type];
+        }
+
+        async function runAnalysis(title, prompt) {
+            const div = document.getElementById('analysisResults');
+            div.innerHTML = '<div class="loading"><div class="spinner"></div><p>KI analysiert...</p></div>';
+
+            try {
+                // Backend API endpoint
+                const BACKEND_URL = 'https://soccer-dtr-backend-andi.vercel.app/api/claude';
+                
+                const res = await fetch(BACKEND_URL, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || `API Error: ${res.status}`);
+                }
+                
+                const data = await res.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+
+                div.innerHTML = `
+                    <div class="analysis-section">
+                        <h2>${title}</h2>
+                        <div class="analysis-content">${data.response}</div>
+                    </div>
+                `;
+            } catch (err) {
+                div.innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}<br><br>Hinweis: Stelle sicher, dass das Backend deployed ist und die URL korrekt ist.</div>`;
+            }
+        }
+
+        // Kader-Generator Funktion
+        let selectedPlayerIds = new Set();
+
+        function renderPlayerSelection() {
+            const container = document.getElementById('playerSelectionList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // Nur nicht-verletzte Spieler (verfügbar + abwesend können ausgewählt werden)
+            const selectablePlayers = players.filter(p => p.status !== 'verletzt');
+            
+            // AUTO-SELECT: Wenn noch keine Spieler ausgewählt wurden, wähle automatisch alle verfügbaren
+            if (selectedPlayerIds.size === 0) {
+                players.filter(p => p.status === 'verfügbar').forEach(p => {
+                    selectedPlayerIds.add(p.id);
+                });
+                console.log('Auto-selected', selectedPlayerIds.size, 'available players');
+            }
+            
+            // DEBUG: Log actual status values
+            console.log('=== PLAYER STATUS DEBUG ===');
+            players.forEach(p => {
+                console.log(`${p.name}: status="${p.status}" (type: ${typeof p.status})`);
+            });
+            console.log('=========================');
+            
+            if (selectablePlayers.length === 0) {
+                container.innerHTML = '<p style="color: #666;">Keine Spieler vorhanden. Füge zuerst Spieler hinzu!</p>';
+                return;
+            }
+
+            selectablePlayers.forEach(player => {
+                const isAvailable = player.status === 'verfügbar';
+                const isSelected = selectedPlayerIds.has(player.id);
+                
+                // FORCE FIX: If status is undefined, fix it NOW
+                if (!player.status || player.status === 'undefined' || player.status === undefined) {
+                    console.log(`🔧 Emergency fix: ${player.name} status was ${player.status}, fixing to verfügbar`);
+                    player.status = 'verfügbar';
+                    // Update in main array
+                    const idx = players.findIndex(p => p.id === player.id);
+                    if (idx !== -1) players[idx].status = 'verfügbar';
+                    // Save immediately
+                    localStorage.setItem('footballPlayers', JSON.stringify(players));
+                }
+                
+                const statusIcon = {
+                    'verfügbar': '✅',
+                    'abwesend': '❌',
+                    'verletzt': '🤕'
+                }[player.status] || '✅'; // Default to ✅ if unknown
+                
+                const aYouthLabel = player.aYouth ? ' <span style="background:#764ba2;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;">A-Jugend</span>' : '';
+                
+                const checkbox = document.createElement('label');
+                checkbox.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    padding: 10px;
+                    background: ${isSelected ? '#d4edda' : 'white'};
+                    border: 2px solid ${isSelected ? '#28a745' : '#e0e0e0'};
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                `;
+                
+                checkbox.innerHTML = `
+                    <input type="checkbox" 
+                           ${isSelected ? 'checked' : ''} 
+                           onchange="togglePlayerSelection(${player.id})"
+                           style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                    <span>
+                        ${statusIcon} <strong>${player.name}</strong> (${player.position})${aYouthLabel}
+                    </span>
+                `;
+                
+                container.appendChild(checkbox);
+            });
+            
+            updateSelectedCount();
+        }
+
+        function togglePlayerSelection(playerId) {
+            if (selectedPlayerIds.has(playerId)) {
+                selectedPlayerIds.delete(playerId);
+            } else {
+                selectedPlayerIds.add(playerId);
+            }
+            renderPlayerSelection();
+        }
+
+        function selectAllPlayers() {
+            players.filter(p => p.status !== 'verletzt').forEach(p => selectedPlayerIds.add(p.id));
+            renderPlayerSelection();
+        }
+
+        function deselectAllPlayers() {
+            selectedPlayerIds.clear();
+            renderPlayerSelection();
+        }
+
+        function selectOnlyAvailable() {
+            selectedPlayerIds.clear();
+            players.filter(p => p.status === 'verfügbar').forEach(p => selectedPlayerIds.add(p.id));
+            renderPlayerSelection();
+        }
+
+        function updateSelectedCount() {
+            const countEl = document.getElementById('selectedPlayerCount');
+            if (countEl) {
+                countEl.textContent = selectedPlayerIds.size;
+            }
+        }
+
+        function generateSquad() {
+            console.log('generateSquad called'); // Debug
+            
+            const opponent = document.getElementById('squadOpponent').value;
+            const gameType = document.getElementById('squadGameType').value;
+            const date = document.getElementById('squadDate').value;
+            const meetTime = document.getElementById('squadMeetTime').value;
+            const jerseyColor = document.getElementById('squadJerseyColor').value;
+            const meetLocation = document.getElementById('squadMeetLocation').value;
+            const extraInfo = document.getElementById('squadExtraInfo').value;
+
+            // Validierung
+            if (!opponent || !date) {
+                alert('Bitte fülle mindestens Gegner und Datum aus!');
+                return;
+            }
+
+            // Nur ausgewählte Spieler
+            const selectedPlayers = players.filter(p => selectedPlayerIds.has(p.id));
+            
+            console.log('Ausgewählte Spieler:', selectedPlayers.length);
+            
+            if (selectedPlayers.length === 0) {
+                alert('Keine Spieler ausgewählt!\n\nBitte wähle oben mindestens einen Spieler aus.');
+                return;
+            }
+
+            // Spieler nach Stammkraft sortieren (A-Jugend ans Ende)
+            const regularPlayers = selectedPlayers.filter(p => !p.aYouth);
+            const aYouthPlayers = selectedPlayers.filter(p => p.aYouth);
+            const sortedPlayers = [...regularPlayers, ...aYouthPlayers];
+
+            // Datum formatieren
+            const dateObj = new Date(date + 'T00:00:00');
+            const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+            const dayName = weekdays[dateObj.getDay()];
+            const formattedDate = dateObj.getDate() + '.' + (dateObj.getMonth() + 1) + '.';
+
+            // WhatsApp Nachricht zusammenstellen
+            let message = `⚽ ${gameType} gegen ${opponent} am ${dayName}.\n\n`;
+            
+            if (extraInfo) {
+                message += `${extraInfo}\n\n`;
+            }
+
+            message += `Spieltag: ${dayName} ${formattedDate}\n`;
+            
+            if (meetLocation) {
+                message += `Treffen ${meetLocation}: ${meetTime}\n`;
+            } else {
+                message += `Treffen: ${meetTime}\n`;
+            }
+
+            message += `👕 Farbe: ${jerseyColor}\n\n`;
+            message += `👥 Kader:\n`;
+            
+            sortedPlayers.forEach(p => {
+                const suffix = p.aYouth ? ' (A-Jugend)' : '';
+                message += `${p.name}${suffix}\n`;
+            });
+
+            message += `\n🔥 Auf geht's Männer!`;
+
+            // Anzeigen
+            const resultDiv = document.getElementById('squadResult');
+            resultDiv.innerHTML = `
+                <div class="analysis-section">
+                    <h2>📱 Kader-Nachricht</h2>
+                    <div class="analysis-content" style="white-space: pre-wrap;">${message}</div>
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="copySquadToClipboard()">📋 Kopieren</button>
+                        <button class="btn" onclick="shareSquadWhatsApp()">💬 In WhatsApp teilen</button>
+                    </div>
+                </div>
+            `;
+
+            // Nachricht speichern für Copy/Share
+            window.currentSquadMessage = message;
+            
+            // Wenn Spiel-Kontext vorhanden, Spiel aktualisieren
+            if (window.currentGameId) {
+                const gameIndex = games.findIndex(g => g.id === window.currentGameId);
+                if (gameIndex !== -1) {
+                    games[gameIndex].squad = selectedPlayers.map(p => p.id);
+                    games[gameIndex].status = 'kader_erstellt';
+                    localStorage.setItem('footballGames', JSON.stringify(games));
+                    console.log('Game updated with squad:', games[gameIndex]);
+                }
+            }
+        }
+
+        function copySquadToClipboard() {
+            if (!window.currentSquadMessage) return;
+            
+            navigator.clipboard.writeText(window.currentSquadMessage).then(() => {
+                showMessage('Kader in Zwischenablage kopiert!', 'success');
+            }).catch(err => {
+                showMessage('Kopieren fehlgeschlagen: ' + err.message, 'error');
+            });
+        }
+
+        function shareSquadWhatsApp() {
+            if (!window.currentSquadMessage) return;
+            
+            const encodedMessage = encodeURIComponent(window.currentSquadMessage);
+            const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
+            window.open(whatsappURL, '_blank');
+        }
+
+        // Formation Visualizer
+        let selectedFormation = '4-3-3';
+        let playersOnField = [];
+
+        const formations = {
+            '4-3-3': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 250, y: 650, role: 'ZM'},
+                    {x: 350, y: 620, role: 'ZM'},
+                    {x: 450, y: 650, role: 'ZM'},
+                    {x: 150, y: 350, role: 'LF'},
+                    {x: 350, y: 300, role: 'ST'},
+                    {x: 550, y: 350, role: 'RF'}
+                ]
+            },
+            '4-4-2': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 150, y: 580, role: 'LM'},
+                    {x: 300, y: 620, role: 'ZM'},
+                    {x: 400, y: 620, role: 'ZM'},
+                    {x: 550, y: 580, role: 'RM'},
+                    {x: 280, y: 300, role: 'ST'},
+                    {x: 420, y: 300, role: 'ST'}
+                ]
+            },
+            '4-2-3-1': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 300, y: 680, role: 'DM'},
+                    {x: 400, y: 680, role: 'DM'},
+                    {x: 150, y: 450, role: 'LM'},
+                    {x: 350, y: 480, role: 'OM'},
+                    {x: 550, y: 450, role: 'RM'},
+                    {x: 350, y: 250, role: 'ST'}
+                ]
+            },
+            '3-5-2': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 220, y: 850, role: 'IV'},
+                    {x: 350, y: 870, role: 'IV'},
+                    {x: 480, y: 850, role: 'IV'},
+                    {x: 120, y: 620, role: 'LM'},
+                    {x: 280, y: 680, role: 'ZM'},
+                    {x: 350, y: 640, role: 'ZM'},
+                    {x: 420, y: 680, role: 'ZM'},
+                    {x: 580, y: 620, role: 'RM'},
+                    {x: 300, y: 320, role: 'ST'},
+                    {x: 400, y: 320, role: 'ST'}
+                ]
+            },
+            '4-1-4-1': {
+                positions: [
+                    {x: 350, y: 980, role: 'TW'},
+                    {x: 150, y: 820, role: 'LV'},
+                    {x: 300, y: 850, role: 'IV'},
+                    {x: 400, y: 850, role: 'IV'},
+                    {x: 550, y: 820, role: 'RV'},
+                    {x: 350, y: 700, role: 'DM'},
+                    {x: 150, y: 500, role: 'LM'},
+                    {x: 300, y: 550, role: 'ZM'},
+                    {x: 400, y: 550, role: 'ZM'},
+                    {x: 550, y: 500, role: 'RM'},
+                    {x: 350, y: 250, role: 'ST'}
+                ]
+            }
+        };
+
+        function loadFormation() {
+            selectedFormation = document.getElementById('formationSelect').value;
+            renderPitch();
+        }
+
+        function renderPitch() {
+            const container = document.getElementById('playersOnPitch');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const formationData = formations[selectedFormation];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            console.log('renderPitch called');
+            console.log('Total players:', players.length);
+            console.log('Available players:', availablePlayers.length);
+            console.log('Player statuses:', players.map(p => ({ name: p.name, status: p.status })));
+            
+            if (players.length === 0) {
+                container.innerHTML = `
+                    <div style="color: white; text-align: center; padding: 40px; font-size: 1.1em; line-height: 1.6;">
+                        <h3 style="margin-bottom: 20px;">⚽ Keine Spieler vorhanden!</h3>
+                        <p>Gehe zu <strong>"Spielerverwaltung"</strong> und füge Spieler hinzu.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (availablePlayers.length < 11) {
+                // Detaillierte Status-Aufschlüsselung
+                const statusCounts = {
+                    'verfügbar': players.filter(p => p.status === 'verfügbar').length,
+                    'verletzt': players.filter(p => p.status === 'verletzt').length,
+                    'abwesend': players.filter(p => p.status === 'abwesend').length,
+                    'andere': players.filter(p => !['verfügbar', 'verletzt', 'abwesend'].includes(p.status)).length
+                };
+                
+                container.innerHTML = `
+                    <div style="color: white; text-align: center; padding: 40px; font-size: 1.1em; line-height: 1.6;">
+                        <h3 style="margin-bottom: 20px;">⚠️ Nicht genug verfügbare Spieler!</h3>
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                            <p><strong>Gesamt:</strong> ${players.length} Spieler</p>
+                            <p>✅ <strong>Verfügbar:</strong> ${statusCounts.verfügbar}</p>
+                            <p>🤕 <strong>Verletzt:</strong> ${statusCounts.verletzt}</p>
+                            <p>❌ <strong>Abwesend:</strong> ${statusCounts.abwesend}</p>
+                            ${statusCounts.andere > 0 ? `<p>❓ <strong>Unbekannt:</strong> ${statusCounts.andere}</p>` : ''}
+                        </div>
+                        <p style="margin-top: 20px;">Es werden <strong>11 verfügbare Spieler</strong> benötigt.</p>
+                        <p>Gehe zu <strong>"Spielerverwaltung"</strong> und setze mehr Spieler auf "✅ Verfügbar".</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Beste 11 Spieler nach Rating
+            const sortedPlayers = availablePlayers.sort((a, b) => {
+                const avgA = calculatePlayerRating(a);
+                const avgB = calculatePlayerRating(b);
+                return avgB - avgA;
+            }).slice(0, 11);
+
+            playersOnField = formationData.positions.map((pos, idx) => {
+                const player = sortedPlayers[idx];
+                return {
+                    player: player,
+                    x: pos.x,
+                    y: pos.y,
+                    number: idx + 1
+                };
+            });
+
+            playersOnField.forEach(p => {
+                const jersey = createJerseyElement(p.player, p.number, p.x, p.y);
+                container.appendChild(jersey);
+            });
+            
+            console.log('Formation rendered with', playersOnField.length, 'players');
+        }
+
+        function calculatePlayerRating(player) {
+            return ((Object.values(player.skills).reduce((a,b)=>a+b,0)/4 + 
+                    Object.values(player.physical).reduce((a,b)=>a+b,0)/3 + 
+                    Object.values(player.mental).reduce((a,b)=>a+b,0)/3) / 3);
+        }
+
+        function createJerseyElement(player, number, x, y) {
+            const div = document.createElement('div');
+            div.className = 'player-jersey';
+            
+            // Convert SVG viewBox coordinates (700x1050) to percentage
+            const xPercent = (x / 700) * 100;
+            const yPercent = (y / 1050) * 100;
+            
+            div.style.left = xPercent + '%';
+            div.style.top = yPercent + '%';
+            
+            div.innerHTML = `
+                <svg viewBox="0 0 100 100">
+                    <path d="M20,30 L30,20 L40,25 L50,20 L60,25 L70,20 L80,30 L80,80 Q80,90 70,90 L30,90 Q20,90 20,80 Z" 
+                          fill="#c41e3a" stroke="white" stroke-width="2"/>
+                    <circle cx="35" cy="35" r="8" fill="white"/>
+                    <circle cx="65" cy="35" r="8" fill="white"/>
+                </svg>
+                <div class="jersey-number">${number}</div>
+                <div class="player-name">${player.name}</div>
+            `;
+            
+            return div;
+        }
+
+        function generateFormationOptions() {
+            if (players.filter(p => p.status === 'verfügbar').length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            const prompt = buildPrompt('formation_options', null);
+            
+            document.getElementById('formationOptions').innerHTML = '<div class="loading"><div class="spinner"></div><p>KI generiert 3 taktische Optionen...</p></div>';
+            
+            runFormationAnalysis(prompt);
+        }
+
+        async function runFormationAnalysis(prompt) {
+            try {
+                const res = await fetch('https://soccer-dtr-backend-andi.vercel.app/api/claude', {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`API Error: ${res.status}`);
+                }
+                
+                const data = await res.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+
+                displayFormationOptions(data.response);
+            } catch (err) {
+                document.getElementById('formationOptions').innerHTML = `<div class="error"><strong>Fehler:</strong> ${err.message}</div>`;
+            }
+        }
+
+        function displayFormationOptions(aiResponse) {
+            const container = document.getElementById('formationOptions');
+            
+            // Try to parse options from AI response
+            const options = [];
+            
+            // Multiple patterns to try
+            const patterns = [
+                // Pattern 1: **Option 1: Title**
+                /\*\*Option\s+(\d+):\s*([^*\n]+)\*\*/gi,
+                // Pattern 2: ## Option 1: "Title"
+                /##\s*Option\s+(\d+):\s*["\"]([^"\n]+)["\"]/gi,
+                // Pattern 3: Option 1: "Title"
+                /Option\s+(\d+):\s*["\"]([^"\n]+)["\"]/gi,
+                // Pattern 4: Option 1: Title (without quotes)
+                /Option\s+(\d+):\s*([^\n]+)/gi
+            ];
+            
+            let matches = [];
+            
+            // Try each pattern until we find matches
+            for (const pattern of patterns) {
+                const text = aiResponse;
+                let match;
+                const tempMatches = [];
+                
+                while ((match = pattern.exec(text)) !== null) {
+                    tempMatches.push({
+                        index: match.index,
+                        number: match[1],
+                        title: match[2].trim().replace(/\*\*/g, '') // Remove any remaining **
+                    });
+                }
+                
+                if (tempMatches.length >= 2) {
+                    matches = tempMatches;
+                    break;
+                }
+            }
+            
+            // Extract content for each option
+            matches.forEach((m, idx) => {
+                const startIndex = m.index;
+                const endIndex = idx < matches.length - 1 ? matches[idx + 1].index : aiResponse.length;
+                const optionText = aiResponse.substring(startIndex, endIndex);
+                
+                // Try to extract formation
+                const formationMatch = optionText.match(/Formation:\s*([0-9\-]+)/i);
+                
+                if (formationMatch) {
+                    options.push({
+                        number: m.number,
+                        title: m.title,
+                        formation: formationMatch[1],
+                        description: optionText.trim()
+                    });
+                }
+            });
+            
+            // If we successfully parsed options, show them as cards
+            if (options.length >= 2) {
+                let html = '<h3 style="margin-bottom: 20px; color: #1e3c72;">🎯 Wähle eine taktische Option:</h3>';
+                
+                options.forEach((opt, idx) => {
+                    // Extract description after "Formation:"
+                    const descMatch = opt.description.match(/Formation:\s*[0-9\-]+\s*([\s\S]*)/i);
+                    const desc = descMatch ? descMatch[1].substring(0, 250) : '';
+                    
+                    html += `
+                        <div class="formation-option-card" onclick="selectFormationOption('${opt.formation}', ${idx})">
+                            <h3 style="color: #1e3c72; margin-bottom: 10px;">
+                                ${opt.title}
+                            </h3>
+                            <p style="font-size: 1.1em; font-weight: 600; color: #667eea; margin: 10px 0;">
+                                ⚽ Formation: ${opt.formation}
+                            </p>
+                            <div style="color: #495057; font-size: 0.9em; line-height: 1.5;">
+                                ${desc.substring(0, 150)}...
+                            </div>
+                            <button class="btn" style="margin-top: 15px; width: 100%;">
+                                ✓ Diese Formation wählen
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                html += '<p style="color: #666; font-size: 0.9em; margin-top: 15px; text-align: center;">Klicke auf eine Karte um die Formation zu laden</p>';
+                container.innerHTML = html;
+            } else {
+                // Fallback: Show as text with manual dropdown instruction
+                container.innerHTML = `
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="color: #856404; margin-bottom: 10px;">ℹ️ KI-Antwort</h3>
+                        <p style="color: #856404;">Die KI-Antwort konnte nicht in Options-Karten umgewandelt werden. Lies die Empfehlung und wähle die Formation manuell aus dem Dropdown oben.</p>
+                    </div>
+                    <div class="analysis-content" style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 12px; border: 2px solid #e9ecef;">${aiResponse}</div>
+                `;
+            }
+        }
+        
+        function selectFormationOption(formation, optionIndex) {
+            // Set the formation dropdown
+            document.getElementById('formationSelect').value = formation;
+            selectedFormation = formation;
+            
+            // Highlight selected option
+            document.querySelectorAll('.formation-option-card').forEach((card, idx) => {
+                if (idx === optionIndex) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+            
+            // Render the pitch with new formation
+            renderPitch();
+            
+            // Scroll to pitch
+            document.getElementById('pitchContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function saveFormationImage() {
+            alert('Tipp: Mache einen Screenshot deines Bildschirms!\n\niPhone: Home + Power Taste\nAndroid: Lautstärke runter + Power');
+        }
+
+        function shareFormationImage() {
+            alert('Tipp: Mache einen Screenshot und teile diesen über WhatsApp!\n\niPhone: Screenshot → Teilen\nAndroid: Screenshot → Teilen');
+        }
+
+        // ===== SPIELE-MANAGEMENT =====
+        
+        function showNewGameForm() {
+            document.getElementById('newGameForm').style.display = 'block';
+            updateGameOpponentSelect();
+        }
+        
+        function hideNewGameForm() {
+            document.getElementById('newGameForm').style.display = 'none';
+            document.getElementById('gameForm').reset();
+        }
+        
+        function updateGameOpponentSelect() {
+            const select = document.getElementById('gameOpponent');
+            select.innerHTML = '<option value="">-- Gegner wählen --</option>';
+            opponents.forEach(opp => {
+                select.innerHTML += `<option value="${opp.id}">${opp.name}</option>`;
+            });
+        }
+        
+        document.getElementById('gameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const oppId = document.getElementById('gameOpponent').value;
+            const opponent = opponents.find(o => o.id == oppId);
+            
+            const game = {
+                id: Date.now(),
+                opponentId: oppId,
+                opponentName: opponent.name,
+                type: document.getElementById('gameType').value,
+                date: document.getElementById('gameDate').value,
+                time: document.getElementById('gameTime').value,
+                location: document.getElementById('gameLocation').value,
+                notes: document.getElementById('gameNotes').value,
+                status: 'geplant', // geplant, kader_erstellt, aufstellung_fertig, gespielt
+                createdAt: new Date().toISOString(),
+                squad: null, // Wird später gesetzt
+                formation: null, // Wird später gesetzt
+                result: null // Wird nach dem Spiel gesetzt
+            };
+            
+            games.push(game);
+            localStorage.setItem('footballGames', JSON.stringify(games));
+            
+            hideNewGameForm();
+            renderGames();
+            showMessage('Spiel erfolgreich angelegt!', 'success');
+        });
+        
+        function renderGames() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            const upcomingGames = games.filter(g => g.date >= today && g.status !== 'gespielt')
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            const pastGames = games.filter(g => g.date < today || g.status === 'gespielt')
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Upcoming games
+            const upcomingContainer = document.getElementById('upcomingGamesList');
+            if (upcomingGames.length === 0) {
+                upcomingContainer.innerHTML = '<p style="color: #666;">Keine kommenden Spiele. Lege ein neues Spiel an!</p>';
+            } else {
+                upcomingContainer.innerHTML = upcomingGames.map(game => createGameCard(game)).join('');
+            }
+            
+            // Past games
+            const pastContainer = document.getElementById('pastGamesList');
+            if (pastGames.length === 0) {
+                pastContainer.innerHTML = '<p style="color: #666;">Noch keine vergangenen Spiele.</p>';
+            } else {
+                pastContainer.innerHTML = pastGames.map(game => createGameCard(game, true)).join('');
+            }
+        }
+        
+        function createGameCard(game, isPast = false) {
+            const typeIcon = game.type === 'heim' ? '🏠' : '✈️';
+            const statusIcon = {
+                'geplant': '📋',
+                'kader_erstellt': '👥',
+                'aufstellung_fertig': '⚽',
+                'gespielt': '✅'
+            }[game.status] || '📋';
+            
+            const dateObj = new Date(game.date + 'T' + game.time);
+            const dateStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+            
+            return `
+                <div class="opponent-card" style="border-left-color: ${isPast ? '#6c757d' : '#28a745'};">
+                    <h3>${typeIcon} ${game.opponentName}</h3>
+                    <div class="player-info">
+                        <div class="info-item">
+                            <span class="info-label">Datum</span>
+                            ${dateStr}, ${game.time} Uhr
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status</span>
+                            ${statusIcon} ${getStatusText(game.status)}
+                        </div>
+                        ${game.location ? `
+                        <div class="info-item">
+                            <span class="info-label">Ort</span>
+                            ${game.location}
+                        </div>
+                        ` : ''}
+                        ${game.result ? `
+                        <div class="info-item">
+                            <span class="info-label">Ergebnis</span>
+                            <strong style="font-size: 1.2em;">${game.result}</strong>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="action-buttons" style="margin-top: 15px;">
+                        ${!isPast ? `
+                            <button class="btn" onclick="createSquadForGame(${game.id})">
+                                ${game.squad ? '✏️ Kader bearbeiten' : '👥 Kader erstellen'}
+                            </button>
+                        ` : ''}
+                        ${isPast && !game.result ? `
+                            <button class="btn" onclick="enterGameResult(${game.id})">📊 Ergebnis eintragen</button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="viewGameDetails(${game.id})">👁️ Details</button>
+                        <button class="btn btn-danger" onclick="deleteGame(${game.id})">Löschen</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getStatusText(status) {
+            const texts = {
+                'geplant': 'Geplant',
+                'kader_erstellt': 'Kader erstellt',
+                'aufstellung_fertig': 'Aufstellung fertig',
+                'gespielt': 'Gespielt'
+            };
+            return texts[status] || status;
+        }
+        
+        function createSquadForGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            window.currentGameId = gameId;
+            
+            // Hide main view, show squad view
+            document.getElementById('gamesMainView').style.display = 'none';
+            document.getElementById('gameFormationView').style.display = 'none';
+            
+            const squadView = document.getElementById('gameSquadView');
+            squadView.style.display = 'block';
+            
+            // Copy squad generator content
+            squadView.innerHTML = `
+                <button class="btn btn-secondary" onclick="backToGamesList()" style="margin-bottom: 20px;">← Zurück zu Spielen</button>
+                <h2>👥 Kader für: ${game.opponentName}</h2>
+                <p style="color: #667eea; margin-bottom: 20px;"><strong>Spiel am:</strong> ${new Date(game.date).toLocaleDateString('de-DE')} um ${game.time} Uhr</p>
+                ${document.getElementById('squad').innerHTML}
+            `;
+            
+            // Re-render player selection for this game
+            renderPlayerSelection();
+            
+            showMessage(`Kader für Spiel gegen ${game.opponentName}`, 'success');
+        }
+        
+        function createFormationForGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            if (!game.squad) {
+                alert('Bitte erstelle zuerst einen Kader für dieses Spiel!');
+                return;
+            }
+            
+            window.currentGameId = gameId;
+            
+            // Hide main view, show formation view
+            document.getElementById('gamesMainView').style.display = 'none';
+            document.getElementById('gameSquadView').style.display = 'none';
+            
+            const formationView = document.getElementById('gameFormationView');
+            formationView.style.display = 'block';
+            
+            // Copy formation content
+            formationView.innerHTML = `
+                <button class="btn btn-secondary" onclick="backToGamesList()" style="margin-bottom: 20px;">← Zurück zu Spielen</button>
+                <h2>⚽ Aufstellung für: ${game.opponentName}</h2>
+                <p style="color: #667eea; margin-bottom: 20px;"><strong>Spiel am:</strong> ${new Date(game.date).toLocaleDateString('de-DE')} um ${game.time} Uhr</p>
+                ${document.getElementById('formation').innerHTML}
+            `;
+            
+            // Reload and render formation
+            players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+            renderPitch();
+            
+            showMessage(`Aufstellung für Spiel gegen ${game.opponentName}`, 'success');
+        }
+        
+        function backToGamesList() {
+            document.getElementById('gamesMainView').style.display = 'block';
+            document.getElementById('gameSquadView').style.display = 'none';
+            document.getElementById('gameFormationView').style.display = 'none';
+            window.currentGameId = null;
+        }
+        
+        function viewGameDetails(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            alert(`Spiel-Details:\n\nGegner: ${game.opponentName}\nDatum: ${game.date}\nZeit: ${game.time}\nStatus: ${getStatusText(game.status)}\n\n${game.notes || 'Keine Notizen'}`);
+        }
+        
+        function deleteGame(gameId) {
+            if (!confirm('Spiel wirklich löschen?')) return;
+            
+            games = games.filter(g => g.id !== gameId);
+            localStorage.setItem('footballGames', JSON.stringify(games));
+            renderGames();
+            showMessage('Spiel gelöscht', 'success');
+        }
+        
+        function enterGameResult(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            const result = prompt(`Ergebnis eintragen für ${game.opponentName}:\n\nFormat: Unsere Tore : Gegner Tore\n(z.B. 3:1)`);
+            if (result) {
+                game.result = result;
+                game.status = 'gespielt';
+                localStorage.setItem('footballGames', JSON.stringify(games));
+                renderGames();
+                showMessage('Ergebnis gespeichert!', 'success');
+            }
+        }
+
+        // ===== FORMATION EDITING & PLAYER FILTERING =====
+        
+        let playersOnField = []; // Track players currently on field
+        
+        function editCurrentFormation() {
+            const formationType = document.getElementById('formationSelect').value;
+            
+            if (!formationType) {
+                alert('Bitte wähle zuerst eine Formation aus!');
+                return;
+            }
+            
+            const formationData = formations[formationType];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            
+            if (availablePlayers.length < 11) {
+                alert('Mindestens 11 verfügbare Spieler benötigt!');
+                return;
+            }
+            
+            // Build editing interface
+            let html = `
+                <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #ffc107;">
+                    <h3 style="margin-bottom: 15px; color: #856404;">✏️ Formation ${formationType} bearbeiten</h3>
+                    <p style="color: #856404; margin-bottom: 20px;">Weise jedem Spieler seine Position zu. Bereits gewählte Spieler verschwinden aus den anderen Listen.</p>
+                    
+                    <div style="display: grid; gap: 12px;">
+            `;
+            
+            // Get current lineup or create new one
+            const currentLineup = playersOnField.length === 11 ? playersOnField : [];
+            
+            formationData.positions.forEach((pos, idx) => {
+                const currentPlayer = currentLineup[idx] ? currentLineup[idx].player : null;
+                
+                html += `
+                    <div style="background: white; padding: 14px; border-radius: 8px;">
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #1e3c72; font-size: 15px;">${pos.role} (Pos. ${idx + 1})</strong>
+                        </div>
+                        <select id="editPlayer${idx}" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 6px; border: 2px solid #ddd; -webkit-appearance: none;">
+                            <option value="">-- Spieler wählen --</option>
+                        </select>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="saveFormationEdit('${formationType}')" style="flex: 1; padding: 16px; font-size: 16px;">
+                            💾 Speichern
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelFormationEdit()" style="padding: 16px;">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('formationOptions').innerHTML = html;
+            
+            // Populate dropdowns and add change listeners
+            formationData.positions.forEach((pos, idx) => {
+                updatePlayerDropdown(idx, formationType, currentLineup[idx] ? currentLineup[idx].player : null);
+                
+                document.getElementById(`editPlayer${idx}`).addEventListener('change', function() {
+                    formationData.positions.forEach((p, i) => {
+                        if (i !== idx) {
+                            const currentVal = document.getElementById(`editPlayer${i}`).value;
+                            const currentP = currentVal ? players.find(pl => pl.id == currentVal) : null;
+                            updatePlayerDropdown(i, formationType, currentP);
+                        }
+                    });
+                });
+            });
+        }
+        
+        function updatePlayerDropdown(posIdx, formationType, currentPlayer) {
+            const select = document.getElementById(`editPlayer${posIdx}`);
+            if (!select) return;
+            
+            const formationData = formations[formationType];
+            const availablePlayers = players.filter(p => p.status === 'verfügbar');
+            const selectedIds = new Set();
+            
+            // Collect all selected players except current position
+            formationData.positions.forEach((pos, idx) => {
+                if (idx !== posIdx) {
+                    const s = document.getElementById(`editPlayer${idx}`);
+                    if (s && s.value) {
+                        selectedIds.add(parseInt(s.value));
+                    }
+                }
+            });
+            
+            // Filter available players
+            const filteredPlayers = availablePlayers.filter(p => 
+                !selectedIds.has(p.id) || (currentPlayer && p.id === currentPlayer.id)
+            );
+            
+            const currentValue = currentPlayer ? currentPlayer.id : '';
+            
+            select.innerHTML = '<option value="">-- Spieler wählen --</option>' +
+                filteredPlayers.map(p => `
+                    <option value="${p.id}" ${currentValue == p.id ? 'selected' : ''}>
+                        ${p.name} (${p.position})
+                    </option>
+                `).join('');
+        }
+        
+        function saveFormationEdit(formationType) {
+            const formationData = formations[formationType];
+            const newLineup = [];
+            
+            // Collect selected players
+            for (let idx = 0; idx < formationData.positions.length; idx++) {
+                const select = document.getElementById(`editPlayer${idx}`);
+                const playerId = select ? parseInt(select.value) : null;
+                
+                if (!playerId) {
+                    alert(`Bitte wähle einen Spieler für ${formationData.positions[idx].role} (Position ${idx + 1})!`);
+                    return;
+                }
+                
+                const player = players.find(p => p.id === playerId);
+                newLineup.push({
+                    player: player,
+                    x: formationData.positions[idx].x,
+                    y: formationData.positions[idx].y,
+                    number: idx + 1
+                });
+            }
+            
+            // Update global lineup
+            playersOnField = newLineup;
+            
+            // Render on pitch
+            const container = document.getElementById('playersOnPitch');
+            container.innerHTML = '';
+            
+            playersOnField.forEach(p => {
+                const jersey = createJerseyElement(p.player, p.number, p.x, p.y);
+                container.appendChild(jersey);
+            });
+            
+            cancelFormationEdit();
+            showMessage('Aufstellung gespeichert! ⚽', 'success');
+        }
+        
+        function cancelFormationEdit() {
+            document.getElementById('formationOptions').innerHTML = '';
+        }
     </script>
 </body>
 </html>
