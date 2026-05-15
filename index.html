@@ -1024,12 +1024,12 @@
     </div>
 
     <script>
-        // Load players from localStorage or use defaults
-        let players = JSON.parse(localStorage.getItem('footballPlayers')) || [];
+        // ===== ROBUST DATA INITIALIZATION =====
+        // Try multiple times to ensure data loads correctly
         
-        // If empty, load 27 default players
-        if (players.length === 0) {
-            players = [
+        function initializeData() {
+            // Define 27 default players
+            const DEFAULT_PLAYERS = [
                 {id:1,name:"Schmitt, Benjamin-Oliver",age:34,position:"TW",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
                 {id:2,name:"Stark, Lucas",age:24,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
                 {id:3,name:"Teklemariam Weldetinsae, Yohannes",age:27,position:"IV",jerseyNumber:"",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
@@ -1058,20 +1058,42 @@
                 {id:26,name:"Medjic, Alen",age:18,position:"ST",jerseyNumber:"9",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""},
                 {id:27,name:"Plack, Nikolas",age:30,position:"ZM",jerseyNumber:"10",status:"verfügbar",aYouth:false,skills:{passing:5,shooting:5,dribbling:5,speed:5},physical:{stamina:5,strength:5,tackling:5},mental:{intelligence:5,leadership:5,composure:5},strengths:"",weaknesses:""}
             ];
-            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            
+            let loadedPlayers = [];
+            
+            // Try to load from localStorage
+            try {
+                const stored = localStorage.getItem('footballPlayers');
+                if (stored && stored !== 'null' && stored !== '[]' && stored !== 'undefined') {
+                    loadedPlayers = JSON.parse(stored);
+                }
+            } catch(e) {
+                console.warn('Could not load from localStorage:', e);
+            }
+            
+            // If empty or invalid, use defaults
+            if (!Array.isArray(loadedPlayers) || loadedPlayers.length === 0) {
+                console.log('📥 Loading 27 default players');
+                loadedPlayers = JSON.parse(JSON.stringify(DEFAULT_PLAYERS)); // Deep clone
+                
+                // Save immediately
+                try {
+                    localStorage.setItem('footballPlayers', JSON.stringify(loadedPlayers));
+                    console.log('✅ 27 players saved to localStorage');
+                } catch(e) {
+                    console.error('❌ Could not save to localStorage:', e);
+                }
+            } else {
+                console.log(`✅ Loaded ${loadedPlayers.length} players from storage`);
+            }
+            
+            return loadedPlayers;
         }
+        
+        // Initialize all data
+        let players = initializeData();
         let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
         let games = JSON.parse(localStorage.getItem('footballGames')) || [];
-        
-        // FIX: Normalisiere alte Spieler ohne Status
-        players = players.map(p => {
-            if (!p.status || p.status === undefined || p.status === null || p.status === '') {
-                console.log(`⚠️ Fixing player ${p.name}: status was "${p.status}", setting to "verfügbar"`);
-                p.status = 'verfügbar';
-            }
-            return p;
-        });
-        localStorage.setItem('footballPlayers', JSON.stringify(players));
 
         document.addEventListener('DOMContentLoaded', function() {
             renderPlayers();
