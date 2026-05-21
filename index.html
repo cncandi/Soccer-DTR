@@ -526,6 +526,21 @@
                         <div class="stat-label">Ø Team-Rating</div>
                     </div>
                 </div>
+                <div style="background: #e8f4fd; border: 2px solid #2a5298; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 16px;">💾 Datensicherung</h3>
+                    <p style="color: #495057; margin-bottom: 16px;">Exportiere deine Daten als JSON-Datei und importiere sie auf einem anderen Gerät oder Browser.</p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn" onclick="exportData()" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            ⬇️ Daten exportieren
+                        </button>
+                        <label class="btn" style="background: linear-gradient(135deg, #fd7e14, #dc3545); cursor: pointer; margin: 0;">
+                            ⬆️ Daten importieren
+                            <input type="file" id="importFileInput" accept=".json" onchange="importData(event)" style="display: none;">
+                        </label>
+                    </div>
+                    <p id="importExportStatus" style="margin-top: 12px; font-weight: 600; display: none;"></p>
+                </div>
+
                 <h2>Schnellstart</h2>
                 <p style="margin-bottom: 20px;">Willkommen bei deinem persönlichen Trainer-Assistenten!</p>
                 <ol style="line-height: 2; margin-left: 20px;">
@@ -3033,7 +3048,7 @@
 
         // ===== FORMATION EDITING & PLAYER FILTERING =====
         
-        let playersOnField = []; // Track players currently on field
+        playersOnField = []; // Track players currently on field
         
         function editCurrentFormation() {
             const formationType = document.getElementById('formationSelect').value;
@@ -3184,6 +3199,56 @@
         
         function cancelFormationEdit() {
             document.getElementById('formationOptions').innerHTML = '';
+        }
+
+        // ===== DATA EXPORT / IMPORT =====
+
+        function exportData() {
+            const data = {
+                version: 1,
+                exportDate: new Date().toISOString(),
+                footballPlayers: JSON.parse(localStorage.getItem('footballPlayers') || '[]'),
+                footballOpponents: JSON.parse(localStorage.getItem('footballOpponents') || '[]'),
+                footballGames: JSON.parse(localStorage.getItem('footballGames') || '[]'),
+                postGameEvaluations: JSON.parse(localStorage.getItem('postGameEvaluations') || '[]')
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'soccer-dtr-backup-' + new Date().toISOString().slice(0,10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showImportExportStatus('Export erfolgreich!', 'green');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.footballPlayers) localStorage.setItem('footballPlayers', JSON.stringify(data.footballPlayers));
+                    if (data.footballOpponents) localStorage.setItem('footballOpponents', JSON.stringify(data.footballOpponents));
+                    if (data.footballGames) localStorage.setItem('footballGames', JSON.stringify(data.footballGames));
+                    if (data.postGameEvaluations) localStorage.setItem('postGameEvaluations', JSON.stringify(data.postGameEvaluations));
+                    showImportExportStatus('Import erfolgreich! Seite wird neu geladen...', 'green');
+                    setTimeout(() => location.reload(), 1500);
+                } catch(err) {
+                    showImportExportStatus('Fehler: Ungueltige Datei.', 'red');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function showImportExportStatus(msg, color) {
+            const el = document.getElementById('importExportStatus');
+            el.textContent = msg;
+            el.style.color = color;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 4000);
         }
     </script>
 </body>
