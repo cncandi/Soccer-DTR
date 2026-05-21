@@ -1039,10 +1039,11 @@
     </div>
 
     <script>
-        // ===== INDEXED DB STORAGE LAYER =====
+        // ===== STORAGE LAYER (localStorage + IndexedDB backup) =====
+        const _ls = { set: (k,v) => localStorage.setItem(k,v), get: (k) => localStorage.getItem(k) };
         const Storage = (() => {
             let db = null;
-            
+
             function open() {
                 return new Promise(resolve => {
                     try {
@@ -1053,7 +1054,7 @@
                     } catch(e) { resolve(); }
                 });
             }
-            
+
             function idbGet(key) {
                 return new Promise(resolve => {
                     if (!db) return resolve(null);
@@ -1064,7 +1065,7 @@
                     } catch(e) { resolve(null); }
                 });
             }
-            
+
             function idbSet(key, value) {
                 if (!db) return;
                 try {
@@ -1072,8 +1073,7 @@
                     tx.objectStore('data').put(value, key);
                 } catch(e) {}
             }
-            
-            // Sync from IndexedDB to localStorage on startup
+
             async function syncToLocalStorage() {
                 const keys = ['footballPlayers','footballOpponents','footballGames','postGameEvaluations'];
                 for (const key of keys) {
@@ -1081,25 +1081,23 @@
                     if (idbVal) {
                         try {
                             const idbData = JSON.parse(idbVal);
-                            const lsRaw = localStorage.getItem(key);
+                            const lsRaw = _ls.get(key);
                             const lsData = lsRaw ? JSON.parse(lsRaw) : null;
-                            // Use IDB data if LS is empty OR IDB has more entries
                             const idbCount = Array.isArray(idbData) ? idbData.length : 1;
                             const lsCount = Array.isArray(lsData) ? lsData.length : 0;
                             if (!lsData || idbCount > lsCount) {
-                                Storage.set(key, idbVal);
+                                _ls.set(key, idbVal);
                             }
-                        } catch(e) { Storage.set(key, idbVal); }
+                        } catch(e) { _ls.set(key, idbVal); }
                     }
                 }
             }
-            
-            // Dual-write: localStorage (sync) + IndexedDB (async)
+
             function set(key, value) {
-                Storage.set(key, value);
+                _ls.set(key, value);  // native localStorage, no recursion
                 idbSet(key, value);
             }
-            
+
             return { open, syncToLocalStorage, set };
         })();
 
@@ -3268,18 +3266,24 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const data = JSON.parse(e.target.result);
-                    if (data.footballPlayers) Storage.set('footballPlayers', JSON.stringify(data.footballPlayers));
+                    // Strip BOM and whitespace (iOS compatibility)
+                    let text = e.target.result.replace(/^﻿/, '').trim();
+                    const data = JSON.parse(text);
+                    if (data.footballPlayers && data.footballPlayers.length > 0) {
+                        Storage.set('footballPlayers', JSON.stringify(data.footballPlayers));
+                    }
                     if (data.footballOpponents) Storage.set('footballOpponents', JSON.stringify(data.footballOpponents));
                     if (data.footballGames) Storage.set('footballGames', JSON.stringify(data.footballGames));
                     if (data.postGameEvaluations) Storage.set('postGameEvaluations', JSON.stringify(data.postGameEvaluations));
+                    // Bump version so migration doesn't overwrite imported data
+                    _ls.set('dataVersion', '2');
                     showImportExportStatus('Import erfolgreich! Seite wird neu geladen...', 'green');
                     setTimeout(() => location.reload(), 1500);
                 } catch(err) {
-                    showImportExportStatus('Fehler: Ungueltige Datei.', 'red');
+                    showImportExportStatus('Fehler: ' + err.message, 'red');
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(file, 'UTF-8');
             event.target.value = '';
         }
 
