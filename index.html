@@ -576,6 +576,19 @@
                                 <option value="ST">Stürmer</option>
                             </select>
                         </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Nebenpositionen (kann spielen, aber nicht bevorzugt)</label>
+                            <div id="secondaryPositionsContainer" style="display:flex;flex-wrap:wrap;gap:10px;padding:12px;background:#f8f9fa;border-radius:8px;border:2px solid #e9ecef;">
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="TW"> Torwart</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="IV"> Innenverteidiger</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="LV"> Linksverteidiger</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="RV"> Rechtsverteidiger</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="DM"> Defensives MF</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="ZM"> Zentrales MF</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="OM"> Offensives MF</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;"><input type="checkbox" class="secPos" value="ST"> Stürmer</label>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -820,9 +833,9 @@
                         </div>
                         <div class="form-group">
                             <label>Spieltyp</label>
-                            <select id="squadGameType">
-                                <option value="Auswärtsspiel">Auswärtsspiel</option>
+                            <select id="squadGameType" onchange="calcMeetTime()">
                                 <option value="Heimspiel">Heimspiel</option>
+                                <option value="Auswärtsspiel">Auswärtsspiel</option>
                                 <option value="Freundschaftsspiel">Freundschaftsspiel</option>
                             </select>
                         </div>
@@ -834,8 +847,12 @@
                             <input type="date" id="squadDate" required>
                         </div>
                         <div class="form-group">
-                            <label>Treffpunkt Zeit *</label>
-                            <input type="time" id="squadMeetTime" value="13:45" required>
+                            <label>Anstoß *</label>
+                            <input type="time" id="squadKickoff" value="15:00" oninput="calcMeetTime()" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Treffpunkt Zeit (auto)</label>
+                            <input type="time" id="squadMeetTime" value="13:15" readonly style="background:#f0f0f0;">
                         </div>
                         <div class="form-group">
                             <label>Trikotfarbe</label>
@@ -852,7 +869,7 @@
 
                     <div class="form-group">
                         <label>Treffpunkt Ort</label>
-                        <input type="text" id="squadMeetLocation" placeholder="z.B. Vereinsheim, Wallau">
+                        <input type="text" id="squadMeetLocation" value="Vereinsheim Biedenkopf" placeholder="Vereinsheim Biedenkopf">
                     </div>
 
                     <div class="form-group">
@@ -1211,7 +1228,8 @@
                     composure: parseInt(document.getElementById('mentalComposure').value)
                 },
                 strengths: document.getElementById('playerStrengths').value,
-                weaknesses: document.getElementById('playerWeaknesses').value
+                weaknesses: document.getElementById('playerWeaknesses').value,
+                secondaryPositions: Array.from(document.querySelectorAll('.secPos:checked')).map(cb => cb.value)
             };
             players.push(player);
             Storage.set('footballPlayers', JSON.stringify(players));
@@ -1274,7 +1292,8 @@
                             <div class="info-item"><span class="info-label">Intelligenz:</span> ${p.mental.intelligence}</div>
                         </div>
                         ${returnInfo}
-                        ${p.strengths ? '<p style="margin-top:10px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
+                        ${p.secondaryPositions && p.secondaryPositions.length ? '<p style="margin-top:10px;"><strong>Nebenpositionen:</strong> '+p.secondaryPositions.join(', ')+'</p>' : ''}
+                        ${p.strengths ? '<p style="margin-top:4px;"><strong>Stärken:</strong> '+p.strengths+'</p>' : ''}
                         ${p.weaknesses ? '<p><strong>Schwächen:</strong> '+p.weaknesses+'</p>' : ''}
                         <div class="action-buttons">
                             <button class="btn" onclick="editPlayer(${p.id})">✏️ Bearbeiten</button>
@@ -1367,6 +1386,11 @@
             document.getElementById('playerStrengths').value = player.strengths || '';
             document.getElementById('playerWeaknesses').value = player.weaknesses || '';
 
+            // Nebenpositionen
+            document.querySelectorAll('.secPos').forEach(cb => {
+                cb.checked = (player.secondaryPositions || []).includes(cb.value);
+            });
+
             // Rating-Anzeigen aktualisieren
             document.querySelectorAll('.rating-item input[type="range"]').forEach(slider => {
                 const display = slider.nextElementSibling;
@@ -1416,7 +1440,8 @@
                     composure: parseInt(document.getElementById('mentalComposure').value)
                 },
                 strengths: document.getElementById('playerStrengths').value,
-                weaknesses: document.getElementById('playerWeaknesses').value
+                weaknesses: document.getElementById('playerWeaknesses').value,
+                secondaryPositions: Array.from(document.querySelectorAll('.secPos:checked')).map(cb => cb.value)
             };
 
             Storage.set('footballPlayers', JSON.stringify(players));
@@ -2380,9 +2405,23 @@
             }
         }
 
+        function calcMeetTime() {
+            const kickoffEl = document.getElementById('squadKickoff');
+            const meetEl = document.getElementById('squadMeetTime');
+            const typeEl = document.getElementById('squadGameType');
+            if (!kickoffEl || !meetEl || !typeEl) return;
+            const kickoff = kickoffEl.value;
+            if (!kickoff) return;
+            const [h, m] = kickoff.split(':').map(Number);
+            const isAway = typeEl.value === 'Auswärtsspiel';
+            const offset = isAway ? 105 : 75; // minutes before kickoff
+            const totalMin = h * 60 + m - offset;
+            const mh = Math.floor(((totalMin % 1440) + 1440) % 1440 / 60);
+            const mm = ((totalMin % 60) + 60) % 60;
+            meetEl.value = String(mh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+        }
+
         function generateSquad() {
-            console.log('generateSquad called'); // Debug
-            
             const opponent = document.getElementById('squadOpponent').value;
             const gameType = document.getElementById('squadGameType').value;
             const date = document.getElementById('squadDate').value;
@@ -3010,7 +3049,27 @@
             
             // Re-render player selection for this game
             renderPlayerSelection();
-            
+
+            // Pre-fill squad form with game data
+            const sq = squadView.querySelector ? squadView : document;
+            const setVal = (id, val) => { const el = document.getElementById(id) || squadView.querySelector('#'+id); if(el) el.value = val; };
+            setVal('squadOpponent', game.opponentName);
+            setVal('squadDate', game.date);
+            const isAway = game.type === 'auswaerts';
+            setVal('squadGameType', isAway ? 'Auswärtsspiel' : 'Heimspiel');
+            // Kickoff time
+            if (game.time) {
+                setVal('squadKickoff', game.time);
+                // Calc meet time
+                const [h, m] = game.time.split(':').map(Number);
+                const offset = isAway ? 105 : 75;
+                const totalMin = h * 60 + m - offset;
+                const mh = Math.floor(((totalMin % 1440) + 1440) % 1440 / 60);
+                const mm = ((totalMin % 60) + 60) % 60;
+                setVal('squadMeetTime', String(mh).padStart(2,'0') + ':' + String(mm).padStart(2,'0'));
+            }
+            setVal('squadMeetLocation', 'Vereinsheim Biedenkopf');
+
             showMessage(`Kader für Spiel gegen ${game.opponentName}`, 'success');
         }
         
