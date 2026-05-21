@@ -943,6 +943,16 @@
                     </div>
                         </div>
 
+                        <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:8px;border:2px solid #ffc107;">
+                            <h4 style="margin-bottom:12px;color:#856404;">💾 Aufstellung speichern</h4>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                                <input type="text" id="wFormationName" placeholder="Name der Aufstellung..." style="flex:1;min-width:160px;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:15px;">
+                                <button class="btn" onclick="wSaveFormation()" style="background:linear-gradient(135deg,#ffc107,#fd7e14);">💾 Speichern</button>
+                                <span id="wSaveStatus" style="font-weight:700;color:#28a745;"></span>
+                            </div>
+                            <div id="wSavedFormationsList" style="margin-top:12px;"></div>
+                        </div>
+
                         <button class="btn" onclick="wizardNext()" style="margin-top:16px;">Weiter → Anweisungen</button>
                     </div>
 
@@ -3585,7 +3595,7 @@ Warum: [2 Sätze]`
                 if (wState.squadIds.size === 0) { alert('Mindestens 1 Spieler auswählen.'); return; }
                 wLineupAssignments = [];
                 wGoTo(3);
-                setTimeout(() => wRenderPitch(), 100);
+                setTimeout(() => { wRenderPitch(); wRenderSavedFormations(); }, 100);
             } else if (wState.step === 3) {
                 wGoTo(4);
             } else if (wState.step === 4) {
@@ -3794,70 +3804,157 @@ TAKTIK: [2-3 Sätze]`;
         let wLineupAssignments = []; // [{slot, playerId}]
 
         function wRenderPitch() {
-            const formation = document.getElementById('wFormationSelect').value;
+            const formation = document.getElementById('wFormationSelect') ? document.getElementById('wFormationSelect').value : '4-3-3';
             const positions = wFormations[formation] || wFormations['4-3-3'];
             const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
-            const slotsDiv = document.getElementById('wLineupSlots');
             const pitchDiv = document.getElementById('wPlayersOnPitch');
-            if (!slotsDiv || !pitchDiv) return;
+            if (!pitchDiv) return;
 
-            // Initialize assignments if needed
+            // Initialize assignments if needed (auto-assign by main position)
             if (wLineupAssignments.length !== positions.length) {
-                wLineupAssignments = positions.map((p, i) => ({ slot: i, pos: p.pos, playerId: null }));
-                // Auto-assign: match main position
+                wLineupAssignments = positions.map(p => ({ pos: p.pos, playerId: null }));
+                const used = new Set();
                 positions.forEach((slot, i) => {
-                    const match = squadPlayers.find(p =>
-                        !wLineupAssignments.slice(0,i).some(a => a.playerId === p.id) &&
-                        (p.position === slot.pos || (p.secondaryPositions||[]).includes(slot.pos))
-                    );
-                    if (match) wLineupAssignments[i].playerId = match.id;
+                    // First pass: exact main position match
+                    const match = squadPlayers.find(p => !used.has(p.id) && p.position === slot.pos);
+                    if (match) { wLineupAssignments[i].playerId = match.id; used.add(match.id); }
+                });
+                positions.forEach((slot, i) => {
+                    if (wLineupAssignments[i].playerId) return;
+                    // Second pass: secondary position match
+                    const match = squadPlayers.find(p => !used.has(p.id) && (p.secondaryPositions||[]).includes(slot.pos));
+                    if (match) { wLineupAssignments[i].playerId = match.id; used.add(match.id); }
                 });
             }
 
-            // Render dropdowns
-            slotsDiv.innerHTML = positions.map((slot, i) => {
-                const assigned = wLineupAssignments[i].playerId;
-                const opts = squadPlayers.map(p => {
-                    const used = wLineupAssignments.some((a, j) => j !== i && a.playerId === p.id);
-                    const isMain = p.position === slot.pos;
-                    const isSec = (p.secondaryPositions||[]).includes(slot.pos);
-                    const label = `${p.name} (${p.position}${isSec?' ↔':''}${used?' ✗':''})`;
-                    return `<option value="${p.id}" ${assigned===p.id?'selected':''} ${used?'disabled':''}>${label}</option>`;
-                }).join('');
-                return `<div style="background:white;padding:8px;border-radius:6px;border:2px solid #e9ecef;">
-                    <label style="font-size:0.8em;font-weight:700;color:#667eea;">${slot.pos}</label>
-                    <select onchange="wAssignPlayer(${i},this.value)" style="width:100%;padding:4px;font-size:0.85em;border:1px solid #ddd;border-radius:4px;">
-                        <option value="">-- wählen --</option>${opts}
-                    </select>
-                </div>`;
-            }).join('');
-
-            // Render pitch
+            // Render pitch jerseys — tappable to reassign
             pitchDiv.innerHTML = '';
-            const container = document.getElementById('wPitchContainer');
-            if (!container) return;
-            const w = container.offsetWidth - 32;
-            const h = container.offsetHeight - 32;
-
             positions.forEach((slot, i) => {
                 const pid = wLineupAssignments[i].playerId;
                 const player = pid ? players.find(p => p.id === pid) : null;
-                const name = player ? player.name.split(',')[0].split(' ')[0] : slot.pos + '?';
-                const color = player ? '#1e3c72' : '#999';
+                const shortName = player ? (player.name.split(',')[0].split(' ')[0]) : '?';
+                const isWrongPos = player && player.position !== slot.pos && !(player.secondaryPositions||[]).includes(slot.pos);
+                const color = !player ? '#999' : isWrongPos ? '#dc3545' : '#1e3c72';
                 const el = document.createElement('div');
-                el.style.cssText = `position:absolute;left:${slot.x}%;top:${slot.y}%;transform:translate(-50%,-50%);text-align:center;z-index:10;`;
-                el.innerHTML = `<svg width="44" height="44" viewBox="0 0 44 44">
-                    <circle cx="22" cy="18" r="16" fill="${color}" stroke="white" stroke-width="2"/>
-                    <text x="22" y="23" text-anchor="middle" fill="white" font-size="9" font-weight="bold">${slot.pos}</text>
-                </svg>
-                <div style="color:white;font-size:11px;font-weight:bold;text-shadow:1px 1px 2px black;margin-top:2px;max-width:60px;overflow:hidden;white-space:nowrap;">${name}</div>`;
+                el.style.cssText = `position:absolute;left:${slot.x}%;top:${slot.y}%;transform:translate(-50%,-50%);text-align:center;z-index:10;cursor:pointer;`;
+                el.title = player ? `${player.name} (${player.position}) — tippen zum Ändern` : `${slot.pos} — tippen zum Belegen`;
+                el.innerHTML = `<svg width="48" height="48" viewBox="0 0 48 48">
+                    <circle cx="24" cy="22" r="18" fill="${color}" stroke="white" stroke-width="2.5"/>
+                    <text x="24" y="18" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${slot.pos}</text>
+                    <text x="24" y="28" text-anchor="middle" fill="white" font-size="8">${shortName}</text>
+                </svg>`;
+                el.addEventListener('click', () => wOpenSlotPicker(i));
                 pitchDiv.appendChild(el);
             });
+        }
+
+        function wOpenSlotPicker(slotIdx) {
+            const formation = document.getElementById('wFormationSelect').value;
+            const positions = wFormations[formation] || wFormations['4-3-3'];
+            const slot = positions[slotIdx];
+            const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
+            const current = wLineupAssignments[slotIdx].playerId;
+
+            // Remove existing modal
+            const existing = document.getElementById('wSlotModal');
+            if (existing) existing.remove();
+
+            const usedByOther = new Set(
+                wLineupAssignments.filter((_,j) => j !== slotIdx && wLineupAssignments[j].playerId)
+                                   .map(a => a.playerId)
+            );
+
+            let opts = '<option value="">— frei lassen —</option>';
+            squadPlayers.forEach(p => {
+                const isMain = p.position === slot.pos;
+                const isSec = (p.secondaryPositions||[]).includes(slot.pos);
+                const usedMark = usedByOther.has(p.id) ? ' (belegt)' : '';
+                const posMark = isMain ? ' ✓' : isSec ? ' ↔' : '';
+                opts += `<option value="${p.id}" ${p.id===current?'selected':''}>${p.name} (${p.position}${posMark})${usedMark}</option>`;
+            });
+
+            const modal = document.createElement('div');
+            modal.id = 'wSlotModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+            modal.innerHTML = `<div style="background:white;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom:16px;color:#1e3c72;">Position: ${slot.pos}</h3>
+                <select id="wSlotSelect" style="width:100%;padding:14px;font-size:16px;border:2px solid #ddd;border-radius:8px;margin-bottom:16px;">${opts}</select>
+                <div style="display:flex;gap:10px;">
+                    <button onclick="wConfirmSlot(${slotIdx})" class="btn" style="flex:1;">✓ Übernehmen</button>
+                    <button onclick="document.getElementById('wSlotModal').remove()" class="btn btn-secondary">Abbrechen</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function wConfirmSlot(slotIdx) {
+            const val = document.getElementById('wSlotSelect').value;
+            const newId = val ? parseInt(val) : null;
+            // Swap: if new player is already assigned elsewhere, free that slot
+            if (newId) {
+                wLineupAssignments.forEach((a, j) => {
+                    if (j !== slotIdx && a.playerId === newId) a.playerId = null;
+                });
+            }
+            wLineupAssignments[slotIdx].playerId = newId;
+            document.getElementById('wSlotModal').remove();
+            wRenderPitch();
         }
 
         function wAssignPlayer(slotIdx, playerId) {
             wLineupAssignments[slotIdx].playerId = playerId ? parseInt(playerId) : null;
             wRenderPitch();
+        }
+
+        function wSaveFormation() {
+            const name = document.getElementById('wFormationName').value.trim();
+            if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+            const formation = document.getElementById('wFormationSelect').value;
+            const saved = JSON.parse(localStorage.getItem('savedFormations') || '[]');
+            const entry = {
+                id: Date.now(),
+                name,
+                formation,
+                assignments: wLineupAssignments.map(a => ({ pos: a.pos, playerId: a.playerId })),
+                savedAt: new Date().toISOString()
+            };
+            saved.push(entry);
+            Storage.set('savedFormations', JSON.stringify(saved));
+            document.getElementById('wSaveStatus').textContent = '✅ Gespeichert!';
+            setTimeout(() => { if(document.getElementById('wSaveStatus')) document.getElementById('wSaveStatus').textContent=''; }, 3000);
+            wRenderSavedFormations();
+        }
+
+        function wRenderSavedFormations() {
+            const div = document.getElementById('wSavedFormationsList');
+            if (!div) return;
+            const saved = JSON.parse(localStorage.getItem('savedFormations') || '[]');
+            if (!saved.length) { div.innerHTML = '<p style="color:#666;font-size:0.9em;">Noch keine gespeicherten Aufstellungen.</p>'; return; }
+            div.innerHTML = saved.slice().reverse().map(f => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;">
+                    <span style="font-weight:600;">${f.name} <small style="color:#666;">(${f.formation})</small></span>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn" onclick="wLoadFormation(${f.id})" style="padding:6px 12px;font-size:0.85em;">Laden</button>
+                        <button class="btn btn-danger" onclick="wDeleteFormation(${f.id})" style="padding:6px 12px;font-size:0.85em;">✕</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function wLoadFormation(id) {
+            const saved = JSON.parse(localStorage.getItem('savedFormations') || '[]');
+            const f = saved.find(s => s.id === id);
+            if (!f) return;
+            document.getElementById('wFormationSelect').value = f.formation;
+            wLineupAssignments = f.assignments.map(a => ({ pos: a.pos, playerId: a.playerId }));
+            wRenderPitch();
+        }
+
+        function wDeleteFormation(id) {
+            if (!confirm('Aufstellung löschen?')) return;
+            let saved = JSON.parse(localStorage.getItem('savedFormations') || '[]');
+            saved = saved.filter(s => s.id !== id);
+            Storage.set('savedFormations', JSON.stringify(saved));
+            wRenderSavedFormations();
         }
 
         async function wCallAI(prompt) {
