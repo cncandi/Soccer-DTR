@@ -905,12 +905,44 @@
 
                     <!-- Step 3: Aufstellung -->
                     <div id="wStep3" style="display:none;">
-                        <h2>Schritt 3: KI-Aufstellung</h2>
+                        <h2>Schritt 3: Aufstellung</h2>
                         <div style="background:#e8f4fd;padding:16px;border-radius:8px;margin-bottom:16px;">
-                            <p style="color:#1e3c72;margin-bottom:12px;">KI erstellt die optimale Aufstellung aus dem gewählten Kader.</p>
-                            <button class="btn" onclick="wGenerateLineup()" style="background:linear-gradient(135deg,#667eea,#764ba2);">🤖 Aufstellung generieren</button>
+                            <p style="color:#1e3c72;margin-bottom:12px;">KI erstellt die Aufstellung — danach kannst du sie manuell anpassen.</p>
+                            <button class="btn" onclick="wGenerateLineup()" style="background:linear-gradient(135deg,#667eea,#764ba2);">🤖 KI-Aufstellung</button>
                         </div>
                         <div id="wLineupResult"></div>
+
+                        <div style="background:#f8f9fa;padding:16px;border-radius:8px;margin-top:20px;">
+                            <h3 style="margin-bottom:12px;">Spielfeld-Aufstellung</h3>
+                            <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                                <label style="font-weight:600;">Formation:</label>
+                                <select id="wFormationSelect" onchange="wRenderPitch()" style="padding:8px;border-radius:6px;border:2px solid #ddd;">
+                                    <option value="4-3-3">4-3-3</option>
+                                    <option value="4-4-2">4-4-2</option>
+                                    <option value="4-2-3-1">4-2-3-1</option>
+                                    <option value="3-5-2">3-5-2</option>
+                                    <option value="4-1-4-1">4-1-4-1</option>
+                                </select>
+                                <button class="btn" onclick="wRenderPitch()" style="padding:10px 16px;">🔄 Aktualisieren</button>
+                            </div>
+                            <div id="wLineupSlots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px;"></div>
+                            <div id="wPitchContainer" style="max-width:500px;margin:16px auto;position:relative;background:#2d5016;border-radius:10px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                        <svg viewBox="0 0 700 1050" style="width:100%;border:3px solid white;border-radius:8px;background:linear-gradient(180deg,#2d5016 0%,#3a6b1f 50%,#2d5016 100%);">
+                            <rect x="10" y="10" width="680" height="1030" fill="none" stroke="white" stroke-width="3"/>
+                            <line x1="10" y1="525" x2="690" y2="525" stroke="white" stroke-width="3"/>
+                            <circle cx="350" cy="525" r="80" fill="none" stroke="white" stroke-width="3"/>
+                            <circle cx="350" cy="525" r="3" fill="white"/>
+                            <rect x="190" y="10" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                            <rect x="270" y="10" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                            <circle cx="350" cy="120" r="3" fill="white"/>
+                            <rect x="190" y="890" width="320" height="150" fill="none" stroke="white" stroke-width="3"/>
+                            <rect x="270" y="990" width="160" height="50" fill="none" stroke="white" stroke-width="3"/>
+                            <circle cx="350" cy="930" r="3" fill="white"/>
+                        </svg>
+                        <div id="wPlayersOnPitch" style="position:absolute;top:16px;left:16px;width:calc(100% - 32px);height:calc(100% - 32px);pointer-events:none;"></div>
+                    </div>
+                        </div>
+
                         <button class="btn" onclick="wizardNext()" style="margin-top:16px;">Weiter → Anweisungen</button>
                     </div>
 
@@ -2097,12 +2129,7 @@
             const container = document.getElementById('customFormationBuilder');
             container.style.display = 'block';
             
-            const availablePlayers = players.filter(p => p.status === 'verfügbar');
-            
-            if (availablePlayers.length < 11) {
-                container.innerHTML = '<p style="color: #dc3545;">⚠️ Mindestens 11 verfügbare Spieler benötigt!</p>';
-                return;
-            }
+            const availablePlayers = [...players]; // Alle Spieler auswählbar
             
             let html = `
                 <div style="background: white; padding: 20px; border-radius: 12px;">
@@ -2126,7 +2153,7 @@
                         <div style="display: flex; gap: 10px; margin-top: 8px;">
                             <select id="customPlayer${i}" style="flex: 2;">
                                 <option value="">-- Spieler wählen --</option>
-                                ${availablePlayers.map(p => `<option value="${p.id}">${p.name} (${p.position})</option>`).join('')}
+                                ${availablePlayers.map(p => { const st = p.status !== "verfügbar" ? " ⚠️"+p.status : ""; return `<option value="${p.id}">${p.name} (${p.position}${st})</option>`; }).join('')}
                             </select>
                             <select id="customPos${i}" style="flex: 1;">
                                 <option value="">-- Position --</option>
@@ -3556,7 +3583,9 @@ Warum: [2 Sätze]`
                 wState.squadIds = new Set();
                 document.querySelectorAll('.wPlayerCb:checked').forEach(cb => wState.squadIds.add(parseInt(cb.value)));
                 if (wState.squadIds.size === 0) { alert('Mindestens 1 Spieler auswählen.'); return; }
+                wLineupAssignments = [];
                 wGoTo(3);
+                setTimeout(() => wRenderPitch(), 100);
             } else if (wState.step === 3) {
                 wGoTo(4);
             } else if (wState.step === 4) {
@@ -3751,6 +3780,84 @@ BANK (top 3):
 
 TAKTIK: [2-3 Sätze]`;
             return data;
+        }
+
+        // Formation positions for wizard pitch
+        const wFormations = {
+            '4-3-3':   [{pos:'TW',x:50,y:90},{pos:'RV',x:20,y:72},{pos:'IV',x:37,y:72},{pos:'IV',x:63,y:72},{pos:'LV',x:80,y:72},{pos:'ZM',x:30,y:52},{pos:'ZM',x:50,y:52},{pos:'ZM',x:70,y:52},{pos:'ST',x:25,y:30},{pos:'ST',x:50,y:22},{pos:'ST',x:75,y:30}],
+            '4-4-2':   [{pos:'TW',x:50,y:90},{pos:'RV',x:20,y:72},{pos:'IV',x:37,y:72},{pos:'IV',x:63,y:72},{pos:'LV',x:80,y:72},{pos:'ZM',x:20,y:52},{pos:'ZM',x:37,y:52},{pos:'ZM',x:63,y:52},{pos:'ZM',x:80,y:52},{pos:'ST',x:35,y:22},{pos:'ST',x:65,y:22}],
+            '4-2-3-1': [{pos:'TW',x:50,y:90},{pos:'RV',x:20,y:72},{pos:'IV',x:37,y:72},{pos:'IV',x:63,y:72},{pos:'LV',x:80,y:72},{pos:'DM',x:37,y:58},{pos:'DM',x:63,y:58},{pos:'ZM',x:20,y:40},{pos:'ZM',x:50,y:38},{pos:'ZM',x:80,y:40},{pos:'ST',x:50,y:22}],
+            '3-5-2':   [{pos:'TW',x:50,y:90},{pos:'IV',x:25,y:72},{pos:'IV',x:50,y:72},{pos:'IV',x:75,y:72},{pos:'ZM',x:15,y:52},{pos:'ZM',x:32,y:52},{pos:'ZM',x:50,y:52},{pos:'ZM',x:68,y:52},{pos:'ZM',x:85,y:52},{pos:'ST',x:35,y:22},{pos:'ST',x:65,y:22}],
+            '4-1-4-1': [{pos:'TW',x:50,y:90},{pos:'RV',x:20,y:72},{pos:'IV',x:37,y:72},{pos:'IV',x:63,y:72},{pos:'LV',x:80,y:72},{pos:'DM',x:50,y:60},{pos:'ZM',x:18,y:45},{pos:'ZM',x:37,y:45},{pos:'ZM',x:63,y:45},{pos:'ZM',x:82,y:45},{pos:'ST',x:50,y:22}]
+        };
+
+        let wLineupAssignments = []; // [{slot, playerId}]
+
+        function wRenderPitch() {
+            const formation = document.getElementById('wFormationSelect').value;
+            const positions = wFormations[formation] || wFormations['4-3-3'];
+            const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
+            const slotsDiv = document.getElementById('wLineupSlots');
+            const pitchDiv = document.getElementById('wPlayersOnPitch');
+            if (!slotsDiv || !pitchDiv) return;
+
+            // Initialize assignments if needed
+            if (wLineupAssignments.length !== positions.length) {
+                wLineupAssignments = positions.map((p, i) => ({ slot: i, pos: p.pos, playerId: null }));
+                // Auto-assign: match main position
+                positions.forEach((slot, i) => {
+                    const match = squadPlayers.find(p =>
+                        !wLineupAssignments.slice(0,i).some(a => a.playerId === p.id) &&
+                        (p.position === slot.pos || (p.secondaryPositions||[]).includes(slot.pos))
+                    );
+                    if (match) wLineupAssignments[i].playerId = match.id;
+                });
+            }
+
+            // Render dropdowns
+            slotsDiv.innerHTML = positions.map((slot, i) => {
+                const assigned = wLineupAssignments[i].playerId;
+                const opts = squadPlayers.map(p => {
+                    const used = wLineupAssignments.some((a, j) => j !== i && a.playerId === p.id);
+                    const isMain = p.position === slot.pos;
+                    const isSec = (p.secondaryPositions||[]).includes(slot.pos);
+                    const label = `${p.name} (${p.position}${isSec?' ↔':''}${used?' ✗':''})`;
+                    return `<option value="${p.id}" ${assigned===p.id?'selected':''} ${used?'disabled':''}>${label}</option>`;
+                }).join('');
+                return `<div style="background:white;padding:8px;border-radius:6px;border:2px solid #e9ecef;">
+                    <label style="font-size:0.8em;font-weight:700;color:#667eea;">${slot.pos}</label>
+                    <select onchange="wAssignPlayer(${i},this.value)" style="width:100%;padding:4px;font-size:0.85em;border:1px solid #ddd;border-radius:4px;">
+                        <option value="">-- wählen --</option>${opts}
+                    </select>
+                </div>`;
+            }).join('');
+
+            // Render pitch
+            pitchDiv.innerHTML = '';
+            const container = document.getElementById('wPitchContainer');
+            if (!container) return;
+            const w = container.offsetWidth - 32;
+            const h = container.offsetHeight - 32;
+
+            positions.forEach((slot, i) => {
+                const pid = wLineupAssignments[i].playerId;
+                const player = pid ? players.find(p => p.id === pid) : null;
+                const name = player ? player.name.split(',')[0].split(' ')[0] : slot.pos + '?';
+                const color = player ? '#1e3c72' : '#999';
+                const el = document.createElement('div');
+                el.style.cssText = `position:absolute;left:${slot.x}%;top:${slot.y}%;transform:translate(-50%,-50%);text-align:center;z-index:10;`;
+                el.innerHTML = `<svg width="44" height="44" viewBox="0 0 44 44">
+                    <circle cx="22" cy="18" r="16" fill="${color}" stroke="white" stroke-width="2"/>
+                    <text x="22" y="23" text-anchor="middle" fill="white" font-size="9" font-weight="bold">${slot.pos}</text>
+                </svg>
+                <div style="color:white;font-size:11px;font-weight:bold;text-shadow:1px 1px 2px black;margin-top:2px;max-width:60px;overflow:hidden;white-space:nowrap;">${name}</div>`;
+                pitchDiv.appendChild(el);
+            });
+        }
+
+        function wAssignPlayer(slotIdx, playerId) {
+            wLineupAssignments[slotIdx].playerId = playerId ? parseInt(playerId) : null;
+            wRenderPitch();
         }
 
         async function wCallAI(prompt) {
