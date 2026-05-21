@@ -1119,15 +1119,22 @@
                 }
             } catch(e) {}
 
-            if (!Array.isArray(loadedPlayers) || loadedPlayers.length === 0) {
+            // Version-Migration: force-load new data if version < 2
+            const dataVersion = parseInt(localStorage.getItem('dataVersion') || '0');
+            const needsMigration = dataVersion < 2;
+
+            if (!Array.isArray(loadedPlayers) || loadedPlayers.length === 0 || needsMigration) {
                 loadedPlayers = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
                 Storage.set('footballPlayers', JSON.stringify(loadedPlayers));
             }
-            if (!localStorage.getItem('footballOpponents')) {
+            if (!localStorage.getItem('footballOpponents') || needsMigration) {
                 Storage.set('footballOpponents', JSON.stringify(DEFAULT_OPPONENTS));
             }
-            if (!localStorage.getItem('footballGames')) {
+            if (!localStorage.getItem('footballGames') || needsMigration) {
                 Storage.set('footballGames', JSON.stringify(DEFAULT_GAMES));
+            }
+            if (needsMigration) {
+                localStorage.setItem('dataVersion', '2');
             }
 
             return loadedPlayers;
