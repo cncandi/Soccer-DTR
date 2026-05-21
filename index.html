@@ -1039,6 +1039,70 @@
     </div>
 
     <script>
+        // ===== INDEXED DB STORAGE LAYER =====
+        const Storage = (() => {
+            let db = null;
+            
+            function open() {
+                return new Promise(resolve => {
+                    try {
+                        const req = indexedDB.open('SoccerDTR', 1);
+                        req.onupgradeneeded = e => e.target.result.createObjectStore('data');
+                        req.onsuccess = e => { db = e.target.result; resolve(); };
+                        req.onerror = () => resolve();
+                    } catch(e) { resolve(); }
+                });
+            }
+            
+            function idbGet(key) {
+                return new Promise(resolve => {
+                    if (!db) return resolve(null);
+                    try {
+                        const req = db.transaction('data').objectStore('data').get(key);
+                        req.onsuccess = () => resolve(req.result ?? null);
+                        req.onerror = () => resolve(null);
+                    } catch(e) { resolve(null); }
+                });
+            }
+            
+            function idbSet(key, value) {
+                if (!db) return;
+                try {
+                    const tx = db.transaction('data', 'readwrite');
+                    tx.objectStore('data').put(value, key);
+                } catch(e) {}
+            }
+            
+            // Sync from IndexedDB to localStorage on startup
+            async function syncToLocalStorage() {
+                const keys = ['footballPlayers','footballOpponents','footballGames','postGameEvaluations'];
+                for (const key of keys) {
+                    const idbVal = await idbGet(key);
+                    if (idbVal) {
+                        try {
+                            const idbData = JSON.parse(idbVal);
+                            const lsRaw = localStorage.getItem(key);
+                            const lsData = lsRaw ? JSON.parse(lsRaw) : null;
+                            // Use IDB data if LS is empty OR IDB has more entries
+                            const idbCount = Array.isArray(idbData) ? idbData.length : 1;
+                            const lsCount = Array.isArray(lsData) ? lsData.length : 0;
+                            if (!lsData || idbCount > lsCount) {
+                                Storage.set(key, idbVal);
+                            }
+                        } catch(e) { Storage.set(key, idbVal); }
+                    }
+                }
+            }
+            
+            // Dual-write: localStorage (sync) + IndexedDB (async)
+            function set(key, value) {
+                Storage.set(key, value);
+                idbSet(key, value);
+            }
+            
+            return { open, syncToLocalStorage, set };
+        })();
+
         // ===== ROBUST DATA INITIALIZATION =====
         // Try multiple times to ensure data loads correctly
         
@@ -1093,7 +1157,7 @@
                 
                 // Save immediately
                 try {
-                    localStorage.setItem('footballPlayers', JSON.stringify(loadedPlayers));
+                    Storage.set('footballPlayers', JSON.stringify(loadedPlayers));
                     console.log('✅ 27 players saved to localStorage');
                 } catch(e) {
                     console.error('❌ Could not save to localStorage:', e);
@@ -1105,18 +1169,23 @@
             return loadedPlayers;
         }
         
-        // Initialize all data
-        let players = initializeData();
-        let opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
-        let games = JSON.parse(localStorage.getItem('footballGames')) || [];
+        // Initialize all data (async: IndexedDB first, then localStorage)
+        let players = [];
+        let opponents = [];
+        let games = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
+        (async () => {
+            await Storage.open();
+            await Storage.syncToLocalStorage();
+            players = initializeData();
+            opponents = JSON.parse(localStorage.getItem('footballOpponents')) || [];
+            games = JSON.parse(localStorage.getItem('footballGames')) || [];
             renderPlayers();
             renderOpponents();
             updateDashboard();
             updateOpponentSelect();
             renderGames();
-        });
+        })();
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -1176,7 +1245,7 @@
                 weaknesses: document.getElementById('playerWeaknesses').value
             };
             players.push(player);
-            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            Storage.set('footballPlayers', JSON.stringify(players));
             this.reset();
             document.querySelectorAll('.rating-value').forEach(el => el.textContent = '5');
             renderPlayers();
@@ -1196,7 +1265,7 @@
                 weaknesses: document.getElementById('opponentWeaknesses').value
             };
             opponents.push(opponent);
-            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            Storage.set('footballOpponents', JSON.stringify(opponents));
             this.reset();
             renderOpponents();
             updateDashboard();
@@ -1295,7 +1364,7 @@
         function deletePlayer(id) {
             if (confirm('Spieler löschen?')) {
                 players = players.filter(p => p.id !== id);
-                localStorage.setItem('footballPlayers', JSON.stringify(players));
+                Storage.set('footballPlayers', JSON.stringify(players));
                 renderPlayers();
                 updateDashboard();
             }
@@ -1381,7 +1450,7 @@
                 weaknesses: document.getElementById('playerWeaknesses').value
             };
 
-            localStorage.setItem('footballPlayers', JSON.stringify(players));
+            Storage.set('footballPlayers', JSON.stringify(players));
             
             // Formular zurücksetzen
             document.getElementById('playerForm').reset();
@@ -1399,7 +1468,7 @@
         function deleteOpponent(id) {
             if (confirm('Gegner löschen?')) {
                 opponents = opponents.filter(o => o.id !== id);
-                localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+                Storage.set('footballOpponents', JSON.stringify(opponents));
                 renderOpponents();
                 updateDashboard();
                 updateOpponentSelect();
@@ -1446,7 +1515,7 @@
                 weaknesses: document.getElementById('opponentWeaknesses').value
             };
 
-            localStorage.setItem('footballOpponents', JSON.stringify(opponents));
+            Storage.set('footballOpponents', JSON.stringify(opponents));
             
             // Reset form
             document.getElementById('opponentForm').reset();
@@ -1806,7 +1875,7 @@
             
             let postGameHistory = JSON.parse(localStorage.getItem('postGameEvaluations')) || [];
             postGameHistory.push(postGameData);
-            localStorage.setItem('postGameEvaluations', JSON.stringify(postGameHistory));
+            Storage.set('postGameEvaluations', JSON.stringify(postGameHistory));
             
             showMessage(`Spielerbewertung gespeichert! (${evaluations.length} Spieler)`, 'success');
             cancelPostGameEvaluation();
@@ -2271,7 +2340,7 @@
                     const idx = players.findIndex(p => p.id === player.id);
                     if (idx !== -1) players[idx].status = 'verfügbar';
                     // Save immediately
-                    localStorage.setItem('footballPlayers', JSON.stringify(players));
+                    Storage.set('footballPlayers', JSON.stringify(players));
                 }
                 
                 const statusIcon = {
@@ -2427,7 +2496,7 @@
                 if (gameIndex !== -1) {
                     games[gameIndex].squad = selectedPlayers.map(p => p.id);
                     games[gameIndex].status = 'kader_erstellt';
-                    localStorage.setItem('footballGames', JSON.stringify(games));
+                    Storage.set('footballGames', JSON.stringify(games));
                     console.log('Game updated with squad:', games[gameIndex]);
                 }
             }
@@ -2853,7 +2922,7 @@
             };
             
             games.push(game);
-            localStorage.setItem('footballGames', JSON.stringify(games));
+            Storage.set('footballGames', JSON.stringify(games));
             
             hideNewGameForm();
             renderGames();
@@ -3027,7 +3096,7 @@
             if (!confirm('Spiel wirklich löschen?')) return;
             
             games = games.filter(g => g.id !== gameId);
-            localStorage.setItem('footballGames', JSON.stringify(games));
+            Storage.set('footballGames', JSON.stringify(games));
             renderGames();
             showMessage('Spiel gelöscht', 'success');
         }
@@ -3040,7 +3109,7 @@
             if (result) {
                 game.result = result;
                 game.status = 'gespielt';
-                localStorage.setItem('footballGames', JSON.stringify(games));
+                Storage.set('footballGames', JSON.stringify(games));
                 renderGames();
                 showMessage('Ergebnis gespeichert!', 'success');
             }
@@ -3229,10 +3298,10 @@
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (data.footballPlayers) localStorage.setItem('footballPlayers', JSON.stringify(data.footballPlayers));
-                    if (data.footballOpponents) localStorage.setItem('footballOpponents', JSON.stringify(data.footballOpponents));
-                    if (data.footballGames) localStorage.setItem('footballGames', JSON.stringify(data.footballGames));
-                    if (data.postGameEvaluations) localStorage.setItem('postGameEvaluations', JSON.stringify(data.postGameEvaluations));
+                    if (data.footballPlayers) Storage.set('footballPlayers', JSON.stringify(data.footballPlayers));
+                    if (data.footballOpponents) Storage.set('footballOpponents', JSON.stringify(data.footballOpponents));
+                    if (data.footballGames) Storage.set('footballGames', JSON.stringify(data.footballGames));
+                    if (data.postGameEvaluations) Storage.set('postGameEvaluations', JSON.stringify(data.postGameEvaluations));
                     showImportExportStatus('Import erfolgreich! Seite wird neu geladen...', 'green');
                     setTimeout(() => location.reload(), 1500);
                 } catch(err) {
