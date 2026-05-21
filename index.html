@@ -2217,38 +2217,79 @@
         }
 
         function buildPrompt(type, opp, customPrompt) {
-            let data = `MEIN TEAM:\nKader: ${players.length} Spieler\n\n`;
-            const pos = {};
-            players.forEach(p => pos[p.position] = (pos[p.position]||0)+1);
-            data += 'Positionen:\n' + Object.entries(pos).map(([k,v]) => `- ${k}: ${v}`).join('\n') + '\n\n';
-            data += 'SPIELER:\n';
-            players.forEach(p => {
-                const avg = ((Object.values(p.skills).reduce((a,b)=>a+b,0)/4 + 
-                            Object.values(p.physical).reduce((a,b)=>a+b,0)/3 + 
-                            Object.values(p.mental).reduce((a,b)=>a+b,0)/3) / 3).toFixed(1);
-                data += `\n${p.name} (${p.position}) - ${avg}/10\n`;
-                data += `  Pass ${p.skills.passing}, Schuss ${p.skills.shooting}, Tempo ${p.physical.speed}\n`;
-                if (p.strengths) data += `  Stärken: ${p.strengths}\n`;
-                if (p.weaknesses) data += `  Schwächen: ${p.weaknesses}\n`;
-            });
-            
+            const available = players.filter(p => p.status === 'verfügbar');
+            const injured   = players.filter(p => p.status !== 'verfügbar');
+
+            function playerLine(p) {
+                const skills = `Pass ${p.skills.passing}, Schuss ${p.skills.shooting}, Dribbling ${p.skills.dribbling}, Kopfball ${p.skills.heading}`;
+                const phys   = `Tempo ${p.physical.speed}, Ausdauer ${p.physical.stamina}, Zweikampf ${p.physical.tackling}`;
+                const ment   = `Intelligenz ${p.mental.intelligence}, Führung ${p.mental.leadership}, Nerven ${p.mental.composure}`;
+                const secPos = (p.secondaryPositions && p.secondaryPositions.length)
+                    ? `  Nebenpositionen (kann notfalls spielen): ${p.secondaryPositions.join(', ')}\n`
+                    : '';
+                const str    = p.strengths  ? `  Stärken: ${p.strengths}\n`   : '';
+                const weak   = p.weaknesses ? `  Schwächen: ${p.weaknesses}\n` : '';
+                return `\n${p.name} | Hauptposition: ${p.position}\n  ${skills}\n  ${phys}\n  ${ment}\n${secPos}${str}${weak}`;
+            }
+
+            let data = `VERFÜGBARE SPIELER (${available.length}):\n`;
+            available.forEach(p => { data += playerLine(p); });
+
+            if (injured.length) {
+                data += `\n\nNICHT VERFÜGBAR: ${injured.map(p => p.name).join(', ')}\n`;
+            }
+
             if (opp) {
-                data += `\n\nGEGNER: ${opp.name}\n${opp.formation}, ${opp.style}\n`;
-                if (opp.strengths) data += `Stärken: ${opp.strengths}\n`;
+                data += `\n\nGEGNER: ${opp.name} | Formation: ${opp.formation} | Spielweise: ${opp.style}\n`;
+                if (opp.keyPlayers) data += `Schlüsselspieler: ${opp.keyPlayers}\n`;
+                if (opp.strengths)  data += `Stärken: ${opp.strengths}\n`;
                 if (opp.weaknesses) data += `Schwächen: ${opp.weaknesses}\n`;
             }
-            
-            // If custom prompt provided (for situations), use it
+
             if (customPrompt) {
                 return data + '\n\n' + customPrompt;
             }
 
             const prompts = {
-                lineup: 'Erstelle die OPTIMALE STARTAUFSTELLUNG (11 Spieler mit Positionen).\nBegründe taktisch, zeige Matchups, Einwechseloptionen, Plan B.',
+                lineup: `Analysiere die verfügbaren Spieler und erstelle die OPTIMALE STARTAUFSTELLUNG (genau 11 Spieler).
+
+REGELN:
+- Setze jeden Spieler NUR auf seiner Hauptposition ein — außer es gibt dort keinen anderen geeigneten Spieler, dann darf ein Spieler mit passender Nebenposition aushelfen
+- Berücksichtige die individuellen Stärken und Schwächen jedes Spielers
+- Wähle die Formation, die am besten zu den verfügbaren Spielern passt
+
+AUSGABE-FORMAT:
+Formation: [z.B. 4-3-3]
+
+STARTELF:
+TW: [Name] – [1 Satz Begründung]
+IV: [Name] – [1 Satz Begründung]
+... usw. für alle 11 Positionen
+
+ERSATZBANK (top 3-4):
+[Name] – [mögliche Rolle als Einwechselspieler]
+
+TAKTISCHER HINWEIS: [2-3 Sätze zum Spielstil]`,
+
                 training: 'Erstelle WOCHENTRAININGSPLAN (Mo-Fr).\nJe Tag: Schwerpunkt, 2-3 Übungen, Dauer, welche Schwächen werden trainiert.',
                 tactics: 'Erstelle ANSPRACHEN-STICHPUNKTE:\n1. MANNSCHAFT (Motivation + 3 Hauptpunkte)\n2. GRUPPENTAKTIK (Defensive/Mittelfeld/Offensive)\n3. INDIVIDUELLE ANWEISUNGEN (5 Schlüsselspieler)',
                 longterm: 'Erstelle 3-MONATS-ENTWICKLUNGSPLAN:\n1. Team-Ziele (Schwächen beheben)\n2. Top 5 Spieler-Entwicklungsziele\n3. Trainings-Periodisierung\n4. Erfolgs-Indikatoren',
-                formation_options: 'Erstelle GENAU 3 TAKTISCHE OPTIONEN für die Aufstellung:\n\nOption 1: [Titel]\nFormation: [z.B. 4-3-3]\nBeschreibung: [2-3 Sätze warum diese Formation]\nVorteile: [Stichpunkte]\n\nOption 2: [Titel]\nFormation: [z.B. 4-4-2]\nBeschreibung: [2-3 Sätze]\nVorteile: [Stichpunkte]\n\nOption 3: [Titel]\nFormation: [z.B. 3-5-2]\nBeschreibung: [2-3 Sätze]\nVorteile: [Stichpunkte]\n\nBeachte: Jede Option soll eine ANDERE taktische Herangehensweise bieten.'
+                formation_options: `Erstelle GENAU 3 TAKTISCHE OPTIONEN basierend auf den verfügbaren Spielern und deren Positionen/Stärken.
+
+Option 1: [Titel]
+Formation: [z.B. 4-3-3]
+Startelf: [alle 11 Namen mit Position]
+Warum: [2 Sätze — warum passen diese Spieler in diese Formation]
+
+Option 2: [Titel]
+Formation: [andere Formation]
+Startelf: [alle 11 Namen mit Position]
+Warum: [2 Sätze]
+
+Option 3: [Titel]
+Formation: [andere Formation]
+Startelf: [alle 11 Namen mit Position]
+Warum: [2 Sätze]`
             };
 
             return data + '\n\n' + prompts[type];
