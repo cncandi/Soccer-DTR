@@ -492,6 +492,29 @@
             border-left-color: #28a745;
             background: #d4edda;
         }
+
+        .wizard-step-ind {
+            flex: 1;
+            min-width: 70px;
+            text-align: center;
+            padding: 10px 8px;
+            background: #e9ecef;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .wizard-step-ind.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .wizard-step-ind.done {
+            background: #28a745;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -739,7 +762,10 @@
                 <div id="gamesMainView">
                     <h2>🏆 Spiele</h2>
                     
-                    <button class="btn" onclick="showNewGameForm()" style="margin-bottom: 30px;">➕ Neues Spiel anlegen</button>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px;">
+                        <button class="btn" onclick="startWizard()" style="background:linear-gradient(135deg,#28a745,#20c997);font-size:1.1em;padding:18px 28px;">🧙 Spiel-Wizard starten</button>
+                        <button class="btn btn-secondary" onclick="showNewGameForm()">➕ Spiel ohne Wizard</button>
+                    </div>
                     
                     <div id="newGameForm" style="display: none; background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
                         <h3 style="margin-bottom: 20px;">Neues Spiel anlegen</h3>
@@ -800,6 +826,122 @@
                 
                 <!-- Formation Sub-View (hidden by default) -->
                 <div id="gameFormationView" style="display: none;"></div>
+
+                <!-- WIZARD -->
+                <div id="gameWizard" style="display:none;">
+                    <button class="btn btn-secondary" onclick="closeWizard()" style="margin-bottom:20px;">✕ Wizard schließen</button>
+
+                    <!-- Step Indicator -->
+                    <div style="display:flex;gap:4px;margin-bottom:28px;overflow-x:auto;">
+                        <div class="wizard-step-ind active" id="wsi1" onclick="wizardGoTo(1)">1. Spiel</div>
+                        <div class="wizard-step-ind" id="wsi2" onclick="wizardGoTo(2)">2. Kader</div>
+                        <div class="wizard-step-ind" id="wsi3" onclick="wizardGoTo(3)">3. Aufstellung</div>
+                        <div class="wizard-step-ind" id="wsi4" onclick="wizardGoTo(4)">4. Anweisungen</div>
+                        <div class="wizard-step-ind" id="wsi5" onclick="wizardGoTo(5)">5. Halbzeit</div>
+                    </div>
+
+                    <!-- Step 1: Spiel -->
+                    <div id="wStep1">
+                        <h2>Schritt 1: Spiel</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Gegner *</label>
+                                <select id="wOpponentId" onchange="wOpponentChanged()">
+                                    <option value="">-- Gegner wählen --</option>
+                                    <option value="__new__">+ Neuer Gegner...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Spieltyp *</label>
+                                <select id="wGameType" onchange="wCalcMeet()">
+                                    <option value="heim">🏠 Heimspiel</option>
+                                    <option value="auswaerts">✈️ Auswärtsspiel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="wNewOpponentFields" style="display:none;background:#f8f9fa;padding:16px;border-radius:8px;margin-bottom:16px;">
+                            <div class="form-row">
+                                <div class="form-group"><label>Name *</label><input type="text" id="wNewOppName"></div>
+                                <div class="form-group"><label>Formation</label>
+                                    <select id="wNewOppFormation">
+                                        <option value="4-4-2">4-4-2</option><option value="4-3-3">4-3-3</option>
+                                        <option value="4-2-3-1">4-2-3-1</option><option value="3-5-2">3-5-2</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>Spielweise</label>
+                                    <select id="wNewOppStyle">
+                                        <option value="Ballbesitzorientiert">Ballbesitz</option>
+                                        <option value="Konterfußball">Konter</option>
+                                        <option value="Pressing">Pressing</option>
+                                        <option value="Defensiv">Defensiv</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group"><label>Stärken</label><textarea id="wNewOppStrengths" rows="2"></textarea></div>
+                            <div class="form-group"><label>Schwächen</label><textarea id="wNewOppWeaknesses" rows="2"></textarea></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Datum *</label><input type="date" id="wDate"></div>
+                            <div class="form-group"><label>Anstoß *</label><input type="time" id="wTime" value="15:00" oninput="wCalcMeet()"></div>
+                            <div class="form-group"><label>Treffpunkt (auto)</label><input type="time" id="wMeetTime" readonly style="background:#f0f0f0;"></div>
+                        </div>
+                        <div class="form-group"><label>Treffpunkt Ort</label><input type="text" id="wMeetLocation" value="Vereinsheim Biedenkopf"></div>
+                        <button class="btn" onclick="wizardNext()" style="margin-top:16px;">Weiter → Kader</button>
+                    </div>
+
+                    <!-- Step 2: Kader -->
+                    <div id="wStep2" style="display:none;">
+                        <h2>Schritt 2: Kader auswählen</h2>
+                        <p style="color:#666;margin-bottom:16px;">Alle Spieler auswählbar — auch verletzte/abwesende wenn nötig.</p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                            <button class="btn btn-secondary" onclick="wSelectAll()">✅ Alle</button>
+                            <button class="btn btn-secondary" onclick="wDeselectAll()">❌ Keine</button>
+                            <button class="btn btn-secondary" onclick="wSelectAvailable()">🎯 Nur Verfügbare</button>
+                            <span id="wSquadCount" style="display:flex;align-items:center;font-weight:700;color:#1e3c72;"></span>
+                        </div>
+                        <div id="wPlayerList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;"></div>
+                        <button class="btn" onclick="wizardNext()" style="margin-top:20px;">Weiter → Aufstellung</button>
+                    </div>
+
+                    <!-- Step 3: Aufstellung -->
+                    <div id="wStep3" style="display:none;">
+                        <h2>Schritt 3: KI-Aufstellung</h2>
+                        <div style="background:#e8f4fd;padding:16px;border-radius:8px;margin-bottom:16px;">
+                            <p style="color:#1e3c72;margin-bottom:12px;">KI erstellt die optimale Aufstellung aus dem gewählten Kader.</p>
+                            <button class="btn" onclick="wGenerateLineup()" style="background:linear-gradient(135deg,#667eea,#764ba2);">🤖 Aufstellung generieren</button>
+                        </div>
+                        <div id="wLineupResult"></div>
+                        <button class="btn" onclick="wizardNext()" style="margin-top:16px;">Weiter → Anweisungen</button>
+                    </div>
+
+                    <!-- Step 4: Anweisungen -->
+                    <div id="wStep4" style="display:none;">
+                        <h2>Schritt 4: Taktische Anweisungen</h2>
+                        <div style="background:#e8f4fd;padding:16px;border-radius:8px;margin-bottom:16px;">
+                            <button class="btn" onclick="wGenerateInstructions()" style="background:linear-gradient(135deg,#667eea,#764ba2);">🤖 Anweisungen generieren</button>
+                        </div>
+                        <div id="wInstructionsResult"></div>
+                        <button class="btn" onclick="wizardNext()" style="margin-top:16px;">Weiter → Halbzeit</button>
+                    </div>
+
+                    <!-- Step 5: Halbzeitansprache -->
+                    <div id="wStep5" style="display:none;">
+                        <h2>Schritt 5: Halbzeitansprache</h2>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                            <div class="form-group"><label>Tore wir</label><input type="number" id="wGoalsUs" value="0" min="0"></div>
+                            <div class="form-group"><label>Tore Gegner</label><input type="number" id="wGoalsThem" value="0" min="0"></div>
+                        </div>
+                        <div class="form-group"><label>Was lief gut?</label><textarea id="wHalfGood" rows="2"></textarea></div>
+                        <div class="form-group"><label>Was lief schlecht?</label><textarea id="wHalfBad" rows="2"></textarea></div>
+                        <button class="btn" onclick="wGenerateHalftime()" style="background:linear-gradient(135deg,#667eea,#764ba2);margin-bottom:16px;">🤖 Halbzeitansprache generieren</button>
+                        <div id="wHalftimeResult"></div>
+                        <div style="margin-top:24px;padding:16px;background:#d4edda;border-radius:8px;">
+                            <strong style="color:#155724;">✅ Wizard abgeschlossen!</strong>
+                            <p style="color:#155724;margin-top:8px;">Spiel wurde gespeichert.</p>
+                            <button class="btn" onclick="closeWizard()" style="margin-top:12px;">Fertig</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="squad" class="tab-content">
@@ -3335,6 +3477,298 @@ Warum: [2 Sätze]`
             showMessage('Aufstellung gespeichert! ⚽', 'success');
         }
         
+        // ===== GAME WIZARD =====
+        let wState = {
+            step: 1,
+            game: null,
+            squadIds: new Set(),
+            opponent: null
+        };
+
+        function startWizard() {
+            document.getElementById('gamesMainView').style.display = 'none';
+            document.getElementById('gameWizard').style.display = 'block';
+            wState = { step: 1, game: null, squadIds: new Set(), opponent: null };
+            wGoTo(1);
+            // Populate opponent dropdown
+            const sel = document.getElementById('wOpponentId');
+            sel.innerHTML = '<option value="">-- Gegner wählen --</option><option value="__new__">+ Neuer Gegner...</option>';
+            opponents.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.id;
+                opt.textContent = o.name;
+                sel.appendChild(opt);
+            });
+            // Default date to today
+            const today = new Date().toISOString().slice(0,10);
+            document.getElementById('wDate').value = today;
+            wCalcMeet();
+        }
+
+        function closeWizard() {
+            document.getElementById('gameWizard').style.display = 'none';
+            document.getElementById('gamesMainView').style.display = 'block';
+            renderGames();
+        }
+
+        function wOpponentChanged() {
+            const val = document.getElementById('wOpponentId').value;
+            document.getElementById('wNewOpponentFields').style.display = val === '__new__' ? 'block' : 'none';
+        }
+
+        function wCalcMeet() {
+            const t = document.getElementById('wTime').value;
+            const type = document.getElementById('wGameType').value;
+            if (!t) return;
+            const [h, m] = t.split(':').map(Number);
+            const offset = type === 'auswaerts' ? 105 : 75;
+            const tot = h * 60 + m - offset;
+            const mh = Math.floor(((tot % 1440) + 1440) % 1440 / 60);
+            const mm = ((tot % 60) + 60) % 60;
+            document.getElementById('wMeetTime').value = String(mh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+        }
+
+        function wGoTo(step) {
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById('wStep' + i);
+                const ind = document.getElementById('wsi' + i);
+                if (s) s.style.display = i === step ? 'block' : 'none';
+                if (ind) {
+                    ind.classList.remove('active', 'done');
+                    if (i === step) ind.classList.add('active');
+                    else if (i < step) ind.classList.add('done');
+                }
+            }
+            wState.step = step;
+        }
+
+        function wizardGoTo(step) {
+            if (step <= wState.step) wGoTo(step);
+        }
+
+        function wizardNext() {
+            if (wState.step === 1) {
+                if (!wStep1Validate()) return;
+                wSaveGame();
+                wBuildPlayerList();
+                wGoTo(2);
+            } else if (wState.step === 2) {
+                wState.squadIds = new Set();
+                document.querySelectorAll('.wPlayerCb:checked').forEach(cb => wState.squadIds.add(parseInt(cb.value)));
+                if (wState.squadIds.size === 0) { alert('Mindestens 1 Spieler auswählen.'); return; }
+                wGoTo(3);
+            } else if (wState.step === 3) {
+                wGoTo(4);
+            } else if (wState.step === 4) {
+                wGoTo(5);
+            }
+        }
+
+        function wStep1Validate() {
+            const oppId = document.getElementById('wOpponentId').value;
+            const date = document.getElementById('wDate').value;
+            const time = document.getElementById('wTime').value;
+            if (!date || !time) { alert('Datum und Uhrzeit ausfüllen.'); return false; }
+            if (!oppId) { alert('Gegner auswählen oder anlegen.'); return false; }
+            if (oppId === '__new__') {
+                const name = document.getElementById('wNewOppName').value.trim();
+                if (!name) { alert('Gegnername eingeben.'); return false; }
+            }
+            return true;
+        }
+
+        function wSaveGame() {
+            const oppId = document.getElementById('wOpponentId').value;
+            let opp;
+            if (oppId === '__new__') {
+                opp = {
+                    id: Date.now(),
+                    name: document.getElementById('wNewOppName').value.trim(),
+                    formation: document.getElementById('wNewOppFormation').value,
+                    style: document.getElementById('wNewOppStyle').value,
+                    strengths: document.getElementById('wNewOppStrengths').value,
+                    weaknesses: document.getElementById('wNewOppWeaknesses').value
+                };
+                opponents.push(opp);
+                Storage.set('footballOpponents', JSON.stringify(opponents));
+                wState.opponent = opp;
+            } else {
+                opp = opponents.find(o => o.id == oppId);
+                wState.opponent = opp;
+            }
+            const game = {
+                id: Date.now(),
+                opponentId: String(opp.id),
+                opponentName: opp.name,
+                type: document.getElementById('wGameType').value,
+                date: document.getElementById('wDate').value,
+                time: document.getElementById('wTime').value,
+                meetTime: document.getElementById('wMeetTime').value,
+                meetLocation: document.getElementById('wMeetLocation').value,
+                status: 'geplant',
+                createdAt: new Date().toISOString(),
+                squad: [],
+                formation: null,
+                result: null
+            };
+            games.push(game);
+            Storage.set('footballGames', JSON.stringify(games));
+            wState.game = game;
+        }
+
+        function wBuildPlayerList() {
+            const list = document.getElementById('wPlayerList');
+            list.innerHTML = '';
+            // Group by position
+            const posOrder = ['TW','IV','LV','RV','DM','ZM','OM','ST'];
+            const grouped = {};
+            players.forEach(p => {
+                const pos = p.position || 'XX';
+                if (!grouped[pos]) grouped[pos] = [];
+                grouped[pos].push(p);
+            });
+            posOrder.concat(Object.keys(grouped).filter(k => !posOrder.includes(k))).forEach(pos => {
+                if (!grouped[pos]) return;
+                grouped[pos].forEach(p => {
+                    const statusColor = { verfügbar: '#28a745', verletzt: '#dc3545', abwesend: '#ffc107' }[p.status] || '#666';
+                    const secPos = (p.secondaryPositions || []).length ? ` | auch: ${p.secondaryPositions.join(',')}` : '';
+                    const checked = p.status === 'verfügbar' ? 'checked' : '';
+                    list.innerHTML += `<label style="display:flex;align-items:center;gap:8px;padding:10px;background:#f8f9fa;border-radius:8px;cursor:pointer;border:2px solid #e9ecef;">
+                        <input type="checkbox" class="wPlayerCb" value="${p.id}" ${checked} onchange="wUpdateCount()">
+                        <span>
+                            <strong>${p.name}</strong><br>
+                            <small style="color:${statusColor};">${p.position}${secPos} · ${p.status}</small>
+                        </span>
+                    </label>`;
+                });
+            });
+            wUpdateCount();
+        }
+
+        function wUpdateCount() {
+            const n = document.querySelectorAll('.wPlayerCb:checked').length;
+            document.getElementById('wSquadCount').textContent = n + ' Spieler ausgewählt';
+        }
+
+        function wSelectAll() { document.querySelectorAll('.wPlayerCb').forEach(cb => cb.checked = true); wUpdateCount(); }
+        function wDeselectAll() { document.querySelectorAll('.wPlayerCb').forEach(cb => cb.checked = false); wUpdateCount(); }
+        function wSelectAvailable() {
+            document.querySelectorAll('.wPlayerCb').forEach(cb => {
+                const p = players.find(pl => pl.id == cb.value);
+                cb.checked = p && p.status === 'verfügbar';
+            });
+            wUpdateCount();
+        }
+
+        async function wGenerateLineup() {
+            const div = document.getElementById('wLineupResult');
+            div.innerHTML = '<div class="loading"><div class="spinner"></div><p>Aufstellung wird berechnet...</p></div>';
+            const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
+            const prompt = wBuildLineupPrompt(squadPlayers, wState.opponent);
+            const result = await wCallAI(prompt);
+            div.innerHTML = `<div class="analysis-content" style="white-space:pre-wrap;">${result}</div>`;
+            // Save squad to game
+            if (wState.game) {
+                wState.game.squad = [...wState.squadIds];
+                const idx = games.findIndex(g => g.id === wState.game.id);
+                if (idx !== -1) { games[idx] = wState.game; Storage.set('footballGames', JSON.stringify(games)); }
+            }
+        }
+
+        async function wGenerateInstructions() {
+            const div = document.getElementById('wInstructionsResult');
+            div.innerHTML = '<div class="loading"><div class="spinner"></div><p>Anweisungen werden erstellt...</p></div>';
+            const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
+            const oppData = wState.opponent ? `\nGEGNER: ${wState.opponent.name} | ${wState.opponent.formation} | ${wState.opponent.style}\nStärken: ${wState.opponent.strengths||''}\nSchwächen: ${wState.opponent.weaknesses||''}` : '';
+            const prompt = wBuildPlayerData(squadPlayers) + oppData + '\n\nErstelle TAKTISCHE ANWEISUNGEN:\n1. MANNSCHAFTSANSPRACHE (kurze Motivation)\n2. DEFENSIVE Anweisungen\n3. OFFENSIVE Anweisungen\n4. INDIVIDUELLE Hinweise für 3-4 Schlüsselspieler';
+            const result = await wCallAI(prompt);
+            div.innerHTML = `<div class="analysis-content" style="white-space:pre-wrap;">${result}</div>`;
+        }
+
+        async function wGenerateHalftime() {
+            const div = document.getElementById('wHalftimeResult');
+            div.innerHTML = '<div class="loading"><div class="spinner"></div><p>Halbzeitansprache wird erstellt...</p></div>';
+            const us = document.getElementById('wGoalsUs').value;
+            const them = document.getElementById('wGoalsThem').value;
+            const good = document.getElementById('wHalfGood').value;
+            const bad = document.getElementById('wHalfBad').value;
+            const squadPlayers = players.filter(p => wState.squadIds.has(p.id));
+            const oppName = wState.opponent ? wState.opponent.name : 'Gegner';
+            const prompt = wBuildPlayerData(squadPlayers) +
+                `\n\nHALBZEITSTAND: ${us}:${them} gegen ${oppName}\nWAS LIEF GUT: ${good}\nWAS LIEF SCHLECHT: ${bad}\n\nErstelle eine konkrete HALBZEITANSPRACHE:\n1. Kurze Bewertung der 1. Halbzeit\n2. Was muss sich in der 2. Halbzeit ändern?\n3. Taktische Anpassungen\n4. Motivationsschluss`;
+            const result = await wCallAI(prompt);
+            div.innerHTML = `<div class="analysis-content" style="white-space:pre-wrap;">${result}</div>`;
+        }
+
+        function wBuildPlayerData(squadPlayers) {
+            let data = `KADER (${squadPlayers.length} Spieler):\n`;
+            // Group by position
+            const byPos = {};
+            squadPlayers.forEach(p => {
+                if (!byPos[p.position]) byPos[p.position] = [];
+                byPos[p.position].push(p);
+            });
+            Object.entries(byPos).forEach(([pos, plist]) => {
+                data += `\n${pos}:\n`;
+                plist.forEach(p => {
+                    const sec = (p.secondaryPositions||[]).length ? ` (Nebenpos: ${p.secondaryPositions.join(',')})` : '';
+                    data += `  ${p.name}${sec} | Pass:${p.skills.passing} Schuss:${p.skills.shooting} Tempo:${p.physical.speed} Zweikampf:${p.physical.tackling} Intelligenz:${p.mental.intelligence}`;
+                    if (p.strengths) data += ` | Stärken: ${p.strengths}`;
+                    if (p.weaknesses) data += ` | Schwächen: ${p.weaknesses}`;
+                    data += '\n';
+                });
+            });
+            return data;
+        }
+
+        function wBuildLineupPrompt(squadPlayers, opp) {
+            let data = wBuildPlayerData(squadPlayers);
+            if (opp) {
+                data += `\nGEGNER: ${opp.name} | Formation: ${opp.formation} | Spielweise: ${opp.style}\n`;
+                if (opp.strengths) data += `Stärken: ${opp.strengths}\n`;
+                if (opp.weaknesses) data += `Schwächen: ${opp.weaknesses}\n`;
+            }
+            data += `\n\nErstelle die OPTIMALE STARTAUFSTELLUNG (genau 11 Spieler).
+
+ZWINGEND zu beachten:
+- Setze Spieler NUR auf ihrer HAUPTPOSITION ein
+- Nur wenn eine Position nicht besetzt werden kann, darf ein Spieler mit passender NEBENPOSITION aushelfen — explizit begründen
+- Die Stärken/Schwächen der Spieler bei der Positionszuweisung berücksichtigen
+
+FORMAT:
+Formation: [z.B. 4-3-3]
+
+STARTELF:
+TW: [exakter Name aus dem Kader] – [kurze Begründung]
+IV: [Name] – [Begründung]
+IV: [Name] – [Begründung]
+LV: [Name] – [Begründung]
+RV: [Name] – [Begründung]
+[...alle 11 Positionen mit Namen aus obigem Kader...]
+
+BANK (top 3):
+[Name] – [Einwechseloption]
+
+TAKTIK: [2-3 Sätze]`;
+            return data;
+        }
+
+        async function wCallAI(prompt) {
+            try {
+                const BACKEND_URL = 'https://soccer-dtr-backend-andi.vercel.app/api/claude';
+                const res = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                if (!res.ok) throw new Error('API Fehler ' + res.status);
+                const data = await res.json();
+                return data.response || data.error || 'Keine Antwort';
+            } catch(e) {
+                return '❌ Fehler: ' + e.message;
+            }
+        }
+
         function cancelFormationEdit() {
             document.getElementById('formationOptions').innerHTML = '';
         }
