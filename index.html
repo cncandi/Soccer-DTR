@@ -718,7 +718,29 @@ for update using (true);</textarea>
 
     function loadState() {
       const stored = localStorage.getItem(STORE_KEY);
-      return stored ? JSON.parse(stored) : structuredClone(defaultState);
+      const loadedState = stored ? JSON.parse(stored) : structuredClone(defaultState);
+      return ensureDefaultPlayers(loadedState);
+    }
+
+    function ensureDefaultPlayers(loadedState) {
+      const existingNames = new Set((loadedState.players || []).map((player) => player.name.trim().toLowerCase()));
+      const missingPlayers = DEFAULT_PLAYER_NAMES
+        .filter((name) => !existingNames.has(name.toLowerCase()))
+        .map((name) => ({
+          id: crypto.randomUUID(),
+          name,
+          position: "Mittelfeld",
+          phone: "",
+          group: "Mannschaft",
+          notes: ""
+        }));
+
+      return {
+        players: [...(loadedState.players || []), ...missingPlayers],
+        events: loadedState.events || [],
+        polls: loadedState.polls || [],
+        messages: loadedState.messages || []
+      };
     }
 
     function loadSettings() {
