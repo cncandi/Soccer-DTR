@@ -135,7 +135,8 @@
     .brand-mark img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      padding: 3px;
     }
 
     .brand h1 {
@@ -379,6 +380,16 @@
       height: 18px;
     }
 
+    .inline-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .staff-panel {
+      margin-top: 14px;
+    }
+
     .field.full { grid-column: 1 / -1; }
 
     label {
@@ -406,6 +417,12 @@
     .list {
       display: grid;
       gap: 10px;
+    }
+
+    .player-filter {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
     }
 
     .item {
@@ -450,6 +467,85 @@
       margin: 0;
       font-weight: 850;
       font-size: 1rem;
+    }
+
+    .player-title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .status-badges {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .status-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      font-size: .76rem;
+      font-weight: 900;
+      line-height: 1;
+      border: 1px solid transparent;
+    }
+
+    .status-badge.injured { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .status-badge.vacation { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+    .status-badge.unavailable { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .status-badge.youth { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+
+    .status-line {
+      margin: -2px 0 0;
+    }
+
+    .availability-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .availability-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      background: #f8fbf9;
+    }
+
+    .availability-card .check-row {
+      font-size: .86rem;
+    }
+
+    .availability-card .period {
+      display: grid;
+      gap: 6px;
+    }
+
+    .form-details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fbf9;
+    }
+
+    .form-details summary {
+      cursor: pointer;
+      font-weight: 850;
+      color: var(--green);
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-details .form-grid {
+      margin-top: 10px;
     }
 
     .meta {
@@ -651,7 +747,7 @@
         padding: 14px;
       }
 
-      .grid.two, .stats, .form-grid {
+      .grid.two, .stats, .form-grid, .availability-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -832,6 +928,10 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .availability-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .mini {
         min-height: 42px;
       }
@@ -870,6 +970,10 @@
 
       .item-head {
         display: grid;
+      }
+
+      .availability-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -987,22 +1091,35 @@
       <section class="view" id="players">
         <div class="grid two">
           <section class="panel admin-only">
-            <h3>Spieler anlegen</h3>
+            <h3>Person anlegen</h3>
             <form id="playerForm" class="form-grid">
               <div class="field"><label>Name</label><input name="name" required></div>
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option><option>Trainer</option><option>Betreuer</option></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
-              <div class="field"><label>Rolle</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
+              <div class="field"><label>Berechtigung</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
               <div class="field"><label>Gruppe</label><select name="group"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option><option>Trainer</option><option>Betreuer</option></select></div>
+              <div class="field full"><label>Funktion</label><div class="inline-checks">
+                <label class="check-row"><input type="checkbox" name="memberRoleSpieler" checked>Spieler</label>
+                <label class="check-row"><input type="checkbox" name="memberRoleTrainer">Trainer</label>
+                <label class="check-row"><input type="checkbox" name="memberRoleBetreuer">Betreuer</label>
+              </div></div>
               <div class="field full"><label>Notizen</label><textarea name="notes"></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Spieler speichern</button></div>
+              <div class="field full"><button class="btn-primary" type="submit">Person speichern</button></div>
             </form>
           </section>
           <section class="panel">
             <h3>Kader</h3>
+            <div class="player-filter">
+              <label for="playerSearch">Spieler suchen</label>
+              <input id="playerSearch" type="search" placeholder="Name, Position, Gruppe oder Status">
+            </div>
             <div class="list" id="playerList"></div>
           </section>
         </div>
+        <section class="panel staff-panel">
+          <h3>Staff</h3>
+          <div class="list" id="staffList"></div>
+        </section>
       </section>
 
       <section class="view" id="events">
@@ -1141,7 +1258,22 @@ for update using (true);</textarea>
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
+    const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const GRADE_FIELDS = ["speed", "stamina", "duels", "heading", "tactics", "form"];
+    const AVAILABILITY_FIELDS = ["injured", "vacation", "unavailable", "youth"];
+    const AVAILABILITY_LABELS = {
+      injured: "Verletzt",
+      vacation: "Urlaub",
+      unavailable: "Nicht verfuegbar",
+      youth: "A Jugend"
+    };
+    const AVAILABILITY_SYMBOLS = {
+      injured: "V",
+      vacation: "U",
+      unavailable: "!",
+      youth: "A"
+    };
+    const PERIOD_AVAILABILITY_FIELDS = ["injured", "vacation", "unavailable"];
     const PERFORMANCE_LABELS = {
       speed: "Schnelligkeit",
       stamina: "Ausdauer",
@@ -1203,8 +1335,10 @@ for update using (true);</textarea>
         notes: "",
         password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
+        memberRoles: ["Spieler"],
         photo: "",
         alternatePositions: [],
+        availability: defaultAvailability(),
         performance: defaultPerformance()
       })),
       events: [],
@@ -1241,6 +1375,47 @@ for update using (true);</textarea>
         weaknesses: "",
         talks: ""
       };
+    }
+
+    function defaultAvailability() {
+      return {
+        injured: { active: false, from: "", to: "" },
+        vacation: { active: false, from: "", to: "" },
+        unavailable: { active: false, from: "", to: "" },
+        youth: { active: false, from: "", to: "" }
+      };
+    }
+
+    function normalizeAvailability(availability = {}) {
+      availability = availability || {};
+      const defaults = defaultAvailability();
+      return Object.fromEntries(AVAILABILITY_FIELDS.map((field) => [
+        field,
+        {
+          ...defaults[field],
+          ...(availability[field] || {}),
+          active: Boolean(availability[field]?.active)
+        }
+      ]));
+    }
+
+    function normalizeMemberRoles(player = {}) {
+      if (Array.isArray(player.memberRoles) && player.memberRoles.length) {
+        const roles = MEMBER_FUNCTIONS.filter((role) => player.memberRoles.includes(role));
+        return roles.length ? roles : ["Spieler"];
+      }
+      if (["Trainer", "Betreuer"].includes(player.position) && player.group === player.position) {
+        return [player.position];
+      }
+      return ["Spieler"];
+    }
+
+    function hasMemberRole(player, role) {
+      return normalizeMemberRoles(player).includes(role);
+    }
+
+    function memberRoleLabels(player) {
+      return normalizeMemberRoles(player).join(", ");
     }
 
     function loadClubs() {
@@ -1281,8 +1456,10 @@ for update using (true);</textarea>
         ...player,
         password: player.password || DEFAULT_USER_PASSWORDS[player.name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: player.role || DEFAULT_USER_ROLES[player.name.trim().toLowerCase()] || "Spieler",
+        memberRoles: normalizeMemberRoles(player),
         photo: player.photo || "",
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
+        availability: normalizeAvailability(player.availability),
         performance: { ...defaultPerformance(), ...(player.performance || {}) }
       }));
       const existingNames = new Set(normalizedPlayers.map((player) => player.name.trim().toLowerCase()));
@@ -1297,8 +1474,10 @@ for update using (true);</textarea>
           notes: "",
           password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
           role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
+          memberRoles: ["Spieler"],
           photo: "",
           alternatePositions: [],
+          availability: defaultAvailability(),
           performance: defaultPerformance()
         }));
 
@@ -1585,6 +1764,7 @@ for update using (true);</textarea>
       renderStatus();
       renderStats();
       renderPlayers();
+      renderStaff();
       renderEvents();
       renderPolls();
       renderMessages();
@@ -1642,7 +1822,7 @@ for update using (true);</textarea>
     }
 
     function renderStats() {
-      $("#statPlayers").textContent = state.players.length;
+      $("#statPlayers").textContent = state.players.filter((player) => hasMemberRole(player, "Spieler")).length;
       $("#statEvents").textContent = state.events.filter((event) => new Date(event.date + "T" + event.time) >= new Date()).length;
       $("#statPolls").textContent = state.polls.length;
       $("#statMessages").textContent = state.messages.length;
@@ -1651,37 +1831,72 @@ for update using (true);</textarea>
     function renderPlayers() {
       const list = $("#playerList");
       list.innerHTML = "";
-      if (!state.players.length) return empty(list, "Noch keine Spieler angelegt.");
-      state.players
+      const roster = state.players.filter((player) => hasMemberRole(player, "Spieler"));
+      if (!roster.length) return empty(list, "Noch keine Spieler angelegt.");
+      const query = ($("#playerSearch")?.value || "").trim().toLowerCase();
+      const players = roster
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name, "de"))
+        .filter((player) => !query || playerSearchText(player).includes(query));
+      if (!players.length) return empty(list, "Kein Spieler passt zur Suche.");
+      players
         .forEach((player) => {
           list.appendChild(item(`
             <div class="item-head">
               <div class="player-summary">
                 <div class="player-photo">${player.photo ? `<img src="${escapeAttr(player.photo)}" alt="${escapeAttr(player.name)}">` : escapeHtml(initials(player.name))}</div>
                 <div>
-                  <p class="item-title">${escapeHtml(player.name)}</p>
-                  <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                  <div class="player-title-row">
+                    <p class="item-title">${escapeHtml(player.name)}</p>
+                    ${renderAvailabilityBadges(player)}
+                  </div>
+                  <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
               <span class="chip">${escapeHtml(player.group)}</span>
             </div>
+            ${renderAvailabilityLine(player)}
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() ? renderPerformanceSummary(player) : ""}
             ${canManage() ? `
               <div class="row-actions"><button class="mini" data-open-player="${player.id}">Spieler bearbeiten</button></div>
-              <div class="form-grid">
-                <div class="field"><label>Neues Passwort</label><input data-password-input="${player.id}" type="text" placeholder="z.B. fussball"></div>
-                <div class="field"><label>Aktionen</label><button class="mini" data-set-password="${player.id}">Passwort setzen</button></div>
-              </div>
               <div class="row-actions">
-                <button class="mini" data-temp-password="${player.id}">Temp-Passwort</button>
                 <button class="mini no" data-delete-player="${player.id}">Entfernen</button>
               </div>
             ` : ""}
           `));
         });
+    }
+
+    function renderStaff() {
+      const list = $("#staffList");
+      if (!list) return;
+      list.innerHTML = "";
+      const staff = state.players
+        .filter((person) => !hasMemberRole(person, "Spieler") && (hasMemberRole(person, "Trainer") || hasMemberRole(person, "Betreuer")))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      if (!staff.length) return empty(list, "Noch kein Staff angelegt.");
+      staff.forEach((person) => {
+        list.appendChild(item(`
+          <div class="item-head">
+            <div class="player-summary">
+              <div class="player-photo">${person.photo ? `<img src="${escapeAttr(person.photo)}" alt="${escapeAttr(person.name)}">` : escapeHtml(initials(person.name))}</div>
+              <div>
+                <p class="item-title">${escapeHtml(person.name)}</p>
+                <div class="meta"><span>${escapeHtml(memberRoleLabels(person))}</span><span>${escapeHtml(person.role || "Spieler")}</span><span>${escapeHtml(person.phone || "Keine Telefonnummer")}</span></div>
+              </div>
+            </div>
+            <span class="chip">${escapeHtml(person.group)}</span>
+          </div>
+          ${person.notes ? `<p class="meta">${escapeHtml(person.notes)}</p>` : ""}
+          ${canManage() ? `
+            <div class="row-actions">
+              <button class="mini" data-open-player="${person.id}">Person bearbeiten</button>
+              <button class="mini no" data-delete-player="${person.id}">Entfernen</button>
+            </div>
+          ` : ""}
+        `));
+      });
     }
 
     function renderEvents() {
@@ -1850,8 +2065,114 @@ for update using (true);</textarea>
       return optionList(["Spieler", "Admin", "Superadmin"], selected);
     }
 
+    function memberRoleEditor(player) {
+      const roles = normalizeMemberRoles(player);
+      return MEMBER_FUNCTIONS.map((role) => `
+        <label class="check-row">
+          <input type="checkbox" name="memberRole${role}" ${roles.includes(role) ? "checked" : ""}>
+          ${escapeHtml(role)}
+        </label>
+      `).join("");
+    }
+
+    function memberRolesFromValues(values) {
+      const roles = MEMBER_FUNCTIONS.filter((role) => values[`memberRole${role}`] === "on");
+      return roles.length ? roles : ["Spieler"];
+    }
+
     function gradeOptions(selected) {
       return optionList(["", "1", "2", "3", "4", "5", "6"], String(selected || ""));
+    }
+
+    function activeAvailabilityEntries(player) {
+      const availability = normalizeAvailability(player.availability);
+      return AVAILABILITY_FIELDS
+        .map((field) => ({ field, ...availability[field] }))
+        .filter((entry) => entry.active);
+    }
+
+    function availabilityText(entry) {
+      const label = AVAILABILITY_LABELS[entry.field];
+      if (PERIOD_AVAILABILITY_FIELDS.includes(entry.field) && (entry.from || entry.to)) {
+        return `${label} ${formatPeriod(entry.from, entry.to)}`;
+      }
+      return label;
+    }
+
+    function formatPeriod(from, to) {
+      if (from && to) return `${formatShortDate(from)} bis ${formatShortDate(to)}`;
+      if (from) return `ab ${formatShortDate(from)}`;
+      if (to) return `bis ${formatShortDate(to)}`;
+      return "";
+    }
+
+    function formatShortDate(value) {
+      if (!value) return "";
+      const date = new Date(`${value}T00:00`);
+      return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    }
+
+    function renderAvailabilityBadges(player) {
+      const entries = activeAvailabilityEntries(player);
+      if (!entries.length) return "";
+      return `<span class="status-badges">${entries.map((entry) => `
+        <span class="status-badge ${entry.field}" title="${escapeAttr(availabilityText(entry))}" aria-label="${escapeAttr(availabilityText(entry))}">${escapeHtml(AVAILABILITY_SYMBOLS[entry.field])}</span>
+      `).join("")}</span>`;
+    }
+
+    function renderAvailabilityLine(player) {
+      const entries = activeAvailabilityEntries(player);
+      if (!entries.length) return "";
+      return `<div class="meta status-line">${entries.map((entry) => `<span>${escapeHtml(availabilityText(entry))}</span>`).join("")}</div>`;
+    }
+
+    function playerSearchText(player) {
+      const availability = activeAvailabilityEntries(player).map(availabilityText).join(" ");
+      return [
+        player.name,
+        player.position,
+        player.role,
+        memberRoleLabels(player),
+        player.group,
+        player.phone,
+        player.notes,
+        availability
+      ].join(" ").toLowerCase();
+    }
+
+    function availabilityEditor(player) {
+      const availability = normalizeAvailability(player.availability);
+      return AVAILABILITY_FIELDS.map((field) => {
+        const item = availability[field];
+        const period = PERIOD_AVAILABILITY_FIELDS.includes(field) ? `
+          <div class="period">
+            <label>Von</label>
+            <input type="date" name="${field}From" value="${escapeAttr(item.from || "")}">
+            <label>Bis</label>
+            <input type="date" name="${field}To" value="${escapeAttr(item.to || "")}">
+          </div>
+        ` : "";
+        return `
+          <div class="availability-card">
+            <label class="check-row">
+              <input type="checkbox" name="${field}Active" ${item.active ? "checked" : ""}>
+              ${escapeHtml(AVAILABILITY_LABELS[field])}
+            </label>
+            ${period}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function availabilityFromValues(values) {
+      return Object.fromEntries(AVAILABILITY_FIELDS.map((field) => [
+        field,
+        {
+          active: values[`${field}Active`] === "on",
+          from: PERIOD_AVAILABILITY_FIELDS.includes(field) ? values[`${field}From`] || "" : "",
+          to: PERIOD_AVAILABILITY_FIELDS.includes(field) ? values[`${field}To`] || "" : ""
+        }
+      ]));
     }
 
     function renderPerformanceSummary(player) {
@@ -1883,6 +2204,7 @@ for update using (true);</textarea>
     function openPlayerModal(playerId) {
       const player = state.players.find((item) => item.id === playerId);
       if (!player || !canManage()) return;
+      const isRosterPlayer = hasMemberRole(player, "Spieler");
       $("#playerModalTitle").textContent = `${player.name} bearbeiten`;
       $("#playerEditForm").innerHTML = `
         <input type="hidden" name="id" value="${escapeAttr(player.id)}">
@@ -1890,17 +2212,29 @@ for update using (true);</textarea>
         <div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
         <div class="field"><label>Gruppe</label><select name="group">${groupOptions(player.group)}</select></div>
-        <div class="field"><label>Rolle</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>
+        <div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>
+        <div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>
+        <div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>
+        <div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
         <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
-        <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
-        ${GRADE_FIELDS.map((field) => `
-          <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select name="${field}">${gradeOptions(player.performance?.[field])}</select></div>
-        `).join("")}
-        <div class="field full"><label>Staerken</label><textarea name="strengths">${escapeHtml(player.performance?.strengths || "")}</textarea></div>
-        <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
-        <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
+        <div class="field full">
+          <label>Status</label>
+          <div class="availability-grid">${availabilityEditor(player)}</div>
+        </div>
+        ${isRosterPlayer ? `<details class="form-details field full">
+          <summary>Leistungsdaten</summary>
+          <div class="form-grid">
+            <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
+            ${GRADE_FIELDS.map((field) => `
+              <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select name="${field}">${gradeOptions(player.performance?.[field])}</select></div>
+            `).join("")}
+            <div class="field full"><label>Staerken</label><textarea name="strengths">${escapeHtml(player.performance?.strengths || "")}</textarea></div>
+            <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
+            <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
+          </div>
+        </details>` : ""}
         <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
         <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
       `;
@@ -1941,12 +2275,20 @@ for update using (true);</textarea>
     $("#playerForm").addEventListener("submit", (event) => {
       event.preventDefault();
       if (!canManage()) return;
+      const values = formValues(event.currentTarget);
       state.players.push({
         id: crypto.randomUUID(),
-        ...formValues(event.currentTarget),
+        name: values.name,
+        position: values.position,
+        phone: values.phone,
+        role: values.role,
+        group: values.group,
+        notes: values.notes,
+        memberRoles: memberRolesFromValues(values),
         password: DEFAULT_PASSWORD,
         photo: "",
         alternatePositions: [],
+        availability: defaultAvailability(),
         performance: defaultPerformance()
       });
       event.currentTarget.reset();
@@ -2034,13 +2376,20 @@ for update using (true);</textarea>
     $("#playerEditForm").addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
-      if (target.id !== "clearPlayerPhotoBtn") return;
       const player = state.players.find((item) => item.id === $("#playerEditForm").elements.id.value);
       if (!player || !canManage()) return;
-      player.photo = "";
-      $("#playerEditForm").elements.photo.value = "";
-      saveState();
-      openPlayerModal(player.id);
+      if (target.id === "clearPlayerPhotoBtn") {
+        player.photo = "";
+        $("#playerEditForm").elements.photo.value = "";
+        saveState();
+        openPlayerModal(player.id);
+      }
+      if (target.id === "generatePlayerPasswordBtn") {
+        const password = generateTempPassword();
+        $("#playerEditForm").elements.password.value = password;
+        setStatus(`Temp-Passwort fuer ${player.name}: ${password}`);
+        window.alert(`Temp-Passwort fuer ${player.name}: ${password}`);
+      }
     });
 
     $("#playerEditForm").addEventListener("submit", async (event) => {
@@ -2056,14 +2405,19 @@ for update using (true);</textarea>
       player.phone = values.phone.trim();
       player.group = values.group;
       player.role = values.role;
+      player.memberRoles = memberRolesFromValues(values);
       player.notes = values.notes.trim();
-      player.alternatePositions = values.alternatePositions.split(",").map((value) => value.trim()).filter(Boolean);
+      player.password = values.password.trim() || DEFAULT_PASSWORD;
+      player.availability = availabilityFromValues(values);
+      player.alternatePositions = hasMemberRole(player, "Spieler")
+        ? (values.alternatePositions || "").split(",").map((value) => value.trim()).filter(Boolean)
+        : [];
       player.performance = {
         ...defaultPerformance(),
         ...Object.fromEntries(GRADE_FIELDS.map((field) => [field, values[field] || ""])),
-        strengths: values.strengths.trim(),
-        weaknesses: values.weaknesses.trim(),
-        talks: values.talks.trim()
+        strengths: (values.strengths || "").trim(),
+        weaknesses: (values.weaknesses || "").trim(),
+        talks: (values.talks || "").trim()
       };
 
       const photoFile = form.elements.photoFile.files[0];
@@ -2076,6 +2430,7 @@ for update using (true);</textarea>
       if (player.name.trim().toLowerCase() === activeUser().trim().toLowerCase()) {
         $("#currentUser").value = player.name;
         localStorage.setItem(LOGIN_USER_KEY, player.name);
+        saveLoginPrefill(currentClubId, player.name, player.password);
         updateRoleFromUser();
       }
 
@@ -2093,32 +2448,10 @@ for update using (true);</textarea>
       const pollId = target.dataset.deletePoll;
       const rsvpId = target.dataset.rsvp;
       const voteId = target.dataset.vote;
-      const setPasswordId = target.dataset.setPassword;
-      const tempPasswordId = target.dataset.tempPassword;
       const openPlayerId = target.dataset.openPlayer;
 
       if (openPlayerId && canManage()) openPlayerModal(openPlayerId);
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
-      if (setPasswordId && canManage()) {
-        const input = document.querySelector(`[data-password-input="${setPasswordId}"]`);
-        const password = input ? input.value.trim() : "";
-        const player = state.players.find((item) => item.id === setPasswordId);
-        if (player && password) {
-          player.password = password;
-          input.value = "";
-          setStatus(`Passwort fuer ${player.name} wurde gesetzt.`);
-        } else {
-          setStatus("Bitte ein neues Passwort eingeben.");
-        }
-      }
-      if (tempPasswordId && canManage()) {
-        const player = state.players.find((item) => item.id === tempPasswordId);
-        if (player) {
-          player.password = generateTempPassword();
-          setStatus(`Temp-Passwort fuer ${player.name}: ${player.password}`);
-          window.alert(`Temp-Passwort fuer ${player.name}: ${player.password}`);
-        }
-      }
       if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
       if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);
       if (rsvpId) {
@@ -2131,9 +2464,10 @@ for update using (true);</textarea>
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId)) || rsvpId || voteId) saveState();
     });
 
+    $("#playerSearch").addEventListener("input", renderPlayers);
     $("#messageGroup").addEventListener("change", renderMessages);
     $("#currentUser").addEventListener("input", () => {
       localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
