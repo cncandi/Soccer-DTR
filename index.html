@@ -910,6 +910,7 @@
               <div class="field"><label>Name</label><input name="name" required></div>
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
+              <div class="field"><label>Rolle</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
               <div class="field"><label>Gruppe</label><select name="group"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option></select></div>
               <div class="field full"><label>Notizen</label><textarea name="notes"></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Spieler speichern</button></div>
@@ -1090,7 +1091,8 @@ for update using (true);</textarea>
         phone: "",
         group: "Mannschaft",
         notes: "",
-        password: DEFAULT_PASSWORD
+        password: DEFAULT_PASSWORD,
+        role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler"
       })),
       events: [],
       polls: [],
@@ -1150,7 +1152,8 @@ for update using (true);</textarea>
     function ensureDefaultPlayers(loadedState) {
       const normalizedPlayers = (loadedState.players || []).map((player) => ({
         ...player,
-        password: player.password || DEFAULT_PASSWORD
+        password: player.password || DEFAULT_PASSWORD,
+        role: player.role || DEFAULT_USER_ROLES[player.name.trim().toLowerCase()] || "Spieler"
       }));
       const existingNames = new Set(normalizedPlayers.map((player) => player.name.trim().toLowerCase()));
       const missingPlayers = DEFAULT_PLAYER_NAMES
@@ -1162,7 +1165,8 @@ for update using (true);</textarea>
           phone: "",
           group: "Mannschaft",
           notes: "",
-          password: DEFAULT_PASSWORD
+          password: DEFAULT_PASSWORD,
+          role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler"
         }));
 
       return {
@@ -1195,7 +1199,27 @@ for update using (true);</textarea>
     }
 
     function isLoggedIn() {
-      return localStorage.getItem(LOGIN_KEY) === "true" || sessionStorage.getItem(LOGIN_KEY) === "true";
+      const remembered = localStorage.getItem(LOGIN_KEY) === "true";
+      const session = sessionStorage.getItem(LOGIN_KEY) === "true";
+      return remembered || session;
+    }
+
+    function restoreLogin() {
+      if (!isLoggedIn()) return false;
+      const storedUser = localStorage.getItem("soccer-dtr-current-user");
+      const storedClub = localStorage.getItem(CURRENT_CLUB_KEY);
+      if (storedClub && clubs.some((club) => club.id === storedClub)) {
+        currentClubId = storedClub;
+        state = loadState();
+      }
+      if (!storedUser || !playerByName(storedUser)) {
+        localStorage.removeItem(LOGIN_KEY);
+        sessionStorage.removeItem(LOGIN_KEY);
+        return false;
+      }
+      $("#currentUser").value = storedUser;
+      updateRoleFromUser();
+      return true;
     }
 
     function setLoginVisible(visible) {
@@ -1211,7 +1235,8 @@ for update using (true);</textarea>
     }
 
     function roleForUser(name) {
-      return DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler";
+      const player = playerByName(name);
+      return player ? player.role || "Spieler" : "Spieler";
     }
 
     function playerByName(name) {
@@ -1474,12 +1499,24 @@ for update using (true);</textarea>
             <div class="item-head">
               <div>
                 <p class="item-title">${escapeHtml(player.name)}</p>
-                <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
               </div>
               <span class="chip">${escapeHtml(player.group)}</span>
             </div>
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() ? `
+              <details>
+                <summary class="mini">Spieler bearbeiten</summary>
+                <div class="form-grid" style="margin-top: 10px;">
+                  <div class="field"><label>Name</label><input data-edit-player="${player.id}" data-field="name" value="${escapeAttr(player.name)}"></div>
+                  <div class="field"><label>Position</label><select data-edit-player="${player.id}" data-field="position">${positionOptions(player.position)}</select></div>
+                  <div class="field"><label>Telefon</label><input data-edit-player="${player.id}" data-field="phone" value="${escapeAttr(player.phone || "")}"></div>
+                  <div class="field"><label>Gruppe</label><select data-edit-player="${player.id}" data-field="group">${groupOptions(player.group)}</select></div>
+                  <div class="field"><label>Rolle</label><select data-edit-player="${player.id}" data-field="role">${roleOptions(player.role || "Spieler")}</select></div>
+                  <div class="field full"><label>Notizen</label><textarea data-edit-player="${player.id}" data-field="notes">${escapeHtml(player.notes || "")}</textarea></div>
+                  <div class="field full"><button class="mini yes" data-save-player="${player.id}">Spieler speichern</button></div>
+                </div>
+              </details>
               <div class="form-grid">
                 <div class="field"><label>Neues Passwort</label><input data-password-input="${player.id}" type="text" placeholder="z.B. fussball"></div>
                 <div class="field"><label>Aktionen</label><button class="mini" data-set-password="${player.id}">Passwort setzen</button></div>
@@ -1641,6 +1678,24 @@ for update using (true);</textarea>
       return escapeHtml(value).replace(/"/g, "&quot;");
     }
 
+    function optionList(options, selected) {
+      return options
+        .map((option) => `<option ${option === selected ? "selected" : ""}>${escapeHtml(option)}</option>`)
+        .join("");
+    }
+
+    function positionOptions(selected) {
+      return optionList(["Tor", "Abwehr", "Mittelfeld", "Sturm"], selected);
+    }
+
+    function groupOptions(selected) {
+      return optionList(["Mannschaft", "Mannschaftsrat", "Kasse"], selected);
+    }
+
+    function roleOptions(selected) {
+      return optionList(["Spieler", "Admin", "Superadmin"], selected);
+    }
+
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1757,8 +1812,24 @@ for update using (true);</textarea>
       const voteId = target.dataset.vote;
       const setPasswordId = target.dataset.setPassword;
       const tempPasswordId = target.dataset.tempPassword;
+      const savePlayerId = target.dataset.savePlayer;
 
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
+      if (savePlayerId && canManage()) {
+        const player = state.players.find((item) => item.id === savePlayerId);
+        if (player) {
+          document.querySelectorAll(`[data-edit-player="${savePlayerId}"]`).forEach((input) => {
+            player[input.dataset.field] = input.value.trim();
+          });
+          player.password = player.password || DEFAULT_PASSWORD;
+          if (player.name.trim().toLowerCase() === activeUser().trim().toLowerCase()) {
+            $("#currentUser").value = player.name;
+            localStorage.setItem("soccer-dtr-current-user", player.name);
+            updateRoleFromUser();
+          }
+          setStatus(`Spieler ${player.name} wurde gespeichert.`);
+        }
+      }
       if (setPasswordId && canManage()) {
         const input = document.querySelector(`[data-password-input="${setPasswordId}"]`);
         const password = input ? input.value.trim() : "";
@@ -1791,7 +1862,7 @@ for update using (true);</textarea>
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId || savePlayerId)) || rsvpId || voteId) saveState();
     });
 
     $("#messageGroup").addEventListener("change", renderMessages);
@@ -1831,6 +1902,8 @@ for update using (true);</textarea>
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       if ($("#rememberLogin").checked) {
         localStorage.setItem(LOGIN_KEY, "true");
+        localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
+        localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
         sessionStorage.removeItem(LOGIN_KEY);
       } else {
         sessionStorage.setItem(LOGIN_KEY, "true");
@@ -1874,14 +1947,15 @@ for update using (true);</textarea>
     });
 
     $("#currentUser").value = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
-    updateRoleFromUser();
+    const restoredLogin = restoreLogin();
+    if (!restoredLogin) updateRoleFromUser();
     renderClubSelect();
     renderLoginUsers();
     $("#settingsForm").elements.url.value = settings.url;
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
     render();
-    setLoginVisible(!isLoggedIn());
+    setLoginVisible(!restoredLogin);
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
