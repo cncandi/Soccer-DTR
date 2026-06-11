@@ -584,6 +584,43 @@
       background: #eff6ff;
     }
 
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0,0,0,.52);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(920px, 100%);
+      max-height: min(88vh, 880px);
+      overflow: auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.32);
+      padding: 18px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .modal-head h3 {
+      margin: 0;
+    }
+
     @media (max-width: 980px) {
       .app-shell {
         display: block;
@@ -1080,6 +1117,16 @@ for update using (true);</textarea>
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop" id="playerModal" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="playerModalTitle">
+      <div class="modal-head">
+        <h3 id="playerModalTitle">Spieler bearbeiten</h3>
+        <button class="mini" id="closePlayerModalBtn" type="button">Schliessen</button>
+      </div>
+      <form id="playerEditForm" class="form-grid"></form>
+    </section>
   </div>
 
   <script>
@@ -1588,27 +1635,7 @@ for update using (true);</textarea>
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() ? renderPerformanceSummary(player) : ""}
             ${canManage() ? `
-              <details>
-                <summary class="mini">Spieler bearbeiten</summary>
-                <div class="form-grid" style="margin-top: 10px;">
-                  <div class="field"><label>Name</label><input data-edit-player="${player.id}" data-field="name" value="${escapeAttr(player.name)}"></div>
-                  <div class="field"><label>Position</label><select data-edit-player="${player.id}" data-field="position">${positionOptions(player.position)}</select></div>
-                  <div class="field"><label>Telefon</label><input data-edit-player="${player.id}" data-field="phone" value="${escapeAttr(player.phone || "")}"></div>
-                  <div class="field"><label>Gruppe</label><select data-edit-player="${player.id}" data-field="group">${groupOptions(player.group)}</select></div>
-                  <div class="field"><label>Rolle</label><select data-edit-player="${player.id}" data-field="role">${roleOptions(player.role || "Spieler")}</select></div>
-                  <div class="field"><label>Spielerbild</label><input type="file" data-player-photo-file="${player.id}" accept="image/*"></div>
-                  <div class="field full"><label>Bild als URL</label><input data-edit-player="${player.id}" data-field="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
-                  <div class="field full"><label>Alternativpositionen</label><input data-edit-player="${player.id}" data-field="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
-                  ${GRADE_FIELDS.map((field) => `
-                    <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select data-performance-player="${player.id}" data-field="${field}">${gradeOptions(player.performance?.[field])}</select></div>
-                  `).join("")}
-                  <div class="field full"><label>Staerken</label><textarea data-performance-player="${player.id}" data-field="strengths">${escapeHtml(player.performance?.strengths || "")}</textarea></div>
-                  <div class="field full"><label>Schwaechen</label><textarea data-performance-player="${player.id}" data-field="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
-                  <div class="field full"><label>Gespraeche</label><textarea data-performance-player="${player.id}" data-field="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
-                  <div class="field full"><label>Notizen</label><textarea data-edit-player="${player.id}" data-field="notes">${escapeHtml(player.notes || "")}</textarea></div>
-                  <div class="field full"><button class="mini yes" data-save-player="${player.id}">Spieler speichern</button></div>
-                </div>
-              </details>
+              <div class="row-actions"><button class="mini" data-open-player="${player.id}">Spieler bearbeiten</button></div>
               <div class="form-grid">
                 <div class="field"><label>Neues Passwort</label><input data-password-input="${player.id}" type="text" placeholder="z.B. fussball"></div>
                 <div class="field"><label>Aktionen</label><button class="mini" data-set-password="${player.id}">Passwort setzen</button></div>
@@ -1818,6 +1845,40 @@ for update using (true);</textarea>
       `;
     }
 
+    function openPlayerModal(playerId) {
+      const player = state.players.find((item) => item.id === playerId);
+      if (!player || !canManage()) return;
+      $("#playerModalTitle").textContent = `${player.name} bearbeiten`;
+      $("#playerEditForm").innerHTML = `
+        <input type="hidden" name="id" value="${escapeAttr(player.id)}">
+        <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
+        <div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>
+        <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
+        <div class="field"><label>Gruppe</label><select name="group">${groupOptions(player.group)}</select></div>
+        <div class="field"><label>Rolle</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>
+        <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
+        <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
+        <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
+        ${GRADE_FIELDS.map((field) => `
+          <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select name="${field}">${gradeOptions(player.performance?.[field])}</select></div>
+        `).join("")}
+        <div class="field full"><label>Staerken</label><textarea name="strengths">${escapeHtml(player.performance?.strengths || "")}</textarea></div>
+        <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
+        <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
+        <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
+        <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
+        <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
+      `;
+      $("#playerModal").classList.add("open");
+      $("#playerModal").setAttribute("aria-hidden", "false");
+    }
+
+    function closePlayerModal() {
+      $("#playerModal").classList.remove("open");
+      $("#playerModal").setAttribute("aria-hidden", "true");
+      $("#playerEditForm").innerHTML = "";
+    }
+
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1930,7 +1991,65 @@ for update using (true);</textarea>
       render();
     });
 
-    document.body.addEventListener("click", async (event) => {
+    $("#closePlayerModalBtn").addEventListener("click", closePlayerModal);
+    $("#playerModal").addEventListener("click", (event) => {
+      if (event.target === $("#playerModal")) closePlayerModal();
+    });
+
+    $("#playerEditForm").addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.id !== "clearPlayerPhotoBtn") return;
+      const player = state.players.find((item) => item.id === $("#playerEditForm").elements.id.value);
+      if (!player || !canManage()) return;
+      player.photo = "";
+      $("#playerEditForm").elements.photo.value = "";
+      saveState();
+      openPlayerModal(player.id);
+    });
+
+    $("#playerEditForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!canManage()) return;
+      const form = event.currentTarget;
+      const values = formValues(form);
+      const player = state.players.find((item) => item.id === values.id);
+      if (!player) return;
+
+      player.name = values.name.trim() || player.name;
+      player.position = values.position;
+      player.phone = values.phone.trim();
+      player.group = values.group;
+      player.role = values.role;
+      player.notes = values.notes.trim();
+      player.alternatePositions = values.alternatePositions.split(",").map((value) => value.trim()).filter(Boolean);
+      player.performance = {
+        ...defaultPerformance(),
+        ...Object.fromEntries(GRADE_FIELDS.map((field) => [field, values[field] || ""])),
+        strengths: values.strengths.trim(),
+        weaknesses: values.weaknesses.trim(),
+        talks: values.talks.trim()
+      };
+
+      const photoFile = form.elements.photoFile.files[0];
+      if (photoFile) {
+        player.photo = await readFileAsDataUrl(photoFile);
+      } else if (values.photo.trim()) {
+        player.photo = values.photo.trim();
+      }
+
+      if (player.name.trim().toLowerCase() === activeUser().trim().toLowerCase()) {
+        $("#currentUser").value = player.name;
+        localStorage.setItem("soccer-dtr-current-user", player.name);
+        updateRoleFromUser();
+      }
+
+      setStatus(`Spieler ${player.name} wurde gespeichert.`);
+      closePlayerModal();
+      saveState();
+    });
+
+    document.body.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
 
@@ -1941,38 +2060,10 @@ for update using (true);</textarea>
       const voteId = target.dataset.vote;
       const setPasswordId = target.dataset.setPassword;
       const tempPasswordId = target.dataset.tempPassword;
-      const savePlayerId = target.dataset.savePlayer;
+      const openPlayerId = target.dataset.openPlayer;
 
+      if (openPlayerId && canManage()) openPlayerModal(openPlayerId);
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
-      if (savePlayerId && canManage()) {
-        const player = state.players.find((item) => item.id === savePlayerId);
-        if (player) {
-          document.querySelectorAll(`[data-edit-player="${savePlayerId}"]`).forEach((input) => {
-            if (input.dataset.field === "alternatePositions") {
-              player.alternatePositions = input.value.split(",").map((value) => value.trim()).filter(Boolean);
-            } else if (input.dataset.field === "photo") {
-              if (input.value.trim()) player.photo = input.value.trim();
-            } else {
-              player[input.dataset.field] = input.value.trim();
-            }
-          });
-          player.performance = { ...defaultPerformance(), ...(player.performance || {}) };
-          document.querySelectorAll(`[data-performance-player="${savePlayerId}"]`).forEach((input) => {
-            player.performance[input.dataset.field] = input.value.trim();
-          });
-          const photoFile = document.querySelector(`[data-player-photo-file="${savePlayerId}"]`)?.files?.[0];
-          if (photoFile) {
-            player.photo = await readFileAsDataUrl(photoFile);
-          }
-          player.password = player.password || DEFAULT_PASSWORD;
-          if (player.name.trim().toLowerCase() === activeUser().trim().toLowerCase()) {
-            $("#currentUser").value = player.name;
-            localStorage.setItem("soccer-dtr-current-user", player.name);
-            updateRoleFromUser();
-          }
-          setStatus(`Spieler ${player.name} wurde gespeichert.`);
-        }
-      }
       if (setPasswordId && canManage()) {
         const input = document.querySelector(`[data-password-input="${setPasswordId}"]`);
         const password = input ? input.value.trim() : "";
@@ -2005,7 +2096,7 @@ for update using (true);</textarea>
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId || savePlayerId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId)) || rsvpId || voteId) saveState();
     });
 
     $("#messageGroup").addEventListener("change", renderMessages);
