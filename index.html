@@ -1276,6 +1276,20 @@
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>
         </div>
+        <section class="panel staff-panel admin-only">
+          <h3>Fussball.de</h3>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="footballTeamSelect">Mannschaft</label>
+              <select id="footballTeamSelect"></select>
+            </div>
+            <div class="field"><button class="btn-secondary" id="loadFootballTeamsBtn" type="button">Mannschaften laden</button></div>
+            <div class="field"><button class="btn-primary" id="importFootballGamesBtn" type="button">Spielplan importieren</button></div>
+            <div class="field"><button class="btn-secondary" id="importFootballResultsBtn" type="button">Ergebnisse importieren</button></div>
+            <div class="field"><button class="btn-secondary" id="loadFootballTableBtn" type="button">Tabelle laden</button></div>
+          </div>
+          <div class="list" id="footballTableList" style="margin-top: 12px;"></div>
+        </section>
         <section class="panel staff-panel">
           <h3>Termine und Zu-/Absagen</h3>
           <div class="meta" style="margin-bottom: 10px;"><span>Training: Absage bis 6 Stunden vorher frei.</span><span>Spiel: Absage bis 48 Stunden vorher frei.</span><span>Spaetere Absage: 10 EUR Strafe.</span></div>
@@ -1395,6 +1409,9 @@ Nein</textarea></div>
               <div class="field full"><label>Supabase URL</label><input name="url" placeholder="https://...supabase.co"></div>
               <div class="field full"><label>Anon Public Key</label><input name="key" placeholder="eyJ..."></div>
               <div class="field full"><label>Tabellenname</label><input name="table" value="club_documents"></div>
+              <div class="field full"><label>api-fussball.de Token</label><input name="footballToken" placeholder="x-auth-token"></div>
+              <div class="field full"><label>Fussball.de Vereins-ID</label><input name="footballClubId" placeholder="00..."></div>
+              <div class="field full"><label>Fussball.de Mannschafts-ID</label><input name="footballTeamId" placeholder="01..."></div>
               <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
             </form>
           </section>
@@ -1443,6 +1460,7 @@ for update using (true);</textarea>
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
+    const FOOTBALL_API_BASE = "https://api-fussball.de";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
@@ -1561,7 +1579,10 @@ for update using (true);</textarea>
       cashFines: [],
       fineCatalog: defaultFineCatalog(),
       polls: [],
-      messages: []
+      messages: [],
+      footballTeams: [],
+      footballTable: [],
+      footballUpdatedAt: ""
     };
 
     let clubs = loadClubs();
@@ -1755,7 +1776,10 @@ for update using (true);</textarea>
         cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
-        messages: loadedState.messages || []
+        messages: loadedState.messages || [],
+        footballTeams: (loadedState.footballTeams || []).map(normalizeFootballTeam),
+        footballTable: (loadedState.footballTable || []).map(normalizeFootballTableRow),
+        footballUpdatedAt: loadedState.footballUpdatedAt || ""
       };
     }
 
@@ -1810,13 +1834,115 @@ for update using (true);</textarea>
         details: event.details || "",
         repeat: event.repeat || "",
         repeatGroup: event.repeatGroup || "",
+        externalId: event.externalId || "",
         rsvps: event.rsvps || {}
       };
     }
 
+    function normalizeFootballTeam(team = {}) {
+      return {
+        id: team.id || "",
+        name: team.name || "Mannschaft",
+        fussballDeUrl: team.fussballDeUrl || ""
+      };
+    }
+
+    function normalizeFootballTableRow(row = {}) {
+      return {
+        id: row.id || row.team || crypto.randomUUID(),
+        place: row.place || "",
+        team: row.team || "",
+        img: row.img || "",
+        games: row.games ?? "",
+        won: row.won ?? "",
+        draw: row.draw ?? "",
+        lost: row.lost ?? "",
+        goal: row.goal || "",
+        goalDifference: row.goalDifference ?? "",
+        points: row.points ?? "",
+        isPromotion: Boolean(row.isPromotion),
+        isRelegation: Boolean(row.isRelegation)
+      };
+    }
+
+    function footballApiSettingsReady(requireClub = false) {
+      if (!settings.footballToken) {
+        setStatus("api-fussball.de Token fehlt.");
+        return false;
+      }
+      if (requireClub && !settings.footballClubId) {
+        setStatus("Fussball.de Vereins-ID fehlt.");
+        return false;
+      }
+      if (!requireClub && !settings.footballTeamId) {
+        setStatus("Fussball.de Mannschafts-ID fehlt.");
+        return false;
+      }
+      return true;
+    }
+
+    async function footballApi(path) {
+      const response = await fetch(`${FOOTBALL_API_BASE}${path}`, {
+        headers: { "x-auth-token": settings.footballToken }
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || `api-fussball.de Fehler ${response.status}`);
+      }
+      return payload.data;
+    }
+
+    function parseFootballDate(value) {
+      const match = String(value || "").match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+      if (!match) return "";
+      const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+      return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+    }
+
+    function footballGameExternalId(game, teamId = settings.footballTeamId) {
+      return [
+        "api-fussball",
+        teamId,
+        parseFootballDate(game.date),
+        game.time || "",
+        game.homeTeam || "",
+        game.awayTeam || ""
+      ].join(":").toLowerCase();
+    }
+
+    function footballGameResult(game) {
+      if (game.homeScore === "" && game.awayScore === "") return "";
+      if (game.homeScore == null || game.awayScore == null) return "";
+      return `${game.homeScore}:${game.awayScore}`;
+    }
+
+    function footballGameToEvent(game, teamId = settings.footballTeamId) {
+      const date = parseFootballDate(game.date);
+      const result = footballGameResult(game);
+      return normalizeEvent({
+        id: crypto.randomUUID(),
+        type: "Spiel",
+        title: `${game.homeTeam || "Heim"} - ${game.awayTeam || "Gast"}${result ? ` ${result}` : ""}`,
+        date: date || new Date().toISOString().slice(0, 10),
+        time: game.time || "15:00",
+        location: game.competition || "",
+        details: [game.ageGroup, game.status].filter(Boolean).join(" - "),
+        externalId: footballGameExternalId(game, teamId),
+        rsvps: {}
+      });
+    }
+
     function loadSettings() {
       const stored = localStorage.getItem(SETTINGS_KEY);
-      return stored ? JSON.parse(stored) : { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY, table: "club_documents" };
+      const parsed = stored ? JSON.parse(stored) : {};
+      return {
+        url: parsed.url || DEFAULT_SUPABASE_URL,
+        key: parsed.key || DEFAULT_SUPABASE_ANON_KEY,
+        table: parsed.table || "club_documents",
+        footballToken: parsed.footballToken || "",
+        footballClubId: parsed.footballClubId || "",
+        footballTeamId: parsed.footballTeamId || ""
+      };
     }
 
     function saveState(options = {}) {
@@ -2151,7 +2277,10 @@ for update using (true);</textarea>
         cashFines: mergeById(localState.cashFines || [], remoteState.cashFines || []),
         fineCatalog: mergeById(localState.fineCatalog || [], remoteState.fineCatalog || []),
         polls: mergeById(localState.polls, remoteState.polls || []),
-        messages: mergeById(localState.messages, remoteState.messages || [])
+        messages: mergeById(localState.messages, remoteState.messages || []),
+        footballTeams: mergeById(localState.footballTeams || [], remoteState.footballTeams || []),
+        footballTable: remoteState.footballTable || localState.footballTable || [],
+        footballUpdatedAt: remoteState.footballUpdatedAt || localState.footballUpdatedAt || ""
       });
     }
 
@@ -2201,6 +2330,7 @@ for update using (true);</textarea>
       renderStaff();
       renderCalendar();
       renderEvents();
+      renderFootballApi();
       renderFines();
       renderCash();
       renderPolls();
@@ -2513,6 +2643,107 @@ for update using (true);</textarea>
             </div>
           `));
         });
+    }
+
+    function renderFootballApi() {
+      const teamSelect = $("#footballTeamSelect");
+      const tableList = $("#footballTableList");
+      if (!teamSelect || !tableList) return;
+
+      const teams = state.footballTeams || [];
+      teamSelect.innerHTML = teams.length
+        ? teams.map((team) => `<option value="${escapeAttr(team.id)}">${escapeHtml(team.name)}</option>`).join("")
+        : `<option value="">Keine Mannschaft geladen</option>`;
+      teamSelect.value = teams.some((team) => team.id === settings.footballTeamId) ? settings.footballTeamId : "";
+
+      tableList.innerHTML = "";
+      if (!state.footballTable?.length) {
+        empty(tableList, "Noch keine Tabelle geladen.");
+        return;
+      }
+
+      state.footballTable
+        .slice()
+        .sort((a, b) => Number(a.place || 999) - Number(b.place || 999))
+        .forEach((row) => {
+          tableList.appendChild(item(`
+            <div class="item-head">
+              <div>
+                <p class="item-title">${escapeHtml(row.place || "-")}. ${escapeHtml(row.team || "Team")}</p>
+                <div class="meta"><span>${escapeHtml(row.games)} Spiele</span><span>${escapeHtml(row.goal)}</span><span>${escapeHtml(row.goalDifference)} Diff.</span></div>
+              </div>
+              <span class="chip ${row.isPromotion ? "blue" : row.isRelegation ? "red" : ""}">${escapeHtml(row.points)} Punkte</span>
+            </div>
+          `));
+        });
+    }
+
+    async function loadFootballTeams() {
+      if (!footballApiSettingsReady(true)) return;
+      setStatus("Lade Mannschaften von api-fussball.de ...");
+      try {
+        const teams = await footballApi(`/api/club/${encodeURIComponent(settings.footballClubId)}`);
+        state.footballTeams = (teams || []).map(normalizeFootballTeam).filter((team) => team.id);
+        if (!settings.footballTeamId && state.footballTeams.length) {
+          settings.footballTeamId = state.footballTeams[0].id;
+          saveSettings();
+        }
+        state.footballUpdatedAt = new Date().toISOString();
+        setStatus(`${state.footballTeams.length} Mannschaften geladen.`);
+        saveState();
+      } catch (error) {
+        setStatus("api-fussball.de Fehler: " + (error.message || error));
+      }
+    }
+
+    async function importFootballGames() {
+      if (!footballApiSettingsReady(false)) return;
+      setStatus("Importiere Spielplan von api-fussball.de ...");
+      try {
+        const games = await footballApi(`/api/team/next_games/${encodeURIComponent(settings.footballTeamId)}`);
+        const existingIds = new Set(state.events.map((event) => event.externalId).filter(Boolean));
+        const imported = (games || [])
+          .map((game) => footballGameToEvent(game))
+          .filter((event) => event.date && !existingIds.has(event.externalId));
+        state.events.push(...imported);
+        state.footballUpdatedAt = new Date().toISOString();
+        setStatus(`${imported.length} Spiele importiert.`);
+        saveState();
+      } catch (error) {
+        setStatus("api-fussball.de Fehler: " + (error.message || error));
+      }
+    }
+
+    async function importFootballResults() {
+      if (!footballApiSettingsReady(false)) return;
+      setStatus("Importiere Ergebnisse von api-fussball.de ...");
+      try {
+        const games = await footballApi(`/api/team/prev_games/${encodeURIComponent(settings.footballTeamId)}`);
+        const existingIds = new Set(state.events.map((event) => event.externalId).filter(Boolean));
+        const imported = (games || [])
+          .map((game) => footballGameToEvent(game))
+          .filter((event) => event.date && !existingIds.has(event.externalId));
+        state.events.push(...imported);
+        state.footballUpdatedAt = new Date().toISOString();
+        setStatus(`${imported.length} Ergebnisse importiert.`);
+        saveState();
+      } catch (error) {
+        setStatus("api-fussball.de Fehler: " + (error.message || error));
+      }
+    }
+
+    async function loadFootballTable() {
+      if (!footballApiSettingsReady(false)) return;
+      setStatus("Lade Tabelle von api-fussball.de ...");
+      try {
+        const table = await footballApi(`/api/team/table/${encodeURIComponent(settings.footballTeamId)}`);
+        state.footballTable = (table || []).map(normalizeFootballTableRow);
+        state.footballUpdatedAt = new Date().toISOString();
+        setStatus(`${state.footballTable.length} Tabellenzeilen geladen.`);
+        saveState();
+      } catch (error) {
+        setStatus("api-fussball.de Fehler: " + (error.message || error));
+      }
     }
 
     function renderFines() {
@@ -3536,6 +3767,15 @@ for update using (true);</textarea>
       saveClubs();
       render();
     });
+    $("#footballTeamSelect").addEventListener("change", () => {
+      settings.footballTeamId = $("#footballTeamSelect").value;
+      saveSettings();
+      renderFootballApi();
+    });
+    $("#loadFootballTeamsBtn").addEventListener("click", loadFootballTeams);
+    $("#importFootballGamesBtn").addEventListener("click", importFootballGames);
+    $("#importFootballResultsBtn").addEventListener("click", importFootballResults);
+    $("#loadFootballTableBtn").addEventListener("click", loadFootballTable);
     $("#syncBtn").addEventListener("click", syncWithSupabase);
     $("#exportBtn").addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
@@ -3555,6 +3795,9 @@ for update using (true);</textarea>
     $("#settingsForm").elements.url.value = settings.url;
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
+    $("#settingsForm").elements.footballToken.value = settings.footballToken;
+    $("#settingsForm").elements.footballClubId.value = settings.footballClubId;
+    $("#settingsForm").elements.footballTeamId.value = settings.footballTeamId;
     render();
     setLoginVisible(!restoredLogin);
     syncWithSupabase({ silent: true });
