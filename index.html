@@ -1134,6 +1134,8 @@ for update using (true);</textarea>
     const CLUBS_KEY = "soccer-dtr-clubs";
     const CURRENT_CLUB_KEY = "soccer-dtr-current-club";
     const LOGIN_KEY = "soccer-dtr-logged-in";
+    const LOGIN_USER_KEY = "soccer-dtr-current-user";
+    const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
@@ -1335,9 +1337,36 @@ for update using (true);</textarea>
       return remembered || session;
     }
 
+    function loginPrefills() {
+      try {
+        return JSON.parse(localStorage.getItem(LOGIN_PREFILL_KEY) || "{}");
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function loginPrefillFor(clubId = currentClubId) {
+      const prefill = loginPrefills()[clubId] || {};
+      return {
+        user: prefill.user || localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz",
+        password: prefill.password || ""
+      };
+    }
+
+    function saveLoginPrefill(clubId, user, password) {
+      const prefills = loginPrefills();
+      prefills[clubId] = { user, password };
+      localStorage.setItem(LOGIN_PREFILL_KEY, JSON.stringify(prefills));
+    }
+
+    function fillSavedLoginPassword() {
+      const prefill = loginPrefillFor();
+      $("#loginPassword").value = $("#loginUser").value === prefill.user ? prefill.password : "";
+    }
+
     function restoreLogin() {
       if (!isLoggedIn()) return false;
-      const storedUser = localStorage.getItem("soccer-dtr-current-user");
+      const storedUser = localStorage.getItem(LOGIN_USER_KEY);
       const storedClub = localStorage.getItem(CURRENT_CLUB_KEY);
       if (storedClub && clubs.some((club) => club.id === storedClub)) {
         currentClubId = storedClub;
@@ -1602,13 +1631,14 @@ for update using (true);</textarea>
     }
 
     function renderLoginUsers() {
-      const selected = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
+      const selected = loginPrefillFor().user;
       const names = [...new Set([...DEFAULT_PLAYER_NAMES, ...state.players.map((player) => player.name)])]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
         .map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
         .join("");
       $("#loginUser").value = names.includes(selected) ? selected : "Max Reitz";
+      fillSavedLoginPassword();
     }
 
     function renderStats() {
@@ -2045,7 +2075,7 @@ for update using (true);</textarea>
 
       if (player.name.trim().toLowerCase() === activeUser().trim().toLowerCase()) {
         $("#currentUser").value = player.name;
-        localStorage.setItem("soccer-dtr-current-user", player.name);
+        localStorage.setItem(LOGIN_USER_KEY, player.name);
         updateRoleFromUser();
       }
 
@@ -2106,7 +2136,7 @@ for update using (true);</textarea>
 
     $("#messageGroup").addEventListener("change", renderMessages);
     $("#currentUser").addEventListener("input", () => {
-      localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
+      localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
       updateRoleFromUser();
       render();
     });
@@ -2125,6 +2155,7 @@ for update using (true);</textarea>
       renderClubSelect();
       renderLoginUsers();
     });
+    $("#loginUser").addEventListener("change", fillSavedLoginPassword);
     $("#loginForm").addEventListener("submit", (event) => {
       event.preventDefault();
       currentClubId = $("#loginClubSelect").value;
@@ -2137,18 +2168,18 @@ for update using (true);</textarea>
         return;
       }
       $("#currentUser").value = userName;
-      localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
+      localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      saveLoginPrefill(currentClubId, userName, password);
       if ($("#rememberLogin").checked) {
         localStorage.setItem(LOGIN_KEY, "true");
-        localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
+        localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
         localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
         sessionStorage.removeItem(LOGIN_KEY);
       } else {
         sessionStorage.setItem(LOGIN_KEY, "true");
         localStorage.removeItem(LOGIN_KEY);
       }
-      $("#loginPassword").value = "";
       $("#loginError").textContent = "";
       updateRoleFromUser();
       setLoginVisible(false);
@@ -2157,7 +2188,6 @@ for update using (true);</textarea>
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
       sessionStorage.removeItem(LOGIN_KEY);
-      $("#loginPassword").value = "";
       renderLoginUsers();
       renderClubSelect();
       setLoginVisible(true);
@@ -2185,7 +2215,7 @@ for update using (true);</textarea>
       URL.revokeObjectURL(url);
     });
 
-    $("#currentUser").value = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
+    $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";
     const restoredLogin = restoreLogin();
     if (!restoredLogin) updateRoleFromUser();
     renderClubSelect();
