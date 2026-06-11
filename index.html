@@ -2029,14 +2029,14 @@ for update using (true);</textarea>
     }
 
     function mergeState(localState, remoteState) {
-      return {
+      return ensureDefaultPlayers({
         players: mergeById(localState.players, remoteState.players || []),
         events: mergeById(localState.events, remoteState.events || []),
         cashFines: mergeById(localState.cashFines || [], remoteState.cashFines || []),
         fineCatalog: mergeById(localState.fineCatalog || [], remoteState.fineCatalog || []),
         polls: mergeById(localState.polls, remoteState.polls || []),
         messages: mergeById(localState.messages, remoteState.messages || [])
-      };
+      });
     }
 
     function mergeById(a, b) {
