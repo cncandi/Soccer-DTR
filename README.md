@@ -13,6 +13,11 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Mitteilungen fuer Mannschaft, Mannschaftsrat und Kasse
 - Export der lokalen Daten als JSON
 - Supabase-Sync vorbereitet ueber eine zentrale JSON-Dokument-Tabelle
+- Mobile Webapp fuer iPhone, iPad und Android mit Home-Bildschirm-Manifest
+
+## Mobile Nutzung
+
+Auf dem iPhone kann die App in Safari geoeffnet und ueber `Teilen` -> `Zum Home-Bildschirm` als Webapp installiert werden. Danach startet sie wie eine normale App mit kompakter Handy-Navigation.
 
 ## Supabase
 

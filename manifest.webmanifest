@@ -1,0 +1,19 @@
+{
+  "name": "Soccer-DTR Vereinsmanager",
+  "short_name": "Soccer-DTR",
+  "description": "Mobile Webapp fuer Mannschaft, Termine, Abstimmungen und Mitteilungen.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f8f6",
+  "theme_color": "#155e3b",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
