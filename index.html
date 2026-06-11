@@ -654,6 +654,7 @@ for update using (true);</textarea>
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
     const DEFAULT_SUPABASE_URL = "https://njthmqdpncnpjycedhea.supabase.co";
+    const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdGhtcWRwbmNucGp5Y2VkaGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjU0NDAsImV4cCI6MjA5Njc0MTQ0MH0.60Jz-P4NRHDEe6_eELEszkdcpwqh4vulz-rH9QXLdxo";
     const DEFAULT_PLAYER_NAMES = [
       "AhmadAli",
       "Arsenii",
@@ -722,7 +723,7 @@ for update using (true);</textarea>
 
     function loadSettings() {
       const stored = localStorage.getItem(SETTINGS_KEY);
-      return stored ? JSON.parse(stored) : { url: DEFAULT_SUPABASE_URL, key: "", table: "club_documents" };
+      return stored ? JSON.parse(stored) : { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY, table: "club_documents" };
     }
 
     function saveState() {
