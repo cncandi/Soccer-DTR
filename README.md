@@ -15,6 +15,8 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Supabase-Sync vorbereitet ueber eine zentrale JSON-Dokument-Tabelle
 - Mobile Webapp fuer iPhone, iPad und Android mit Home-Bildschirm-Manifest
 - Mandantenfaehig fuer mehrere Vereine mit getrennten Vereinsdaten
+- Pro Verein eigenes Logo und eigene Vereinsfarbe
+- Einfacher Login per Spielername mit fest hinterlegter Rolle
 
 ## Rechte
 
@@ -27,6 +29,8 @@ Die Rollen sind im Code fest Namen zugeordnet. Aktuell ist `Max Reitz` Superadmi
 ## Mobile Nutzung
 
 Auf dem iPhone kann die App in Safari geoeffnet und ueber `Teilen` -> `Zum Home-Bildschirm` als Webapp installiert werden. Danach startet sie wie eine normale App mit kompakter Handy-Navigation.
+
+Admins koennen im Bereich `Einstellungen` Vereinsname, Logo und Farbe setzen. Die Vereinsfarbe steuert die Navigation, Buttons, Markierungen und eigene Chatblasen.
 
 ## Supabase
 

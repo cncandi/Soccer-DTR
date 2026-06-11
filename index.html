@@ -13,7 +13,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --green: #155e3b;
+      --club-color: #155e3b;
+      --club-dark: #102b20;
+      --club-soft: #d8f3dc;
+      --green: var(--club-color);
       --green-2: #1f8a5b;
       --line: #d9e3dc;
       --muted: #63736a;
@@ -30,7 +33,7 @@
 
     html {
       min-height: 100%;
-      background: #102b20;
+      background: var(--club-dark);
     }
 
     body {
@@ -61,8 +64,48 @@
       grid-template-columns: 280px 1fr;
     }
 
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--club-dark);
+    }
+
+    body.needs-login .login-screen {
+      display: flex;
+    }
+
+    body.needs-login .app-shell {
+      display: none;
+    }
+
+    .login-panel {
+      width: min(420px, 100%);
+      background: #fff;
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.28);
+      display: grid;
+      gap: 14px;
+    }
+
+    .login-panel h1 {
+      margin: 0;
+      font-size: 1.45rem;
+    }
+
+    .login-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
     .sidebar {
-      background: #102b20;
+      background: var(--club-dark);
       color: #fff;
       padding: 22px;
       display: flex;
@@ -82,9 +125,17 @@
       border-radius: 8px;
       display: grid;
       place-items: center;
-      background: #d8f3dc;
-      color: #102b20;
+      background: var(--club-soft);
+      color: var(--club-dark);
       font-weight: 900;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .brand h1 {
@@ -155,8 +206,17 @@
     .tenant-actions button {
       min-height: 40px;
       padding: 0 12px;
-      background: #d8f3dc;
-      color: #102b20;
+      background: var(--club-soft);
+      color: var(--club-dark);
+      font-weight: 800;
+    }
+
+    .logout-btn {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: transparent;
+      color: #d5e8df;
       font-weight: 800;
     }
 
@@ -177,8 +237,8 @@
     }
 
     .nav button.active {
-      background: #d8f3dc;
-      color: #102b20;
+      background: var(--club-soft);
+      color: var(--club-dark);
       font-weight: 800;
     }
 
@@ -432,7 +492,7 @@
     }
 
     .bubble.mine {
-      background: #d8f3dc;
+      background: var(--club-soft);
       align-self: flex-end;
     }
 
@@ -499,7 +559,7 @@
       }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 1100px) {
       body {
         background: #f6f8f6;
       }
@@ -537,8 +597,10 @@
       }
 
       .profile-card {
-        display: block;
-        width: min(46vw, 190px);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px;
+        width: min(56vw, 250px);
         padding: 0;
         border: 0;
         background: transparent;
@@ -556,6 +618,13 @@
         border-radius: 8px;
         background: rgba(255,255,255,.1);
         color: #fff;
+      }
+
+      .logout-btn {
+        width: auto;
+        min-height: 40px;
+        padding: 0 8px;
+        font-size: .72rem;
       }
 
       .tenant-card {
@@ -681,6 +750,15 @@
     }
 
     @media (max-width: 560px) {
+      .sidebar .brand h1,
+      .sidebar .brand span {
+        display: none;
+      }
+
+      .profile-card {
+        width: calc(100vw - 84px);
+      }
+
       .topbar {
         display: grid;
       }
@@ -700,25 +778,47 @@
   </style>
 </head>
 <body>
+  <section class="login-screen" id="loginScreen">
+    <form class="login-panel" id="loginForm">
+      <div class="brand">
+        <div class="brand-mark"><span class="brand-initials">DTR</span></div>
+        <div>
+          <h1>Soccer-DTR</h1>
+          <p>Mit Namen anmelden und Verein auswaehlen.</p>
+        </div>
+      </div>
+      <div class="field">
+        <label for="loginUser">Name</label>
+        <select id="loginUser"></select>
+      </div>
+      <div class="field">
+        <label for="loginClubSelect">Verein</label>
+        <select id="loginClubSelect"></select>
+      </div>
+      <button class="btn-primary" type="submit">Anmelden</button>
+    </form>
+  </section>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">DTR</div>
+        <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">DTR</span></div>
         <div>
           <h1>Soccer-DTR</h1>
-          <span>Vereinsmanager</span>
+          <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
 
       <section class="profile-card">
         <label for="currentUser">Angemeldeter Name</label>
-        <input id="currentUser" autocomplete="name">
+        <input id="currentUser" autocomplete="name" readonly>
         <label for="currentRole">Rolle</label>
         <select id="currentRole" disabled>
           <option>Superadmin</option>
           <option>Admin</option>
           <option>Spieler</option>
         </select>
+        <button class="logout-btn" id="logoutBtn" type="button">Abmelden</button>
       </section>
 
       <section class="tenant-card">
@@ -736,7 +836,7 @@
         <button data-view="events" data-min-role="player">Training & Spiele</button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="messages" data-min-role="player">Mitteilungen</button>
-        <button data-view="settings" data-min-role="superadmin">Supabase</button>
+        <button data-view="settings" data-min-role="admin">Einstellungen</button>
       </nav>
 
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
@@ -866,6 +966,17 @@ Nein</textarea></div>
 
       <section class="view" id="settings">
         <div class="grid two">
+          <section class="panel admin-only">
+            <h3>Vereinsdesign</h3>
+            <form id="clubDesignForm" class="form-grid">
+              <div class="field full"><label>Vereinsname</label><input name="name" required></div>
+              <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
+              <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
+              <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
+              <div class="field"><button class="btn-secondary" id="clearClubLogoBtn" type="button">Logo entfernen</button></div>
+              <div class="field full"><button class="btn-primary" type="submit">Design speichern</button></div>
+            </form>
+          </section>
           <section class="panel config superadmin-only">
             <h3>Supabase verbinden</h3>
             <form id="settingsForm" class="form-grid">
@@ -903,6 +1014,7 @@ for update using (true);</textarea>
     const STORE_KEY = "soccer-dtr-club-state";
     const CLUBS_KEY = "soccer-dtr-clubs";
     const CURRENT_CLUB_KEY = "soccer-dtr-current-club";
+    const LOGIN_KEY = "soccer-dtr-logged-in";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
@@ -970,7 +1082,7 @@ for update using (true);</textarea>
       events: ["Training & Spiele", "Termine erstellen und Zu- oder Absagen erfassen."],
       polls: ["Abstimmungen", "Schnelle Entscheidungen fuer Mannschaft, Mannschaftsrat und Kasse."],
       messages: ["Mitteilungen", "Gruppen-Kommunikation im Stil eines Team-Chats."],
-      settings: ["Supabase", "Daten zentral synchronisieren statt nur lokal speichern."]
+      settings: ["Einstellungen", "Vereinsdesign und Datenbank-Einstellungen verwalten."]
     };
 
     const $ = (selector) => document.querySelector(selector);
@@ -979,7 +1091,17 @@ for update using (true);</textarea>
     function loadClubs() {
       const stored = localStorage.getItem(CLUBS_KEY);
       const parsed = stored ? JSON.parse(stored) : null;
-      return parsed && parsed.length ? parsed : [{ id: DEFAULT_CLUB_ID, name: "Mein Verein" }];
+      const source = parsed && parsed.length ? parsed : [{ id: DEFAULT_CLUB_ID, name: "Mein Verein" }];
+      return source.map(normalizeClub);
+    }
+
+    function normalizeClub(club) {
+      return {
+        id: club.id || crypto.randomUUID(),
+        name: club.name || "Mein Verein",
+        color: club.color || "#155e3b",
+        logo: club.logo || ""
+      };
     }
 
     function loadCurrentClubId() {
@@ -1041,6 +1163,14 @@ for update using (true);</textarea>
       renderStatus();
     }
 
+    function isLoggedIn() {
+      return localStorage.getItem(LOGIN_KEY) === "true";
+    }
+
+    function setLoginVisible(visible) {
+      document.body.classList.toggle("needs-login", visible);
+    }
+
     function activeUser() {
       return $("#currentUser").value.trim() || "Unbekannt";
     }
@@ -1082,6 +1212,59 @@ for update using (true);</textarea>
 
     function clubsDocumentId() {
       return `${DOC_ID}:clubs`;
+    }
+
+    function currentClub() {
+      return clubs.find((club) => club.id === currentClubId) || clubs[0];
+    }
+
+    function applyClubTheme() {
+      const club = currentClub();
+      const color = normalizeHexColor(club.color || "#155e3b");
+      document.documentElement.style.setProperty("--club-color", color);
+      document.documentElement.style.setProperty("--club-dark", mixHex(color, "#000000", 72));
+      document.documentElement.style.setProperty("--club-soft", mixHex(color, "#ffffff", 82));
+      document.documentElement.style.setProperty("--green-2", mixHex(color, "#ffffff", 22));
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", color);
+      $("#clubBrandName").textContent = club.name;
+      renderLogo($("#clubLogoMark"), club);
+    }
+
+    function renderLogo(container, club) {
+      if (!container) return;
+      container.innerHTML = club.logo
+        ? `<img src="${escapeAttr(club.logo)}" alt="${escapeAttr(club.name)} Logo">`
+        : `<span class="brand-initials">${escapeHtml(initials(club.name))}</span>`;
+    }
+
+    function initials(name) {
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 3)).toUpperCase();
+    }
+
+    function normalizeHexColor(value) {
+      return /^#[0-9a-f]{6}$/i.test(value) ? value : "#155e3b";
+    }
+
+    function mixHex(from, to, amount) {
+      const a = hexToRgb(from);
+      const b = hexToRgb(to);
+      const ratio = amount / 100;
+      const mixed = {
+        r: Math.round(a.r * (1 - ratio) + b.r * ratio),
+        g: Math.round(a.g * (1 - ratio) + b.g * ratio),
+        b: Math.round(a.b * (1 - ratio) + b.b * ratio)
+      };
+      return `#${[mixed.r, mixed.g, mixed.b].map((part) => part.toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function hexToRgb(hex) {
+      const value = normalizeHexColor(hex).slice(1);
+      return {
+        r: parseInt(value.slice(0, 2), 16),
+        g: parseInt(value.slice(2, 4), 16),
+        b: parseInt(value.slice(4, 6), 16)
+      };
     }
 
     function formatDate(date, time) {
@@ -1129,7 +1312,7 @@ for update using (true);</textarea>
     async function syncClubs(client) {
       const { data } = await client.from(settings.table).select("document").eq("id", clubsDocumentId()).maybeSingle();
       if (data && data.document && Array.isArray(data.document.clubs)) {
-        clubs = mergeClubs(clubs, data.document.clubs);
+        clubs = mergeClubs(clubs, data.document.clubs.map(normalizeClub));
         if (!clubs.some((club) => club.id === currentClubId)) currentClubId = clubs[0].id;
         saveClubs();
       }
@@ -1171,8 +1354,10 @@ for update using (true);</textarea>
     }
 
     function render() {
+      applyClubTheme();
       applyPermissions();
       renderClubSelect();
+      renderClubDesignForm();
       renderStatus();
       renderStats();
       renderPlayers();
@@ -1205,11 +1390,30 @@ for update using (true);</textarea>
       const options = clubs
         .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
         .join("");
-      [$("#clubSelect"), $("#mobileClubSelect")].forEach((select) => {
+      [$("#clubSelect"), $("#mobileClubSelect"), $("#loginClubSelect")].forEach((select) => {
         if (!select) return;
         select.innerHTML = options;
         select.value = currentClubId;
       });
+    }
+
+    function renderClubDesignForm() {
+      const form = $("#clubDesignForm");
+      if (!form) return;
+      const club = currentClub();
+      form.elements.name.value = club.name;
+      form.elements.color.value = normalizeHexColor(club.color || "#155e3b");
+      form.elements.logoUrl.value = club.logo && !club.logo.startsWith("data:") ? club.logo : "";
+    }
+
+    function renderLoginUsers() {
+      const selected = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
+      const names = [...new Set([...DEFAULT_PLAYER_NAMES, ...state.players.map((player) => player.name)])]
+        .sort((a, b) => a.localeCompare(b, "de"));
+      $("#loginUser").innerHTML = names
+        .map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
+        .join("");
+      $("#loginUser").value = names.includes(selected) ? selected : "Max Reitz";
     }
 
     function renderStats() {
@@ -1389,6 +1593,15 @@ for update using (true);</textarea>
       return escapeHtml(value).replace(/"/g, "&quot;");
     }
 
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    }
+
     function switchView(viewName) {
       const button = $(`.nav button[data-view="${viewName}"]`);
       if (!button || button.hidden || !canAccess(button.dataset.minRole)) return;
@@ -1459,6 +1672,32 @@ for update using (true);</textarea>
       setStatus("Supabase-Konfiguration gespeichert.");
     });
 
+    $("#clubDesignForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!canManage()) return;
+      const values = formValues(event.currentTarget);
+      const club = currentClub();
+      club.name = values.name.trim() || club.name;
+      club.color = normalizeHexColor(values.color);
+      const file = $("#clubLogoFile").files[0];
+      if (file) {
+        club.logo = await readFileAsDataUrl(file);
+        $("#clubLogoFile").value = "";
+      } else if (values.logoUrl.trim()) {
+        club.logo = values.logoUrl.trim();
+      }
+      saveClubs();
+      render();
+    });
+
+    $("#clearClubLogoBtn").addEventListener("click", () => {
+      if (!canManage()) return;
+      currentClub().logo = "";
+      $("#clubLogoFile").value = "";
+      saveClubs();
+      render();
+    });
+
     document.body.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
@@ -1500,11 +1739,35 @@ for update using (true);</textarea>
 
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
     $("#mobileClubSelect").addEventListener("change", () => changeClub($("#mobileClubSelect").value));
+    $("#loginClubSelect").addEventListener("change", () => {
+      currentClubId = $("#loginClubSelect").value;
+      state = loadState();
+      renderClubSelect();
+      renderLoginUsers();
+    });
+    $("#loginForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      $("#currentUser").value = $("#loginUser").value;
+      currentClubId = $("#loginClubSelect").value;
+      localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
+      localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      localStorage.setItem(LOGIN_KEY, "true");
+      updateRoleFromUser();
+      state = loadState();
+      setLoginVisible(false);
+      render();
+    });
+    $("#logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem(LOGIN_KEY);
+      renderLoginUsers();
+      renderClubSelect();
+      setLoginVisible(true);
+    });
     $("#addClubBtn").addEventListener("click", () => {
       if (!canManage()) return;
       const name = $("#newClubName").value.trim();
       if (!name) return;
-      const club = { id: crypto.randomUUID(), name };
+      const club = { id: crypto.randomUUID(), name, color: normalizeHexColor(currentClub().color), logo: "" };
       clubs.push(club);
       currentClubId = club.id;
       state = loadState();
@@ -1526,10 +1789,12 @@ for update using (true);</textarea>
     $("#currentUser").value = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
     updateRoleFromUser();
     renderClubSelect();
+    renderLoginUsers();
     $("#settingsForm").elements.url.value = settings.url;
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
     render();
+    setLoginVisible(!isLoggedIn());
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
