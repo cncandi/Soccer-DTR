@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v13";
+const CACHE_NAME = "soccer-dtr-v14";
 const APP_SHELL = [
   "./",
   "index.html",

@@ -1493,8 +1493,8 @@ for update using (true);</textarea>
       tactics: "Taktik",
       form: "Formbarometer"
     };
-    const DEFAULT_SUPABASE_URL = "https://njthmqdpncnpjycedhea.supabase.co";
-    const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdGhtcWRwbmNucGp5Y2VkaGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjU0NDAsImV4cCI6MjA5Njc0MTQ0MH0.60Jz-P4NRHDEe6_eELEszkdcpwqh4vulz-rH9QXLdxo";
+    const DEFAULT_SUPABASE_URL = "https://pihgvwnoznqhautudhlx.supabase.co";
+    const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaGd2d25vem5xaGF1dHVkaGx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDA0NjMsImV4cCI6MjA5NTIxNjQ2M30.7BSIzhcHNibC4Tkz0Id7AnNGxFJTtx9cxF5UFX6QiGA";
     const DEFAULT_PLAYER_NAMES = [
       "AhmadAli",
       "Andreas Reitz",
@@ -1667,7 +1667,8 @@ for update using (true);</textarea>
         id: club.id || crypto.randomUUID(),
         name: club.name || "Mein Verein",
         color: club.color || "#155e3b",
-        logo: club.logo || ""
+        logo: club.logo || "",
+        updatedAt: club.updatedAt || ""
       };
     }
 
@@ -1688,13 +1689,17 @@ for update using (true);</textarea>
       return ensureDefaultPlayers(loadedState);
     }
 
-    function ensureDefaultPlayers(loadedState) {
-      const normalizedPlayers = (loadedState.players || [])
-      .filter((player) => !REMOVED_DEFAULT_PLAYERS.includes(player.name.trim().toLowerCase()))
-      .map((player) => ({
+    function playerNameKey(name) {
+      return String(name || "").trim().toLowerCase();
+    }
+
+    function normalizePlayer(player) {
+      const nameKey = playerNameKey(player.name);
+      return {
         ...player,
-        password: player.password || DEFAULT_USER_PASSWORDS[player.name.trim().toLowerCase()] || DEFAULT_PASSWORD,
-        role: player.role || DEFAULT_USER_ROLES[player.name.trim().toLowerCase()] || "Spieler",
+        name: String(player.name || "").trim(),
+        password: player.password || DEFAULT_USER_PASSWORDS[nameKey] || DEFAULT_PASSWORD,
+        role: player.role || DEFAULT_USER_ROLES[nameKey] || "Spieler",
         memberRoles: normalizeMemberRoles(player),
         groups: normalizeGroups(player),
         group: normalizeGroups(player)[0],
@@ -1702,8 +1707,29 @@ for update using (true);</textarea>
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: normalizeAvailability(player.availability),
         performance: { ...defaultPerformance(), ...(player.performance || {}) }
-      }));
-      const existingNames = new Set(normalizedPlayers.map((player) => player.name.trim().toLowerCase()));
+      };
+    }
+
+    function mergePlayersByName(a = [], b = []) {
+      const map = new Map();
+      [...a, ...b].forEach((player) => {
+        const normalized = normalizePlayer(player);
+        const key = playerNameKey(normalized.name);
+        if (!key || REMOVED_DEFAULT_PLAYERS.includes(key)) return;
+        const existing = map.get(key);
+        map.set(key, existing ? { ...existing, ...normalized, id: existing.id || normalized.id } : normalized);
+      });
+      return [...map.values()];
+    }
+
+    function hasPlayerName(name, exceptId = "") {
+      const key = playerNameKey(name);
+      return Boolean(key) && state.players.some((player) => player.id !== exceptId && playerNameKey(player.name) === key);
+    }
+
+    function ensureDefaultPlayers(loadedState) {
+      const normalizedPlayers = mergePlayersByName(loadedState.players || []);
+      const existingNames = new Set(normalizedPlayers.map((player) => playerNameKey(player.name)));
       const missingPlayers = DEFAULT_PLAYER_NAMES
         .filter((name) => !existingNames.has(name.toLowerCase()))
         .map((name) => ({
@@ -1794,6 +1820,7 @@ for update using (true);</textarea>
     }
 
     function saveState(options = {}) {
+      state = ensureDefaultPlayers(state);
       localStorage.setItem(stateKey(), JSON.stringify(state));
       render();
       if (options.sync !== false) queueCloudSync();
@@ -1927,6 +1954,11 @@ for update using (true);</textarea>
       return clubs.find((club) => club.id === currentClubId) || clubs[0];
     }
 
+    function touchClub(club) {
+      club.updatedAt = new Date().toISOString();
+      return club;
+    }
+
     function applyClubTheme() {
       const club = currentClub();
       const color = normalizeHexColor(club.color || "#155e3b");
@@ -1987,6 +2019,29 @@ for update using (true);</textarea>
       return window.supabase.createClient(settings.url, settings.key);
     }
 
+    function supabaseMissingReason() {
+      if (!settings.url || !settings.key) return "Supabase ist noch nicht konfiguriert. Lokale Daten bleiben aktiv.";
+      if (!window.supabase) return "Supabase-Bibliothek ist noch nicht geladen. Bitte Internetverbindung pruefen oder die Seite neu laden.";
+      return "Supabase ist noch nicht verfuegbar. Lokale Daten bleiben aktiv.";
+    }
+
+    function supabaseErrorMessage(error) {
+      const message = error.message || String(error);
+      if (message.includes("Could not find the table")) {
+        return `Supabase-Fehler: Tabelle "${settings.table}" wurde nicht gefunden. Keine Vereinsdaten geladen.`;
+      }
+      return "Supabase-Fehler: " + message;
+    }
+
+    async function waitForSupabaseLibrary(timeoutMs = 5000) {
+      if (!settings.url || !settings.key || window.supabase) return Boolean(window.supabase);
+      const startedAt = Date.now();
+      while (!window.supabase && Date.now() - startedAt < timeoutMs) {
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+      }
+      return Boolean(window.supabase);
+    }
+
     function queueCloudSync() {
       if (!settings.url || !settings.key || !window.supabase) return;
       if (syncInProgress) {
@@ -1995,7 +2050,7 @@ for update using (true);</textarea>
       }
       window.clearTimeout(syncTimer);
       syncTimer = window.setTimeout(() => {
-        syncWithSupabase({ silent: true });
+        syncWithSupabase({ silent: true, preferLocal: true });
       }, 800);
     }
 
@@ -2004,9 +2059,10 @@ for update using (true);</textarea>
         pendingCloudSync = true;
         return;
       }
+      if (!window.supabase) await waitForSupabaseLibrary();
       const client = getSupabaseClient();
       if (!client) {
-        setStatus("Supabase ist noch nicht konfiguriert. Lokale Daten bleiben aktiv.");
+        setStatus(supabaseMissingReason());
         return;
       }
 
@@ -2014,14 +2070,18 @@ for update using (true);</textarea>
       pendingCloudSync = false;
       if (!options.silent) setStatus("Synchronisiere mit Supabase ...");
       try {
-        await syncClubs(client);
+        const clubChanged = await syncClubs(client);
+        if (clubChanged) {
+          state = loadState();
+          updateRoleFromUser();
+        }
         const { data, error } = await client.from(settings.table).select("document").eq("id", clubDocumentId()).maybeSingle();
         if (error) {
           setStatus("Supabase-Fehler: " + error.message);
           return;
         }
 
-        if (data && data.document) {
+        if (!options.preferLocal && data && data.document) {
           state = mergeState(state, data.document);
         }
 
@@ -2035,6 +2095,8 @@ for update using (true);</textarea>
         localStorage.setItem(stateKey(), JSON.stringify(state));
         setStatus("Synchronisiert: " + new Date().toLocaleTimeString("de-DE"));
         render();
+      } catch (error) {
+        setStatus(supabaseErrorMessage(error));
       } finally {
         syncInProgress = false;
         if (pendingCloudSync) {
@@ -2045,23 +2107,46 @@ for update using (true);</textarea>
     }
 
     async function syncClubs(client) {
-      const { data } = await client.from(settings.table).select("document").eq("id", clubsDocumentId()).maybeSingle();
+      const previousClubId = currentClubId;
+      const previousClubs = clubs.map(normalizeClub);
+      const { data, error } = await client.from(settings.table).select("document,updated_at").eq("id", clubsDocumentId()).maybeSingle();
+      if (error) throw new Error(error.message);
       if (data && data.document && Array.isArray(data.document.clubs)) {
-        clubs = mergeClubs(clubs, data.document.clubs.map(normalizeClub));
-        if (!clubs.some((club) => club.id === currentClubId)) currentClubId = clubs[0].id;
+        const remoteClubs = data.document.clubs.map((club) => normalizeClub({ ...club, updatedAt: club.updatedAt || data.updated_at || "" }));
+        const hadOnlyDefaultClub = previousClubs.length === 1 && isDefaultPlaceholderClub(previousClubs[0]);
+        clubs = hadOnlyDefaultClub ? remoteClubs : mergeClubs(clubs, remoteClubs);
+        if (hadOnlyDefaultClub && remoteClubs.length) {
+          currentClubId = preferredRemoteClub(remoteClubs).id;
+        } else if (!clubs.some((club) => club.id === currentClubId)) {
+          currentClubId = clubs[0].id;
+        }
         saveClubs({ sync: false });
       }
 
-      await client.from(settings.table).upsert({
+      const result = await client.from(settings.table).upsert({
         id: clubsDocumentId(),
         document: { clubs },
         updated_at: new Date().toISOString()
       });
+      if (result.error) throw new Error(result.error.message);
+      return previousClubId !== currentClubId;
+    }
+
+    function isDefaultPlaceholderClub(club) {
+      return club
+        && club.id === DEFAULT_CLUB_ID
+        && club.name === "Mein Verein"
+        && normalizeHexColor(club.color || "#155e3b") === "#155e3b"
+        && !club.logo;
+    }
+
+    function preferredRemoteClub(remoteClubs) {
+      return remoteClubs.find((club) => !isDefaultPlaceholderClub(club)) || remoteClubs[0];
     }
 
     function mergeState(localState, remoteState) {
       return ensureDefaultPlayers({
-        players: mergeById(localState.players, remoteState.players || []),
+        players: mergePlayersByName(localState.players, remoteState.players || []),
         events: mergeById(localState.events, remoteState.events || []),
         cashFines: mergeById(localState.cashFines || [], remoteState.cashFines || []),
         fineCatalog: mergeById(localState.fineCatalog || [], remoteState.fineCatalog || []),
@@ -2077,7 +2162,21 @@ for update using (true);</textarea>
     }
 
     function mergeClubs(a, b) {
-      return mergeById(a, b).sort((clubA, clubB) => clubA.name.localeCompare(clubB.name, "de"));
+      const map = new Map();
+      [...a, ...b].map(normalizeClub).forEach((club) => {
+        const existing = map.get(club.id);
+        if (!existing || newerClub(club, existing) === club) map.set(club.id, club);
+      });
+      return [...map.values()].sort((clubA, clubB) => clubA.name.localeCompare(clubB.name, "de"));
+    }
+
+    function newerClub(candidate, existing) {
+      const candidateTime = Date.parse(candidate.updatedAt || "");
+      const existingTime = Date.parse(existing.updatedAt || "");
+      if (Number.isFinite(candidateTime) || Number.isFinite(existingTime)) {
+        return (candidateTime || 0) >= (existingTime || 0) ? candidate : existing;
+      }
+      return candidate;
     }
 
     function setStatus(text) {
@@ -3032,6 +3131,10 @@ for update using (true);</textarea>
       event.preventDefault();
       if (!canManage()) return;
       const values = formValues(event.currentTarget);
+      if (hasPlayerName(values.name)) {
+        setStatus(`Spieler "${values.name.trim()}" existiert bereits.`);
+        return;
+      }
       const groups = groupsFromValues(values);
       state.players.push({
         id: crypto.randomUUID(),
@@ -3153,6 +3256,7 @@ for update using (true);</textarea>
       settings = formValues(event.currentTarget);
       saveSettings();
       setStatus("Supabase-Konfiguration gespeichert.");
+      syncWithSupabase();
     });
 
     $("#clubDesignForm").addEventListener("submit", async (event) => {
@@ -3169,6 +3273,7 @@ for update using (true);</textarea>
       } else if (values.logoUrl.trim()) {
         club.logo = values.logoUrl.trim();
       }
+      touchClub(club);
       saveClubs();
       render();
     });
@@ -3176,6 +3281,7 @@ for update using (true);</textarea>
     $("#clearClubLogoBtn").addEventListener("click", () => {
       if (!canManage()) return;
       currentClub().logo = "";
+      touchClub(currentClub());
       $("#clubLogoFile").value = "";
       saveClubs();
       render();
@@ -3212,8 +3318,13 @@ for update using (true);</textarea>
       const values = formValues(form);
       const player = state.players.find((item) => item.id === values.id);
       if (!player) return;
+      const nextName = values.name.trim() || player.name;
+      if (hasPlayerName(nextName, player.id)) {
+        setStatus(`Spieler "${nextName}" existiert bereits.`);
+        return;
+      }
 
-      player.name = values.name.trim() || player.name;
+      player.name = nextName;
       player.position = values.position;
       player.phone = values.phone.trim();
       player.groups = groupsFromValues(values);
@@ -3417,7 +3528,7 @@ for update using (true);</textarea>
       if (!canManage()) return;
       const name = $("#newClubName").value.trim();
       if (!name) return;
-      const club = { id: crypto.randomUUID(), name, color: normalizeHexColor(currentClub().color), logo: "" };
+      const club = touchClub({ id: crypto.randomUUID(), name, color: normalizeHexColor(currentClub().color), logo: "" });
       clubs.push(club);
       currentClubId = club.id;
       state = loadState();
