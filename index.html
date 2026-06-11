@@ -390,6 +390,10 @@
       margin-top: 14px;
     }
 
+    .staff-inline {
+      margin-top: 18px;
+    }
+
     .field.full { grid-column: 1 / -1; }
 
     label {
@@ -571,6 +575,99 @@
     .chip.warn { background: #fef3c7; color: var(--warn); }
     .chip.blue { background: #dbeafe; color: var(--blue); }
     .chip.red { background: #fee2e2; color: var(--danger); }
+
+    .calendar-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .calendar-tools .field {
+      max-width: 220px;
+      flex: 1 1 180px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .calendar-weekday,
+    .calendar-day {
+      min-width: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .calendar-weekday:nth-child(7n),
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .calendar-weekday {
+      padding: 8px;
+      background: #eef4f0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 850;
+      text-align: center;
+    }
+
+    .calendar-day {
+      min-height: 118px;
+      padding: 8px;
+      display: grid;
+      align-content: start;
+      gap: 5px;
+      background: #fff;
+    }
+
+    .calendar-day.outside {
+      background: #f5f7f5;
+      color: #9aa7a0;
+    }
+
+    .calendar-day.sunday,
+    .calendar-day.holiday {
+      background: #fff7ed;
+    }
+
+    .calendar-date {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      font-weight: 850;
+      font-size: .86rem;
+    }
+
+    .holiday-name {
+      color: var(--warn);
+      font-size: .72rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .calendar-event {
+      border-radius: 6px;
+      padding: 4px 6px;
+      color: #fff;
+      background: var(--green);
+      font-size: .72rem;
+      font-weight: 800;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .calendar-event.game { background: #1d4ed8; }
+    .calendar-event.other { background: #64748b; }
+    .calendar-event.birthday { background: #7c3aed; }
+    .calendar-event.notice { background: #b45309; }
 
     .row-actions {
       display: flex;
@@ -1070,10 +1167,10 @@
 
       <section class="view active" id="dashboard">
         <div class="grid stats">
-          <div class="stat"><strong id="statPlayers">0</strong><span>Spieler</span></div>
+          <div class="stat"><strong id="statPlayers">0</strong><span>Aktive Spieler</span></div>
+          <div class="stat"><strong id="statInjured">0</strong><span>Verletzt</span></div>
+          <div class="stat"><strong id="statUnavailable">0</strong><span>Nicht verfuegbar</span></div>
           <div class="stat"><strong id="statEvents">0</strong><span>Offene Termine</span></div>
-          <div class="stat"><strong id="statPolls">0</strong><span>Aktive Abstimmungen</span></div>
-          <div class="stat"><strong id="statMessages">0</strong><span>Mitteilungen</span></div>
         </div>
 
         <div class="grid two">
@@ -1097,7 +1194,13 @@
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option><option>Trainer</option><option>Betreuer</option></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
               <div class="field"><label>Berechtigung</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
-              <div class="field"><label>Gruppe</label><select name="group"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option><option>Trainer</option><option>Betreuer</option></select></div>
+              <div class="field full"><label>Gruppen</label><div class="inline-checks">
+                <label class="check-row"><input type="checkbox" name="groupMannschaft" checked>Mannschaft</label>
+                <label class="check-row"><input type="checkbox" name="groupMannschaftsrat">Mannschaftsrat</label>
+                <label class="check-row"><input type="checkbox" name="groupKasse">Kasse</label>
+                <label class="check-row"><input type="checkbox" name="groupTrainer">Trainer</label>
+                <label class="check-row"><input type="checkbox" name="groupBetreuer">Betreuer</label>
+              </div></div>
               <div class="field full"><label>Funktion</label><div class="inline-checks">
                 <label class="check-row"><input type="checkbox" name="memberRoleSpieler" checked>Spieler</label>
                 <label class="check-row"><input type="checkbox" name="memberRoleTrainer">Trainer</label>
@@ -1106,6 +1209,10 @@
               <div class="field full"><label>Notizen</label><textarea name="notes"></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Person speichern</button></div>
             </form>
+            <div class="staff-inline">
+              <h3>Staff</h3>
+              <div class="list" id="staffList"></div>
+            </div>
           </section>
           <section class="panel">
             <h3>Kader</h3>
@@ -1116,10 +1223,6 @@
             <div class="list" id="playerList"></div>
           </section>
         </div>
-        <section class="panel staff-panel">
-          <h3>Staff</h3>
-          <div class="list" id="staffList"></div>
-        </section>
       </section>
 
       <section class="view" id="events">
@@ -1127,20 +1230,35 @@
           <section class="panel admin-only">
             <h3>Termin erstellen</h3>
             <form id="eventForm" class="form-grid">
-              <div class="field"><label>Typ</label><select name="type"><option>Training</option><option>Spiel</option><option>Besprechung</option></select></div>
+              <div class="field"><label>Typ</label><select name="type"><option>Training</option><option>Spiel</option><option>Event</option><option>Geburtstag</option><option>Sonstiges</option></select></div>
               <div class="field"><label>Titel</label><input name="title" required></div>
               <div class="field"><label>Datum</label><input type="date" name="date" required></div>
               <div class="field"><label>Uhrzeit</label><input type="time" name="time" required></div>
+              <div class="field"><label>Wiederholung</label><select name="repeat"><option value="">Einmalig</option><option value="weekly">Woechentlich</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Monatlich</option></select></div>
+              <div class="field"><label>Wiederholen bis</label><input type="date" name="repeatUntil"></div>
               <div class="field full"><label>Ort</label><input name="location"></div>
               <div class="field full"><label>Details</label><textarea name="details"></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Termin speichern</button></div>
             </form>
           </section>
           <section class="panel">
-            <h3>Zu- und Absagen</h3>
-            <div class="list" id="eventList"></div>
+            <h3>Kalender</h3>
+            <div class="calendar-tools">
+              <div class="field"><label for="calendarMonth">Monat</label><input id="calendarMonth" type="month"></div>
+              <button class="btn-secondary" id="todayCalendarBtn" type="button">Heute</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
           </section>
         </div>
+        <section class="panel staff-panel">
+          <h3>Termine und Zu-/Absagen</h3>
+          <div class="meta" style="margin-bottom: 10px;"><span>Training: Absage bis 6 Stunden vorher frei.</span><span>Spiel: Absage bis 48 Stunden vorher frei.</span><span>Spaetere Absage: 10 EUR Strafe.</span></div>
+          <div class="list" id="eventList"></div>
+        </section>
+        <section class="panel staff-panel admin-only">
+          <h3>Strafen</h3>
+          <div class="list" id="fineList"></div>
+        </section>
       </section>
 
       <section class="view" id="polls">
@@ -1259,6 +1377,7 @@ for update using (true);</textarea>
     const DEFAULT_PASSWORD = "fussball";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
+    const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
     const GRADE_FIELDS = ["speed", "stamina", "duels", "heading", "tactics", "form"];
     const AVAILABILITY_FIELDS = ["injured", "vacation", "unavailable", "youth"];
     const AVAILABILITY_LABELS = {
@@ -1332,6 +1451,7 @@ for update using (true);</textarea>
         position: "Mittelfeld",
         phone: "",
         group: "Mannschaft",
+        groups: ["Mannschaft"],
         notes: "",
         password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
@@ -1350,6 +1470,7 @@ for update using (true);</textarea>
     let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
+    let calendarMonth = new Date().toISOString().slice(0, 7);
 
     const titles = {
       dashboard: ["Uebersicht", "Alles Wichtige fuer Mannschaft, Training, Spiele und Gruppen."],
@@ -1418,6 +1539,18 @@ for update using (true);</textarea>
       return normalizeMemberRoles(player).join(", ");
     }
 
+    function normalizeGroups(player = {}) {
+      if (Array.isArray(player.groups) && player.groups.length) {
+        const groups = TEAM_GROUPS.filter((group) => player.groups.includes(group));
+        return groups.length ? groups : ["Mannschaft"];
+      }
+      return [player.group || "Mannschaft"];
+    }
+
+    function groupLabels(player) {
+      return normalizeGroups(player).join(", ");
+    }
+
     function loadClubs() {
       const stored = localStorage.getItem(CLUBS_KEY);
       const parsed = stored ? JSON.parse(stored) : null;
@@ -1457,6 +1590,8 @@ for update using (true);</textarea>
         password: player.password || DEFAULT_USER_PASSWORDS[player.name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: player.role || DEFAULT_USER_ROLES[player.name.trim().toLowerCase()] || "Spieler",
         memberRoles: normalizeMemberRoles(player),
+        groups: normalizeGroups(player),
+        group: normalizeGroups(player)[0],
         photo: player.photo || "",
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: normalizeAvailability(player.availability),
@@ -1471,6 +1606,7 @@ for update using (true);</textarea>
           position: "Mittelfeld",
           phone: "",
           group: "Mannschaft",
+          groups: ["Mannschaft"],
           notes: "",
           password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
           role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
@@ -1483,9 +1619,24 @@ for update using (true);</textarea>
 
       return {
         players: [...normalizedPlayers, ...missingPlayers],
-        events: loadedState.events || [],
+        events: (loadedState.events || []).map(normalizeEvent),
         polls: loadedState.polls || [],
         messages: loadedState.messages || []
+      };
+    }
+
+    function normalizeEvent(event) {
+      return {
+        id: event.id || crypto.randomUUID(),
+        type: event.type || "Training",
+        title: event.title || "Termin",
+        date: event.date || new Date().toISOString().slice(0, 10),
+        time: event.time || "18:00",
+        location: event.location || "",
+        details: event.details || "",
+        repeat: event.repeat || "",
+        repeatGroup: event.repeatGroup || "",
+        rsvps: event.rsvps || {}
       };
     }
 
@@ -1765,7 +1916,9 @@ for update using (true);</textarea>
       renderStats();
       renderPlayers();
       renderStaff();
+      renderCalendar();
       renderEvents();
+      renderFines();
       renderPolls();
       renderMessages();
       renderDashboard();
@@ -1822,10 +1975,11 @@ for update using (true);</textarea>
     }
 
     function renderStats() {
-      $("#statPlayers").textContent = state.players.filter((player) => hasMemberRole(player, "Spieler")).length;
+      const roster = rosterPlayers();
+      $("#statPlayers").textContent = roster.filter((player) => isActiveToday(player)).length;
+      $("#statInjured").textContent = roster.filter((player) => statusActiveToday(player, "injured")).length;
+      $("#statUnavailable").textContent = roster.filter((player) => statusActiveToday(player, "unavailable")).length;
       $("#statEvents").textContent = state.events.filter((event) => new Date(event.date + "T" + event.time) >= new Date()).length;
-      $("#statPolls").textContent = state.polls.length;
-      $("#statMessages").textContent = state.messages.length;
     }
 
     function renderPlayers() {
@@ -1853,9 +2007,10 @@ for update using (true);</textarea>
                   <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
-              <span class="chip">${escapeHtml(player.group)}</span>
+              <span class="chip">${escapeHtml(groupLabels(player))}</span>
             </div>
             ${renderAvailabilityLine(player)}
+            ${renderPlayerCalendarStats(player)}
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() ? renderPerformanceSummary(player) : ""}
             ${canManage() ? `
@@ -1886,7 +2041,7 @@ for update using (true);</textarea>
                 <div class="meta"><span>${escapeHtml(memberRoleLabels(person))}</span><span>${escapeHtml(person.role || "Spieler")}</span><span>${escapeHtml(person.phone || "Keine Telefonnummer")}</span></div>
               </div>
             </div>
-            <span class="chip">${escapeHtml(person.group)}</span>
+            <span class="chip">${escapeHtml(groupLabels(person))}</span>
           </div>
           ${person.notes ? `<p class="meta">${escapeHtml(person.notes)}</p>` : ""}
           ${canManage() ? `
@@ -1899,6 +2054,144 @@ for update using (true);</textarea>
       });
     }
 
+    function rosterPlayers() {
+      return state.players.filter((player) => hasMemberRole(player, "Spieler"));
+    }
+
+    function statusActiveToday(player, field) {
+      const availability = normalizeAvailability(player.availability);
+      const today = isoDate(new Date());
+      const item = availability[field];
+      return Boolean(item?.active && dateInPeriod(today, item.from, item.to));
+    }
+
+    function isActiveToday(player) {
+      return !["injured", "vacation", "unavailable"].some((field) => statusActiveToday(player, field));
+    }
+
+    function eventSupportsRsvp(event) {
+      return ["Training", "Spiel"].includes(event.type);
+    }
+
+    function eventDateTime(event) {
+      return new Date(`${event.date}T${event.time || "00:00"}`);
+    }
+
+    function eventDeadline(event) {
+      const hours = event.type === "Spiel" ? 48 : 6;
+      return new Date(eventDateTime(event).getTime() - hours * 60 * 60 * 1000);
+    }
+
+    function isLateAbsence(event) {
+      return new Date() > eventDeadline(event);
+    }
+
+    function rsvpRecord(event, playerName) {
+      const raw = (event.rsvps || {})[playerName];
+      if (!raw) return null;
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0 };
+      return { status: raw.status || "yes", updatedAt: raw.updatedAt || "", fine: Number(raw.fine || 0) };
+    }
+
+    function playerUnavailableForEvent(player, event) {
+      const availability = normalizeAvailability(player.availability);
+      return PERIOD_AVAILABILITY_FIELDS.some((field) => {
+        const item = availability[field];
+        return item.active && dateInPeriod(event.date, item.from, item.to);
+      });
+    }
+
+    function dateInPeriod(date, from, to) {
+      if (!from && !to) return true;
+      return (!from || date >= from) && (!to || date <= to);
+    }
+
+    function effectiveRsvp(event, player) {
+      if (!eventSupportsRsvp(event)) return "none";
+      if (playerUnavailableForEvent(player, event)) return "no";
+      const record = rsvpRecord(event, player.name);
+      return record ? record.status : "yes";
+    }
+
+    function countRsvp(event, status) {
+      return rosterPlayers().filter((player) => effectiveRsvp(event, player) === status).length;
+    }
+
+    function playerCalendarStats(player) {
+      const now = new Date();
+      return state.events.reduce((stats, event) => {
+        if (!eventSupportsRsvp(event)) return stats;
+        const status = effectiveRsvp(event, player);
+        const past = eventDateTime(event) <= now;
+        const record = rsvpRecord(event, player.name);
+        stats.fines += record?.fine || 0;
+        if (status === "no") stats.absences += 1;
+        if (event.type === "Training" && past && status === "yes") stats.trainings += 1;
+        if (event.type === "Spiel" && status === "yes") stats.squad += 1;
+        return stats;
+      }, { trainings: 0, absences: 0, squad: 0, fines: 0 });
+    }
+
+    function renderPlayerCalendarStats(player) {
+      const stats = playerCalendarStats(player);
+      return `
+        <div class="meta">
+          <span>Training: ${stats.trainings}</span>
+          <span>Absagen: ${stats.absences}</span>
+          <span>Kader: ${stats.squad}</span>
+          <span>Strafen: ${stats.fines.toFixed(2).replace(".", ",")} EUR</span>
+        </div>
+      `;
+    }
+
+    function renderCalendar() {
+      const grid = $("#calendarGrid");
+      const monthInput = $("#calendarMonth");
+      if (!grid || !monthInput) return;
+      monthInput.value = calendarMonth;
+      grid.innerHTML = "";
+      ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((day) => {
+        const label = document.createElement("div");
+        label.className = "calendar-weekday";
+        label.textContent = day;
+        grid.appendChild(label);
+      });
+
+      const first = new Date(`${calendarMonth}-01T00:00`);
+      const start = new Date(first);
+      const mondayOffset = (first.getDay() + 6) % 7;
+      start.setDate(first.getDate() - mondayOffset);
+
+      for (let i = 0; i < 42; i += 1) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + i);
+        const dateStr = isoDate(date);
+        const holiday = holidayName(dateStr);
+        const dayEvents = state.events
+          .filter((event) => event.date === dateStr)
+          .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+        const cell = document.createElement("div");
+        cell.className = [
+          "calendar-day",
+          date.getMonth() !== first.getMonth() ? "outside" : "",
+          date.getDay() === 0 ? "sunday" : "",
+          holiday ? "holiday" : ""
+        ].filter(Boolean).join(" ");
+        cell.innerHTML = `
+          <div class="calendar-date"><span>${date.getDate()}</span>${holiday ? `<span class="holiday-name">${escapeHtml(holiday)}</span>` : ""}</div>
+          ${dayEvents.map((event) => `<div class="calendar-event ${eventClass(event)}">${escapeHtml(event.time || "")} ${escapeHtml(event.title)}</div>`).join("")}
+        `;
+        grid.appendChild(cell);
+      }
+    }
+
+    function eventClass(event) {
+      if (event.type === "Spiel") return "game";
+      if (event.type === "Geburtstag") return "birthday";
+      if (event.type === "Event" || event.type === "Sonstiges") return "other";
+      return "";
+    }
+
     function renderEvents() {
       const list = $("#eventList");
       list.innerHTML = "";
@@ -1909,25 +2202,116 @@ for update using (true);</textarea>
         .forEach((event) => {
           const yes = countRsvp(event, "yes");
           const no = countRsvp(event, "no");
-          const maybe = countRsvp(event, "maybe");
+          const player = playerByName(activeUser());
+          const myStatus = player && hasMemberRole(player, "Spieler") ? effectiveRsvp(event, player) : "none";
+          const deadline = eventSupportsRsvp(event) ? eventDeadline(event).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+          const lateText = eventSupportsRsvp(event) && isLateAbsence(event) ? "Spaete Absage kostet 10 EUR." : "";
           list.appendChild(item(`
             <div class="item-head">
               <div>
                 <p class="item-title">${escapeHtml(event.title)}</p>
                 <div class="meta"><span>${escapeHtml(event.type)}</span><span>${formatDate(event.date, event.time)}</span><span>${escapeHtml(event.location || "Ort offen")}</span></div>
               </div>
-              <span class="chip blue">${yes} Zusagen</span>
+              ${eventSupportsRsvp(event) ? `<span class="chip blue">${yes} Zusagen</span>` : `<span class="chip">${escapeHtml(event.type)}</span>`}
             </div>
             ${event.details ? `<p class="meta">${escapeHtml(event.details)}</p>` : ""}
-            <div class="meta"><span>${yes} dabei</span><span>${no} raus</span><span>${maybe} vielleicht</span></div>
+            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} dabei</span><span>${no} raus</span><span>Dein Status: ${escapeHtml(rsvpLabel(myStatus))}</span><span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
             <div class="row-actions">
-              <button class="mini yes" data-rsvp="${event.id}" data-status="yes">Zusage</button>
-              <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
-              <button class="mini maybe" data-rsvp="${event.id}" data-status="maybe">Vielleicht</button>
+              ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? `
+                <button class="mini yes" data-rsvp="${event.id}" data-status="yes">Zusage</button>
+                <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
+              ` : ""}
               ${canManage() ? `<button class="mini no" data-delete-event="${event.id}">Loeschen</button>` : ""}
             </div>
           `));
         });
+    }
+
+    function renderFines() {
+      const list = $("#fineList");
+      if (!list) return;
+      list.innerHTML = "";
+      const rows = [];
+      state.events.forEach((event) => {
+        Object.entries(event.rsvps || {}).forEach(([name, value]) => {
+          const record = typeof value === "string" ? { status: value, fine: 0 } : value;
+          if (record.fine) rows.push({ name, event, fine: record.fine, updatedAt: record.updatedAt || "" });
+        });
+      });
+      if (!rows.length) return empty(list, "Noch keine Strafen erfasst.");
+      rows
+        .sort((a, b) => `${b.event.date}${b.event.time}`.localeCompare(`${a.event.date}${a.event.time}`))
+        .forEach((row) => list.appendChild(item(`
+          <div class="item-head">
+            <div>
+              <p class="item-title">${escapeHtml(row.name)}</p>
+              <div class="meta"><span>${escapeHtml(row.event.title)}</span><span>${formatDate(row.event.date, row.event.time)}</span><span>${row.updatedAt ? new Date(row.updatedAt).toLocaleString("de-DE") : ""}</span></div>
+            </div>
+            <span class="chip red">${Number(row.fine).toFixed(2).replace(".", ",")} EUR</span>
+          </div>
+        `)));
+    }
+
+    function rsvpLabel(status) {
+      return { yes: "zugesagt", no: "abgesagt", none: "-" }[status] || status;
+    }
+
+    function isoDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function addDays(date, days) {
+      const copy = new Date(date);
+      copy.setDate(copy.getDate() + days);
+      return copy;
+    }
+
+    function addMonths(date, months) {
+      const copy = new Date(date);
+      copy.setMonth(copy.getMonth() + months);
+      return copy;
+    }
+
+    function holidayName(dateStr) {
+      const date = new Date(`${dateStr}T00:00`);
+      const year = date.getFullYear();
+      const fixed = {
+        [`${year}-01-01`]: "Neujahr",
+        [`${year}-05-01`]: "Tag der Arbeit",
+        [`${year}-10-03`]: "Tag der Einheit",
+        [`${year}-12-25`]: "1. Weihnachtstag",
+        [`${year}-12-26`]: "2. Weihnachtstag"
+      };
+      if (fixed[dateStr]) return fixed[dateStr];
+      const easter = easterDate(year);
+      const movable = new Map([
+        [isoDate(addDays(easter, -2)), "Karfreitag"],
+        [isoDate(addDays(easter, 1)), "Ostermontag"],
+        [isoDate(addDays(easter, 39)), "Himmelfahrt"],
+        [isoDate(addDays(easter, 50)), "Pfingstmontag"]
+      ]);
+      return movable.get(dateStr) || "";
+    }
+
+    function easterDate(year) {
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const month = Math.floor((h + l - 7 * m + 114) / 31);
+      const day = ((h + l - 7 * m + 114) % 31) + 1;
+      return new Date(year, month - 1, day);
     }
 
     function renderPolls() {
@@ -2017,10 +2401,6 @@ for update using (true);</textarea>
       `)));
     }
 
-    function countRsvp(event, status) {
-      return Object.values(event.rsvps || {}).filter((value) => value === status).length;
-    }
-
     function item(html) {
       const el = document.createElement("article");
       el.className = "item";
@@ -2059,6 +2439,21 @@ for update using (true);</textarea>
 
     function groupOptions(selected) {
       return optionList(["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"], selected);
+    }
+
+    function groupEditor(player) {
+      const groups = normalizeGroups(player);
+      return TEAM_GROUPS.map((group) => `
+        <label class="check-row">
+          <input type="checkbox" name="group${group}" ${groups.includes(group) ? "checked" : ""}>
+          ${escapeHtml(group)}
+        </label>
+      `).join("");
+    }
+
+    function groupsFromValues(values) {
+      const groups = TEAM_GROUPS.filter((group) => values[`group${group}`] === "on");
+      return groups.length ? groups : ["Mannschaft"];
     }
 
     function roleOptions(selected) {
@@ -2133,7 +2528,7 @@ for update using (true);</textarea>
         player.position,
         player.role,
         memberRoleLabels(player),
-        player.group,
+        groupLabels(player),
         player.phone,
         player.notes,
         availability
@@ -2211,8 +2606,8 @@ for update using (true);</textarea>
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
         <div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
-        <div class="field"><label>Gruppe</label><select name="group">${groupOptions(player.group)}</select></div>
         <div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>
+        <div class="field full"><label>Gruppen</label><div class="inline-checks">${groupEditor(player)}</div></div>
         <div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>
         <div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>
         <div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>
@@ -2257,6 +2652,34 @@ for update using (true);</textarea>
       });
     }
 
+    function createEventsFromForm(values) {
+      const repeat = values.repeat || "";
+      const repeatUntil = values.repeatUntil || values.date;
+      const repeatGroup = repeat ? crypto.randomUUID() : "";
+      const dates = [];
+      let cursor = new Date(`${values.date}T00:00`);
+      const end = new Date(`${repeatUntil}T00:00`) < cursor ? new Date(cursor) : new Date(`${repeatUntil}T00:00`);
+      while (cursor <= end && dates.length < 80) {
+        dates.push(isoDate(cursor));
+        if (!repeat) break;
+        if (repeat === "weekly") cursor = addDays(cursor, 7);
+        if (repeat === "biweekly") cursor = addDays(cursor, 14);
+        if (repeat === "monthly") cursor = addMonths(cursor, 1);
+      }
+      return dates.map((date) => normalizeEvent({
+        id: crypto.randomUUID(),
+        type: values.type,
+        title: values.title,
+        date,
+        time: values.time,
+        location: values.location,
+        details: values.details,
+        repeat,
+        repeatGroup,
+        rsvps: {}
+      }));
+    }
+
     function switchView(viewName) {
       const button = $(`.nav button[data-view="${viewName}"]`);
       if (!button || button.hidden || !canAccess(button.dataset.minRole)) return;
@@ -2276,13 +2699,15 @@ for update using (true);</textarea>
       event.preventDefault();
       if (!canManage()) return;
       const values = formValues(event.currentTarget);
+      const groups = groupsFromValues(values);
       state.players.push({
         id: crypto.randomUUID(),
         name: values.name,
         position: values.position,
         phone: values.phone,
         role: values.role,
-        group: values.group,
+        group: groups[0],
+        groups,
         notes: values.notes,
         memberRoles: memberRolesFromValues(values),
         password: DEFAULT_PASSWORD,
@@ -2298,7 +2723,8 @@ for update using (true);</textarea>
     $("#eventForm").addEventListener("submit", (event) => {
       event.preventDefault();
       if (!canManage()) return;
-      state.events.push({ id: crypto.randomUUID(), ...formValues(event.currentTarget), rsvps: {} });
+      const values = formValues(event.currentTarget);
+      state.events.push(...createEventsFromForm(values));
       event.currentTarget.reset();
       saveState();
     });
@@ -2403,7 +2829,8 @@ for update using (true);</textarea>
       player.name = values.name.trim() || player.name;
       player.position = values.position;
       player.phone = values.phone.trim();
-      player.group = values.group;
+      player.groups = groupsFromValues(values);
+      player.group = player.groups[0];
       player.role = values.role;
       player.memberRoles = memberRolesFromValues(values);
       player.notes = values.notes.trim();
@@ -2456,8 +2883,23 @@ for update using (true);</textarea>
       if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);
       if (rsvpId) {
         const item = state.events.find((eventItem) => eventItem.id === rsvpId);
+        const player = playerByName(activeUser());
+        if (!item || !player || !hasMemberRole(player, "Spieler") || !eventSupportsRsvp(item)) return;
+        if (target.dataset.status === "yes" && playerUnavailableForEvent(player, item)) {
+          window.alert("Der Spieler ist fuer diesen Zeitraum als Urlaub, verletzt oder nicht verfuegbar markiert.");
+          return;
+        }
         item.rsvps = item.rsvps || {};
-        item.rsvps[activeUser()] = target.dataset.status;
+        const oldRecord = rsvpRecord(item, player.name);
+        const fine = target.dataset.status === "no" && isLateAbsence(item) ? 10 : 0;
+        item.rsvps[player.name] = {
+          status: target.dataset.status,
+          updatedAt: new Date().toISOString(),
+          fine: fine || (target.dataset.status === "no" ? oldRecord?.fine || 0 : 0)
+        };
+        if (item.rsvps[player.name].fine) {
+          setStatus(`Spaete Absage: 10 EUR Strafe fuer ${player.name}.`);
+        }
       }
       if (voteId) {
         const poll = state.polls.find((pollItem) => pollItem.id === voteId);
@@ -2468,6 +2910,14 @@ for update using (true);</textarea>
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
+    $("#calendarMonth").addEventListener("change", () => {
+      calendarMonth = $("#calendarMonth").value || new Date().toISOString().slice(0, 7);
+      renderCalendar();
+    });
+    $("#todayCalendarBtn").addEventListener("click", () => {
+      calendarMonth = new Date().toISOString().slice(0, 7);
+      renderCalendar();
+    });
     $("#messageGroup").addEventListener("change", renderMessages);
     $("#currentUser").addEventListener("input", () => {
       localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
