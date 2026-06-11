@@ -1066,7 +1066,14 @@ for update using (true);</textarea>
     }
 
     function canAccess(minRole) {
-      return ROLE_LEVELS[activeRole()] >= ROLE_LEVELS[minRole || "Spieler"];
+      const normalizedRole = String(minRole || "Spieler").toLowerCase();
+      const requiredRole = {
+        player: "Spieler",
+        spieler: "Spieler",
+        admin: "Admin",
+        superadmin: "Superadmin"
+      }[normalizedRole] || "Spieler";
+      return ROLE_LEVELS[activeRole()] >= ROLE_LEVELS[requiredRole];
     }
 
     function clubDocumentId() {
