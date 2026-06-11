@@ -1276,7 +1276,7 @@
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>
         </div>
-        <section class="panel staff-panel admin-only">
+        <section class="panel staff-panel admin-only" id="footballApiPanel" hidden>
           <h3>Fussball.de</h3>
           <div class="form-grid">
             <div class="field full">
@@ -3810,23 +3810,23 @@ for update using (true);</textarea>
       saveClubs();
       render();
     });
-    $("#footballTeamSelect").addEventListener("change", () => {
+    $("#footballTeamSelect")?.addEventListener("change", () => {
       settings.footballTeamId = $("#footballTeamSelect").value;
       saveSettings();
       renderFootballApi();
     });
-    $("#footballTokenInput").addEventListener("change", () => {
+    $("#footballTokenInput")?.addEventListener("change", () => {
       syncFootballInputs();
       renderFootballApi();
     });
-    $("#footballClubInput").addEventListener("change", () => {
+    $("#footballClubInput")?.addEventListener("change", () => {
       syncFootballInputs();
       renderFootballApi();
     });
-    $("#loadFootballTeamsBtn").addEventListener("click", loadFootballTeams);
-    $("#importFootballGamesBtn").addEventListener("click", importFootballGames);
-    $("#importFootballResultsBtn").addEventListener("click", importFootballResults);
-    $("#loadFootballTableBtn").addEventListener("click", loadFootballTable);
+    $("#loadFootballTeamsBtn")?.addEventListener("click", loadFootballTeams);
+    $("#importFootballGamesBtn")?.addEventListener("click", importFootballGames);
+    $("#importFootballResultsBtn")?.addEventListener("click", importFootballResults);
+    $("#loadFootballTableBtn")?.addEventListener("click", loadFootballTable);
     $("#syncBtn").addEventListener("click", syncWithSupabase);
     $("#exportBtn").addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
