@@ -653,11 +653,47 @@ for update using (true);</textarea>
     const STORE_KEY = "soccer-dtr-club-state";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
+    const DEFAULT_PLAYER_NAMES = [
+      "AhmadAli",
+      "Arsenii",
+      "Ben Gaz deutschland",
+      "Edu Klaus",
+      "Fabi Bierau",
+      "Fynn Boehle",
+      "Gaith",
+      "Ibush Gashi",
+      "Jakob",
+      "Jan Cegledi",
+      "Johannes Damm",
+      "Jonas Schwind",
+      "Jonathan Gaz",
+      "Lenny Bergunde",
+      "Luca Becker",
+      "Luis Pollmann",
+      "Lukas Stark",
+      "Mamadou Diallo",
+      "Marko Rujevic",
+      "Marvin Donges",
+      "Marvin Weber",
+      "Max Reitz",
+      "Michael Becker",
+      "Mo",
+      "Niko Arnold",
+      "Pathe",
+      "Steven Simmons",
+      "Thore Ruppersberger",
+      "Tristan Seipp"
+    ];
 
     const defaultState = {
-      players: [
-        { id: crypto.randomUUID(), name: "Max Beispiel", position: "Mittelfeld", phone: "", group: "Mannschaft", notes: "Demo-Spieler" }
-      ],
+      players: DEFAULT_PLAYER_NAMES.map((name) => ({
+        id: crypto.randomUUID(),
+        name,
+        position: "Mittelfeld",
+        phone: "",
+        group: "Mannschaft",
+        notes: ""
+      })),
       events: [],
       polls: [],
       messages: []
