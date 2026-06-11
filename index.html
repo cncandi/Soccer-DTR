@@ -1569,6 +1569,9 @@ for update using (true);</textarea>
     let state = loadState();
     let settings = loadSettings();
     let calendarMonth = new Date().toISOString().slice(0, 7);
+    let syncTimer = null;
+    let syncInProgress = false;
+    let pendingCloudSync = false;
 
     const titles = {
       dashboard: ["Uebersicht", "Alles Wichtige fuer Mannschaft, Training, Spiele und Gruppen."],
@@ -1790,15 +1793,17 @@ for update using (true);</textarea>
       return stored ? JSON.parse(stored) : { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY, table: "club_documents" };
     }
 
-    function saveState() {
+    function saveState(options = {}) {
       localStorage.setItem(stateKey(), JSON.stringify(state));
       render();
+      if (options.sync !== false) queueCloudSync();
     }
 
-    function saveClubs() {
+    function saveClubs(options = {}) {
       localStorage.setItem(CLUBS_KEY, JSON.stringify(clubs));
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       renderClubSelect();
+      if (options.sync !== false) queueCloudSync();
     }
 
     function saveSettings() {
@@ -1982,35 +1987,61 @@ for update using (true);</textarea>
       return window.supabase.createClient(settings.url, settings.key);
     }
 
-    async function syncWithSupabase() {
+    function queueCloudSync() {
+      if (!settings.url || !settings.key || !window.supabase) return;
+      if (syncInProgress) {
+        pendingCloudSync = true;
+        return;
+      }
+      window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => {
+        syncWithSupabase({ silent: true });
+      }, 800);
+    }
+
+    async function syncWithSupabase(options = {}) {
+      if (syncInProgress) {
+        pendingCloudSync = true;
+        return;
+      }
       const client = getSupabaseClient();
       if (!client) {
         setStatus("Supabase ist noch nicht konfiguriert. Lokale Daten bleiben aktiv.");
         return;
       }
 
-      setStatus("Synchronisiere mit Supabase ...");
-      await syncClubs(client);
-      const { data, error } = await client.from(settings.table).select("document").eq("id", clubDocumentId()).maybeSingle();
-      if (error) {
-        setStatus("Supabase-Fehler: " + error.message);
-        return;
-      }
+      syncInProgress = true;
+      pendingCloudSync = false;
+      if (!options.silent) setStatus("Synchronisiere mit Supabase ...");
+      try {
+        await syncClubs(client);
+        const { data, error } = await client.from(settings.table).select("document").eq("id", clubDocumentId()).maybeSingle();
+        if (error) {
+          setStatus("Supabase-Fehler: " + error.message);
+          return;
+        }
 
-      if (data && data.document) {
-        state = mergeState(state, data.document);
-      }
+        if (data && data.document) {
+          state = mergeState(state, data.document);
+        }
 
-      const payload = { id: clubDocumentId(), document: state, updated_at: new Date().toISOString() };
-      const result = await client.from(settings.table).upsert(payload);
-      if (result.error) {
-        setStatus("Supabase-Fehler: " + result.error.message);
-        return;
-      }
+        const payload = { id: clubDocumentId(), document: state, updated_at: new Date().toISOString() };
+        const result = await client.from(settings.table).upsert(payload);
+        if (result.error) {
+          setStatus("Supabase-Fehler: " + result.error.message);
+          return;
+        }
 
-      localStorage.setItem(stateKey(), JSON.stringify(state));
-      setStatus("Synchronisiert: " + new Date().toLocaleTimeString("de-DE"));
-      render();
+        localStorage.setItem(stateKey(), JSON.stringify(state));
+        setStatus("Synchronisiert: " + new Date().toLocaleTimeString("de-DE"));
+        render();
+      } finally {
+        syncInProgress = false;
+        if (pendingCloudSync) {
+          pendingCloudSync = false;
+          queueCloudSync();
+        }
+      }
     }
 
     async function syncClubs(client) {
@@ -2018,7 +2049,7 @@ for update using (true);</textarea>
       if (data && data.document && Array.isArray(data.document.clubs)) {
         clubs = mergeClubs(clubs, data.document.clubs.map(normalizeClub));
         if (!clubs.some((club) => club.id === currentClubId)) currentClubId = clubs[0].id;
-        saveClubs();
+        saveClubs({ sync: false });
       }
 
       await client.from(settings.table).upsert({
@@ -2063,6 +2094,7 @@ for update using (true);</textarea>
       applyClubTheme();
       applyPermissions();
       renderClubSelect();
+      renderLoginUsers();
       renderClubDesignForm();
       renderStatus();
       renderStats();
@@ -3332,6 +3364,7 @@ for update using (true);</textarea>
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       state = loadState();
       render();
+      syncWithSupabase({ silent: true });
     }
 
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
@@ -3371,6 +3404,7 @@ for update using (true);</textarea>
       updateRoleFromUser();
       setLoginVisible(false);
       render();
+      syncWithSupabase({ silent: true });
     });
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
@@ -3412,6 +3446,7 @@ for update using (true);</textarea>
     $("#settingsForm").elements.table.value = settings.table;
     render();
     setLoginVisible(!restoredLogin);
+    syncWithSupabase({ silent: true });
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
