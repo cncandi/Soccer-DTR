@@ -14,6 +14,15 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Export der lokalen Daten als JSON
 - Supabase-Sync vorbereitet ueber eine zentrale JSON-Dokument-Tabelle
 - Mobile Webapp fuer iPhone, iPad und Android mit Home-Bildschirm-Manifest
+- Mandantenfaehig fuer mehrere Vereine mit getrennten Vereinsdaten
+
+## Rechte
+
+- Superadmin: kann alles inklusive Supabase-/Datenbank-Einstellungen
+- Admin: kann Vereine, Spieler, Termine, Abstimmungen und Mitteilungen verwalten, aber keine Datenbank-Einstellungen aendern
+- Spieler: kann Zu- und Absagen, Abstimmungen und Mitteilungen nutzen
+
+Die Rollen sind im Code fest Namen zugeordnet. Aktuell ist `Max Reitz` Superadmin und `Steven Simmons` Admin; alle anderen Namen sind Spieler.
 
 ## Mobile Nutzung
 

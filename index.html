@@ -122,6 +122,44 @@
       margin-bottom: 10px;
     }
 
+    .tenant-card {
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(255,255,255,.06);
+    }
+
+    .tenant-card label {
+      display: block;
+      margin-bottom: 6px;
+      color: #d5e8df;
+      font-size: .84rem;
+    }
+
+    .tenant-card select, .tenant-card input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.2);
+      background: #0a2017;
+      color: #fff;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .tenant-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .tenant-actions button {
+      min-height: 40px;
+      padding: 0 12px;
+      background: #d8f3dc;
+      color: #102b20;
+      font-weight: 800;
+    }
+
     .nav {
       display: grid;
       gap: 8px;
@@ -180,6 +218,10 @@
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
+    }
+
+    .mobile-club-field {
+      display: none;
     }
 
     .btn-primary {
@@ -516,6 +558,10 @@
         color: #fff;
       }
 
+      .tenant-card {
+        display: none;
+      }
+
       .nav {
         position: fixed;
         left: 0;
@@ -523,7 +569,7 @@
         bottom: 0;
         z-index: 20;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
         gap: 0;
         padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
         background: rgba(255,255,255,.96);
@@ -582,6 +628,11 @@
 
       .actions button {
         width: 100%;
+      }
+
+      .mobile-club-field {
+        display: grid;
+        gap: 6px;
       }
 
       .panel {
@@ -663,21 +714,29 @@
         <label for="currentUser">Angemeldeter Name</label>
         <input id="currentUser" autocomplete="name">
         <label for="currentRole">Rolle</label>
-        <select id="currentRole">
-          <option>Trainer</option>
+        <select id="currentRole" disabled>
+          <option>Superadmin</option>
+          <option>Admin</option>
           <option>Spieler</option>
-          <option>Mannschaftsrat</option>
-          <option>Kasse</option>
         </select>
       </section>
 
+      <section class="tenant-card">
+        <label for="clubSelect">Verein</label>
+        <select id="clubSelect"></select>
+        <div class="tenant-actions admin-only">
+          <input id="newClubName" placeholder="Neuer Verein">
+          <button id="addClubBtn" type="button">+</button>
+        </div>
+      </section>
+
       <nav class="nav" aria-label="Hauptnavigation">
-        <button class="active" data-view="dashboard">Uebersicht</button>
-        <button data-view="players">Spieler</button>
-        <button data-view="events">Training & Spiele</button>
-        <button data-view="polls">Abstimmungen</button>
-        <button data-view="messages">Mitteilungen</button>
-        <button data-view="settings">Supabase</button>
+        <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
+        <button data-view="players" data-min-role="admin">Spieler</button>
+        <button data-view="events" data-min-role="player">Training & Spiele</button>
+        <button data-view="polls" data-min-role="player">Abstimmungen</button>
+        <button data-view="messages" data-min-role="player">Mitteilungen</button>
+        <button data-view="settings" data-min-role="superadmin">Supabase</button>
       </nav>
 
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
@@ -692,6 +751,10 @@
         <div class="actions">
           <button class="btn-secondary" id="exportBtn">Export</button>
           <button class="btn-primary" id="syncBtn">Synchronisieren</button>
+        </div>
+        <div class="mobile-club-field">
+          <label for="mobileClubSelect">Verein</label>
+          <select id="mobileClubSelect"></select>
         </div>
       </section>
 
@@ -717,7 +780,7 @@
 
       <section class="view" id="players">
         <div class="grid two">
-          <section class="panel">
+          <section class="panel admin-only">
             <h3>Spieler anlegen</h3>
             <form id="playerForm" class="form-grid">
               <div class="field"><label>Name</label><input name="name" required></div>
@@ -737,7 +800,7 @@
 
       <section class="view" id="events">
         <div class="grid two">
-          <section class="panel">
+          <section class="panel admin-only">
             <h3>Termin erstellen</h3>
             <form id="eventForm" class="form-grid">
               <div class="field"><label>Typ</label><select name="type"><option>Training</option><option>Spiel</option><option>Besprechung</option></select></div>
@@ -758,7 +821,7 @@
 
       <section class="view" id="polls">
         <div class="grid two">
-          <section class="panel">
+          <section class="panel admin-only">
             <h3>Abstimmung erstellen</h3>
             <form id="pollForm" class="form-grid">
               <div class="field full"><label>Frage</label><input name="question" required></div>
@@ -803,7 +866,7 @@ Nein</textarea></div>
 
       <section class="view" id="settings">
         <div class="grid two">
-          <section class="panel config">
+          <section class="panel config superadmin-only">
             <h3>Supabase verbinden</h3>
             <form id="settingsForm" class="form-grid">
               <div class="field full"><label>Supabase URL</label><input name="url" placeholder="https://...supabase.co"></div>
@@ -838,8 +901,12 @@ for update using (true);</textarea>
 
   <script>
     const STORE_KEY = "soccer-dtr-club-state";
+    const CLUBS_KEY = "soccer-dtr-clubs";
+    const CURRENT_CLUB_KEY = "soccer-dtr-current-club";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
+    const DEFAULT_CLUB_ID = "default-club";
+    const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const DEFAULT_SUPABASE_URL = "https://njthmqdpncnpjycedhea.supabase.co";
     const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdGhtcWRwbmNucGp5Y2VkaGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjU0NDAsImV4cCI6MjA5Njc0MTQ0MH0.60Jz-P4NRHDEe6_eELEszkdcpwqh4vulz-rH9QXLdxo";
     const DEFAULT_PLAYER_NAMES = [
@@ -873,6 +940,10 @@ for update using (true);</textarea>
       "Thore Ruppersberger",
       "Tristan Seipp"
     ];
+    const DEFAULT_USER_ROLES = {
+      "max reitz": "Superadmin",
+      "steven simmons": "Admin"
+    };
 
     const defaultState = {
       players: DEFAULT_PLAYER_NAMES.map((name) => ({
@@ -888,6 +959,8 @@ for update using (true);</textarea>
       messages: []
     };
 
+    let clubs = loadClubs();
+    let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
 
@@ -903,9 +976,26 @@ for update using (true);</textarea>
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+    function loadClubs() {
+      const stored = localStorage.getItem(CLUBS_KEY);
+      const parsed = stored ? JSON.parse(stored) : null;
+      return parsed && parsed.length ? parsed : [{ id: DEFAULT_CLUB_ID, name: "Mein Verein" }];
+    }
+
+    function loadCurrentClubId() {
+      const stored = localStorage.getItem(CURRENT_CLUB_KEY);
+      return clubs.some((club) => club.id === stored) ? stored : clubs[0].id;
+    }
+
+    function stateKey(clubId = currentClubId) {
+      return `${STORE_KEY}:${clubId}`;
+    }
+
     function loadState() {
-      const stored = localStorage.getItem(STORE_KEY);
-      const loadedState = stored ? JSON.parse(stored) : structuredClone(defaultState);
+      const stored = localStorage.getItem(stateKey());
+      const legacyStored = currentClubId === DEFAULT_CLUB_ID ? localStorage.getItem(STORE_KEY) : null;
+      const source = stored || legacyStored;
+      const loadedState = source ? JSON.parse(source) : structuredClone(defaultState);
       return ensureDefaultPlayers(loadedState);
     }
 
@@ -936,8 +1026,14 @@ for update using (true);</textarea>
     }
 
     function saveState() {
-      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      localStorage.setItem(stateKey(), JSON.stringify(state));
       render();
+    }
+
+    function saveClubs() {
+      localStorage.setItem(CLUBS_KEY, JSON.stringify(clubs));
+      localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      renderClubSelect();
     }
 
     function saveSettings() {
@@ -947,6 +1043,38 @@ for update using (true);</textarea>
 
     function activeUser() {
       return $("#currentUser").value.trim() || "Unbekannt";
+    }
+
+    function activeRole() {
+      return $("#currentRole").value || "Spieler";
+    }
+
+    function roleForUser(name) {
+      return DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler";
+    }
+
+    function updateRoleFromUser() {
+      $("#currentRole").value = roleForUser(activeUser());
+    }
+
+    function canManage() {
+      return ROLE_LEVELS[activeRole()] >= ROLE_LEVELS.Admin;
+    }
+
+    function isSuperadmin() {
+      return activeRole() === "Superadmin";
+    }
+
+    function canAccess(minRole) {
+      return ROLE_LEVELS[activeRole()] >= ROLE_LEVELS[minRole || "Spieler"];
+    }
+
+    function clubDocumentId() {
+      return `${DOC_ID}:${currentClubId}`;
+    }
+
+    function clubsDocumentId() {
+      return `${DOC_ID}:clubs`;
     }
 
     function formatDate(date, time) {
@@ -968,7 +1096,8 @@ for update using (true);</textarea>
       }
 
       setStatus("Synchronisiere mit Supabase ...");
-      const { data, error } = await client.from(settings.table).select("document").eq("id", DOC_ID).maybeSingle();
+      await syncClubs(client);
+      const { data, error } = await client.from(settings.table).select("document").eq("id", clubDocumentId()).maybeSingle();
       if (error) {
         setStatus("Supabase-Fehler: " + error.message);
         return;
@@ -978,16 +1107,31 @@ for update using (true);</textarea>
         state = mergeState(state, data.document);
       }
 
-      const payload = { id: DOC_ID, document: state, updated_at: new Date().toISOString() };
+      const payload = { id: clubDocumentId(), document: state, updated_at: new Date().toISOString() };
       const result = await client.from(settings.table).upsert(payload);
       if (result.error) {
         setStatus("Supabase-Fehler: " + result.error.message);
         return;
       }
 
-      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      localStorage.setItem(stateKey(), JSON.stringify(state));
       setStatus("Synchronisiert: " + new Date().toLocaleTimeString("de-DE"));
       render();
+    }
+
+    async function syncClubs(client) {
+      const { data } = await client.from(settings.table).select("document").eq("id", clubsDocumentId()).maybeSingle();
+      if (data && data.document && Array.isArray(data.document.clubs)) {
+        clubs = mergeClubs(clubs, data.document.clubs);
+        if (!clubs.some((club) => club.id === currentClubId)) currentClubId = clubs[0].id;
+        saveClubs();
+      }
+
+      await client.from(settings.table).upsert({
+        id: clubsDocumentId(),
+        document: { clubs },
+        updated_at: new Date().toISOString()
+      });
     }
 
     function mergeState(localState, remoteState) {
@@ -1005,15 +1149,23 @@ for update using (true);</textarea>
       return [...map.values()];
     }
 
+    function mergeClubs(a, b) {
+      return mergeById(a, b).sort((clubA, clubB) => clubA.name.localeCompare(clubB.name, "de"));
+    }
+
     function setStatus(text) {
       $("#syncStatus").textContent = text;
     }
 
     function renderStatus() {
-      setStatus(settings.url && settings.key ? "Supabase bereit: " + settings.table : "Lokale Daten aktiv.");
+      const club = clubs.find((item) => item.id === currentClubId);
+      const mode = settings.url && settings.key ? `Supabase bereit: ${settings.table}` : "Lokale Daten aktiv.";
+      setStatus(`${club ? club.name : "Verein"} - ${mode}`);
     }
 
     function render() {
+      applyPermissions();
+      renderClubSelect();
       renderStatus();
       renderStats();
       renderPlayers();
@@ -1021,6 +1173,36 @@ for update using (true);</textarea>
       renderPolls();
       renderMessages();
       renderDashboard();
+    }
+
+    function applyPermissions() {
+      $$(".admin-only").forEach((el) => {
+        el.style.display = canManage() ? "" : "none";
+      });
+      $$(".superadmin-only").forEach((el) => {
+        el.style.display = isSuperadmin() ? "" : "none";
+      });
+      $$(".nav button").forEach((button) => {
+        button.hidden = !canAccess(button.dataset.minRole);
+      });
+      $("#exportBtn").hidden = !canManage();
+
+      const activeButton = $(".nav button.active:not([hidden])");
+      if (!activeButton) {
+        const firstAllowed = $(".nav button:not([hidden])");
+        if (firstAllowed) switchView(firstAllowed.dataset.view);
+      }
+    }
+
+    function renderClubSelect() {
+      const options = clubs
+        .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
+        .join("");
+      [$("#clubSelect"), $("#mobileClubSelect")].forEach((select) => {
+        if (!select) return;
+        select.innerHTML = options;
+        select.value = currentClubId;
+      });
     }
 
     function renderStats() {
@@ -1047,7 +1229,7 @@ for update using (true);</textarea>
               <span class="chip">${escapeHtml(player.group)}</span>
             </div>
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
-            <div class="row-actions"><button class="mini no" data-delete-player="${player.id}">Entfernen</button></div>
+            ${canManage() ? `<div class="row-actions"><button class="mini no" data-delete-player="${player.id}">Entfernen</button></div>` : ""}
           `));
         });
     }
@@ -1077,7 +1259,7 @@ for update using (true);</textarea>
               <button class="mini yes" data-rsvp="${event.id}" data-status="yes">Zusage</button>
               <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
               <button class="mini maybe" data-rsvp="${event.id}" data-status="maybe">Vielleicht</button>
-              <button class="mini no" data-delete-event="${event.id}">Loeschen</button>
+              ${canManage() ? `<button class="mini no" data-delete-event="${event.id}">Loeschen</button>` : ""}
             </div>
           `));
         });
@@ -1106,7 +1288,7 @@ for update using (true);</textarea>
               <p class="item-title">${escapeHtml(poll.question)}</p>
               <div class="meta"><span>${escapeHtml(poll.group)}</span><span>Ende: ${escapeHtml(poll.endsAt || "offen")}</span></div>
             </div>
-            <button class="mini no" data-delete-poll="${poll.id}">Loeschen</button>
+            ${canManage() ? `<button class="mini no" data-delete-poll="${poll.id}">Loeschen</button>` : ""}
           </div>
           <div class="grid">${options}</div>
         `));
@@ -1200,19 +1382,24 @@ for update using (true);</textarea>
       return escapeHtml(value).replace(/"/g, "&quot;");
     }
 
+    function switchView(viewName) {
+      const button = $(`.nav button[data-view="${viewName}"]`);
+      if (!button || button.hidden || !canAccess(button.dataset.minRole)) return;
+      $$(".nav button").forEach((nav) => nav.classList.remove("active"));
+      $$(".view").forEach((view) => view.classList.remove("active"));
+      button.classList.add("active");
+      $("#" + viewName).classList.add("active");
+      $("#viewTitle").textContent = titles[viewName][0];
+      $("#viewSubtitle").textContent = titles[viewName][1];
+    }
+
     $$(".nav button").forEach((button) => {
-      button.addEventListener("click", () => {
-        $$(".nav button").forEach((nav) => nav.classList.remove("active"));
-        $$(".view").forEach((view) => view.classList.remove("active"));
-        button.classList.add("active");
-        $("#" + button.dataset.view).classList.add("active");
-        $("#viewTitle").textContent = titles[button.dataset.view][0];
-        $("#viewSubtitle").textContent = titles[button.dataset.view][1];
-      });
+      button.addEventListener("click", () => switchView(button.dataset.view));
     });
 
     $("#playerForm").addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!canManage()) return;
       state.players.push({ id: crypto.randomUUID(), ...formValues(event.currentTarget) });
       event.currentTarget.reset();
       saveState();
@@ -1220,6 +1407,7 @@ for update using (true);</textarea>
 
     $("#eventForm").addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!canManage()) return;
       state.events.push({ id: crypto.randomUUID(), ...formValues(event.currentTarget), rsvps: {} });
       event.currentTarget.reset();
       saveState();
@@ -1227,6 +1415,7 @@ for update using (true);</textarea>
 
     $("#pollForm").addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!canManage()) return;
       const values = formValues(event.currentTarget);
       state.polls.push({
         id: crypto.randomUUID(),
@@ -1257,6 +1446,7 @@ for update using (true);</textarea>
 
     $("#settingsForm").addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!isSuperadmin()) return;
       settings = formValues(event.currentTarget);
       saveSettings();
       setStatus("Supabase-Konfiguration gespeichert.");
@@ -1272,9 +1462,9 @@ for update using (true);</textarea>
       const rsvpId = target.dataset.rsvp;
       const voteId = target.dataset.vote;
 
-      if (playerId) state.players = state.players.filter((player) => player.id !== playerId);
-      if (eventId) state.events = state.events.filter((item) => item.id !== eventId);
-      if (pollId) state.polls = state.polls.filter((poll) => poll.id !== pollId);
+      if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
+      if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
+      if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);
       if (rsvpId) {
         const item = state.events.find((eventItem) => eventItem.id === rsvpId);
         item.rsvps = item.rsvps || {};
@@ -1285,15 +1475,36 @@ for update using (true);</textarea>
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if (playerId || eventId || pollId || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId)) || rsvpId || voteId) saveState();
     });
 
     $("#messageGroup").addEventListener("change", renderMessages);
     $("#currentUser").addEventListener("input", () => {
       localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
-      renderMessages();
+      updateRoleFromUser();
+      render();
     });
-    $("#currentRole").addEventListener("change", () => localStorage.setItem("soccer-dtr-current-role", $("#currentRole").value));
+    function changeClub(clubId) {
+      currentClubId = clubId;
+      localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      state = loadState();
+      render();
+    }
+
+    $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
+    $("#mobileClubSelect").addEventListener("change", () => changeClub($("#mobileClubSelect").value));
+    $("#addClubBtn").addEventListener("click", () => {
+      if (!canManage()) return;
+      const name = $("#newClubName").value.trim();
+      if (!name) return;
+      const club = { id: crypto.randomUUID(), name };
+      clubs.push(club);
+      currentClubId = club.id;
+      state = loadState();
+      $("#newClubName").value = "";
+      saveClubs();
+      render();
+    });
     $("#syncBtn").addEventListener("click", syncWithSupabase);
     $("#exportBtn").addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
@@ -1305,8 +1516,9 @@ for update using (true);</textarea>
       URL.revokeObjectURL(url);
     });
 
-    $("#currentUser").value = localStorage.getItem("soccer-dtr-current-user") || "Trainer";
-    $("#currentRole").value = localStorage.getItem("soccer-dtr-current-role") || "Trainer";
+    $("#currentUser").value = localStorage.getItem("soccer-dtr-current-user") || "Max Reitz";
+    updateRoleFromUser();
+    renderClubSelect();
     $("#settingsForm").elements.url.value = settings.url;
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
