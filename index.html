@@ -1152,6 +1152,7 @@ for update using (true);</textarea>
     const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdGhtcWRwbmNucGp5Y2VkaGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjU0NDAsImV4cCI6MjA5Njc0MTQ0MH0.60Jz-P4NRHDEe6_eELEszkdcpwqh4vulz-rH9QXLdxo";
     const DEFAULT_PLAYER_NAMES = [
       "AhmadAli",
+      "Andreas Reitz",
       "Arsenii",
       "Ben Gaz deutschland",
       "Edu Klaus",
@@ -1182,8 +1183,12 @@ for update using (true);</textarea>
       "Tristan Seipp"
     ];
     const DEFAULT_USER_ROLES = {
+      "andreas reitz": "Superadmin",
       "max reitz": "Superadmin",
       "steven simmons": "Admin"
+    };
+    const DEFAULT_USER_PASSWORDS = {
+      "andreas reitz": "F###mill55"
     };
 
     const defaultState = {
@@ -1194,7 +1199,7 @@ for update using (true);</textarea>
         phone: "",
         group: "Mannschaft",
         notes: "",
-        password: DEFAULT_PASSWORD,
+        password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
         photo: "",
         alternatePositions: [],
@@ -1272,7 +1277,7 @@ for update using (true);</textarea>
     function ensureDefaultPlayers(loadedState) {
       const normalizedPlayers = (loadedState.players || []).map((player) => ({
         ...player,
-        password: player.password || DEFAULT_PASSWORD,
+        password: player.password || DEFAULT_USER_PASSWORDS[player.name.trim().toLowerCase()] || DEFAULT_PASSWORD,
         role: player.role || DEFAULT_USER_ROLES[player.name.trim().toLowerCase()] || "Spieler",
         photo: player.photo || "",
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
@@ -1288,7 +1293,7 @@ for update using (true);</textarea>
           phone: "",
           group: "Mannschaft",
           notes: "",
-          password: DEFAULT_PASSWORD,
+          password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
           role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
           photo: "",
           alternatePositions: [],

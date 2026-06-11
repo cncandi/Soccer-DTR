@@ -20,6 +20,7 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Startpasswort fuer alle Spieler: `fussball`; Admins koennen Passwoerter zuruecksetzen oder Temp-Passwoerter vergeben
 - Admins koennen Spieler bearbeiten und jedem Spieler eine Rolle zuweisen
 - Spielerprofile enthalten optional Bild, Alternativpositionen und nur fuer Admins sichtbare Leistungsdaten; die Bearbeitung erfolgt im Modal
+- `Andreas Reitz` ist als Default-Superadmin angelegt
 
 ## Rechte
 
