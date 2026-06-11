@@ -1193,10 +1193,10 @@
 
       <section class="view active" id="dashboard">
         <div class="grid stats">
-          <div class="stat"><strong id="statPlayers">0</strong><span>Aktive Spieler</span></div>
-          <div class="stat"><strong id="statInjured">0</strong><span>Verletzt</span></div>
-          <div class="stat"><strong id="statUnavailable">0</strong><span>Nicht verfuegbar</span></div>
-          <div class="stat"><strong id="statEvents">0</strong><span>Offene Termine</span></div>
+          <div class="stat"><strong id="statPlayers">0</strong><span>Verf&uuml;gbare Spieler</span></div>
+          <div class="stat"><strong id="statInjured">0</strong><span>Verletzte Spieler</span></div>
+          <div class="stat"><strong id="statUnavailable">0</strong><span>Nicht verf&uuml;gbar</span></div>
+          <div class="stat"><strong id="statVacation">0</strong><span>Urlaub</span></div>
         </div>
 
         <div class="grid two">
@@ -2266,7 +2266,7 @@ for update using (true);</textarea>
       $("#statPlayers").textContent = roster.filter((player) => isActiveToday(player)).length;
       $("#statInjured").textContent = roster.filter((player) => statusActiveToday(player, "injured")).length;
       $("#statUnavailable").textContent = roster.filter((player) => statusActiveToday(player, "unavailable")).length;
-      $("#statEvents").textContent = state.events.filter((event) => new Date(event.date + "T" + event.time) >= new Date()).length;
+      $("#statVacation").textContent = roster.filter((player) => statusActiveToday(player, "vacation")).length;
     }
 
     function renderPlayers() {
