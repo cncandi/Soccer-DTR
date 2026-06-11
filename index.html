@@ -364,6 +364,21 @@
       min-width: 0;
     }
 
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--text);
+      font-size: .9rem;
+      font-weight: 700;
+    }
+
+    .check-row input {
+      width: auto;
+      min-width: 18px;
+      height: 18px;
+    }
+
     .field.full { grid-column: 1 / -1; }
 
     label {
@@ -795,6 +810,15 @@
         <label for="loginClubSelect">Verein</label>
         <select id="loginClubSelect"></select>
       </div>
+      <div class="field">
+        <label for="loginPassword">Passwort</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </div>
+      <label class="check-row">
+        <input id="rememberLogin" type="checkbox">
+        Lokal angemeldet bleiben
+      </label>
+      <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary" type="submit">Anmelden</button>
     </form>
   </section>
@@ -1018,6 +1042,7 @@ for update using (true);</textarea>
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
+    const DEFAULT_PASSWORD = "fussball";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const DEFAULT_SUPABASE_URL = "https://njthmqdpncnpjycedhea.supabase.co";
     const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdGhtcWRwbmNucGp5Y2VkaGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjU0NDAsImV4cCI6MjA5Njc0MTQ0MH0.60Jz-P4NRHDEe6_eELEszkdcpwqh4vulz-rH9QXLdxo";
@@ -1064,7 +1089,8 @@ for update using (true);</textarea>
         position: "Mittelfeld",
         phone: "",
         group: "Mannschaft",
-        notes: ""
+        notes: "",
+        password: DEFAULT_PASSWORD
       })),
       events: [],
       polls: [],
@@ -1122,7 +1148,11 @@ for update using (true);</textarea>
     }
 
     function ensureDefaultPlayers(loadedState) {
-      const existingNames = new Set((loadedState.players || []).map((player) => player.name.trim().toLowerCase()));
+      const normalizedPlayers = (loadedState.players || []).map((player) => ({
+        ...player,
+        password: player.password || DEFAULT_PASSWORD
+      }));
+      const existingNames = new Set(normalizedPlayers.map((player) => player.name.trim().toLowerCase()));
       const missingPlayers = DEFAULT_PLAYER_NAMES
         .filter((name) => !existingNames.has(name.toLowerCase()))
         .map((name) => ({
@@ -1131,11 +1161,12 @@ for update using (true);</textarea>
           position: "Mittelfeld",
           phone: "",
           group: "Mannschaft",
-          notes: ""
+          notes: "",
+          password: DEFAULT_PASSWORD
         }));
 
       return {
-        players: [...(loadedState.players || []), ...missingPlayers],
+        players: [...normalizedPlayers, ...missingPlayers],
         events: loadedState.events || [],
         polls: loadedState.polls || [],
         messages: loadedState.messages || []
@@ -1164,7 +1195,7 @@ for update using (true);</textarea>
     }
 
     function isLoggedIn() {
-      return localStorage.getItem(LOGIN_KEY) === "true";
+      return localStorage.getItem(LOGIN_KEY) === "true" || sessionStorage.getItem(LOGIN_KEY) === "true";
     }
 
     function setLoginVisible(visible) {
@@ -1181,6 +1212,14 @@ for update using (true);</textarea>
 
     function roleForUser(name) {
       return DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler";
+    }
+
+    function playerByName(name) {
+      return state.players.find((player) => player.name.trim().toLowerCase() === name.trim().toLowerCase());
+    }
+
+    function generateTempPassword() {
+      return "tmp-" + Math.random().toString(36).slice(2, 8);
     }
 
     function updateRoleFromUser() {
@@ -1440,7 +1479,16 @@ for update using (true);</textarea>
               <span class="chip">${escapeHtml(player.group)}</span>
             </div>
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
-            ${canManage() ? `<div class="row-actions"><button class="mini no" data-delete-player="${player.id}">Entfernen</button></div>` : ""}
+            ${canManage() ? `
+              <div class="form-grid">
+                <div class="field"><label>Neues Passwort</label><input data-password-input="${player.id}" type="text" placeholder="z.B. fussball"></div>
+                <div class="field"><label>Aktionen</label><button class="mini" data-set-password="${player.id}">Passwort setzen</button></div>
+              </div>
+              <div class="row-actions">
+                <button class="mini" data-temp-password="${player.id}">Temp-Passwort</button>
+                <button class="mini no" data-delete-player="${player.id}">Entfernen</button>
+              </div>
+            ` : ""}
           `));
         });
     }
@@ -1707,8 +1755,30 @@ for update using (true);</textarea>
       const pollId = target.dataset.deletePoll;
       const rsvpId = target.dataset.rsvp;
       const voteId = target.dataset.vote;
+      const setPasswordId = target.dataset.setPassword;
+      const tempPasswordId = target.dataset.tempPassword;
 
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
+      if (setPasswordId && canManage()) {
+        const input = document.querySelector(`[data-password-input="${setPasswordId}"]`);
+        const password = input ? input.value.trim() : "";
+        const player = state.players.find((item) => item.id === setPasswordId);
+        if (player && password) {
+          player.password = password;
+          input.value = "";
+          setStatus(`Passwort fuer ${player.name} wurde gesetzt.`);
+        } else {
+          setStatus("Bitte ein neues Passwort eingeben.");
+        }
+      }
+      if (tempPasswordId && canManage()) {
+        const player = state.players.find((item) => item.id === tempPasswordId);
+        if (player) {
+          player.password = generateTempPassword();
+          setStatus(`Temp-Passwort fuer ${player.name}: ${player.password}`);
+          window.alert(`Temp-Passwort fuer ${player.name}: ${player.password}`);
+        }
+      }
       if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
       if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);
       if (rsvpId) {
@@ -1721,7 +1791,7 @@ for update using (true);</textarea>
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || setPasswordId || tempPasswordId)) || rsvpId || voteId) saveState();
     });
 
     $("#messageGroup").addEventListener("change", renderMessages);
@@ -1747,18 +1817,35 @@ for update using (true);</textarea>
     });
     $("#loginForm").addEventListener("submit", (event) => {
       event.preventDefault();
-      $("#currentUser").value = $("#loginUser").value;
       currentClubId = $("#loginClubSelect").value;
+      state = loadState();
+      const userName = $("#loginUser").value;
+      const player = playerByName(userName);
+      const password = $("#loginPassword").value;
+      if (!player || (player.password || DEFAULT_PASSWORD) !== password) {
+        $("#loginError").textContent = "Name oder Passwort ist falsch.";
+        return;
+      }
+      $("#currentUser").value = userName;
       localStorage.setItem("soccer-dtr-current-user", $("#currentUser").value);
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
-      localStorage.setItem(LOGIN_KEY, "true");
+      if ($("#rememberLogin").checked) {
+        localStorage.setItem(LOGIN_KEY, "true");
+        sessionStorage.removeItem(LOGIN_KEY);
+      } else {
+        sessionStorage.setItem(LOGIN_KEY, "true");
+        localStorage.removeItem(LOGIN_KEY);
+      }
+      $("#loginPassword").value = "";
+      $("#loginError").textContent = "";
       updateRoleFromUser();
-      state = loadState();
       setLoginVisible(false);
       render();
     });
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
+      sessionStorage.removeItem(LOGIN_KEY);
+      $("#loginPassword").value = "";
       renderLoginUsers();
       renderClubSelect();
       setLoginVisible(true);

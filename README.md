@@ -17,6 +17,7 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Mandantenfaehig fuer mehrere Vereine mit getrennten Vereinsdaten
 - Pro Verein eigenes Logo und eigene Vereinsfarbe
 - Einfacher Login per Spielername mit fest hinterlegter Rolle
+- Startpasswort fuer alle Spieler: `fussball`; Admins koennen Passwoerter zuruecksetzen oder Temp-Passwoerter vergeben
 
 ## Rechte
 
@@ -25,6 +26,8 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Spieler: kann Zu- und Absagen, Abstimmungen und Mitteilungen nutzen
 
 Die Rollen sind im Code fest Namen zugeordnet. Aktuell ist `Max Reitz` Superadmin und `Steven Simmons` Admin; alle anderen Namen sind Spieler.
+
+Der Login kann lokal gespeichert werden, damit Mitglieder sich auf ihrem Handy nicht jedes Mal neu anmelden muessen.
 
 ## Mobile Nutzung
 
