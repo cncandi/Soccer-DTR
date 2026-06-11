@@ -19,6 +19,7 @@ Live: https://cncandi.github.io/Soccer-DTR
 - Einfacher Login per Spielername mit fest hinterlegter Rolle
 - Startpasswort fuer alle Spieler: `fussball`; Admins koennen Passwoerter zuruecksetzen oder Temp-Passwoerter vergeben
 - Admins koennen Spieler bearbeiten und jedem Spieler eine Rolle zuweisen
+- Spielerprofile enthalten optional Bild, Alternativpositionen und nur fuer Admins sichtbare Leistungsdaten
 
 ## Rechte
 
