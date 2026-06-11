@@ -653,6 +653,7 @@ for update using (true);</textarea>
     const STORE_KEY = "soccer-dtr-club-state";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const DOC_ID = "club-state";
+    const DEFAULT_SUPABASE_URL = "https://njthmqdpncnpjycedhea.supabase.co";
     const DEFAULT_PLAYER_NAMES = [
       "AhmadAli",
       "Arsenii",
@@ -721,7 +722,7 @@ for update using (true);</textarea>
 
     function loadSettings() {
       const stored = localStorage.getItem(SETTINGS_KEY);
-      return stored ? JSON.parse(stored) : { url: "", key: "", table: "club_documents" };
+      return stored ? JSON.parse(stored) : { url: DEFAULT_SUPABASE_URL, key: "", table: "club_documents" };
     }
 
     function saveState() {
