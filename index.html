@@ -1280,6 +1280,14 @@
           <h3>Fussball.de</h3>
           <div class="form-grid">
             <div class="field full">
+              <label for="footballTokenInput">api-fussball.de Token</label>
+              <input id="footballTokenInput" placeholder="x-auth-token">
+            </div>
+            <div class="field full">
+              <label for="footballClubInput">Vereinsname oder Fussball.de-Link</label>
+              <input id="footballClubInput" placeholder="z.B. Biedenkopf oder https://www.fussball.de/verein/...">
+            </div>
+            <div class="field full">
               <label for="footballTeamSelect">Mannschaft</label>
               <select id="footballTeamSelect"></select>
             </div>
@@ -1410,6 +1418,7 @@ Nein</textarea></div>
               <div class="field full"><label>Anon Public Key</label><input name="key" placeholder="eyJ..."></div>
               <div class="field full"><label>Tabellenname</label><input name="table" value="club_documents"></div>
               <div class="field full"><label>api-fussball.de Token</label><input name="footballToken" placeholder="x-auth-token"></div>
+              <div class="field full"><label>Fussball.de Vereinsname</label><input name="footballClubName" placeholder="Biedenkopf"></div>
               <div class="field full"><label>Fussball.de Vereins-ID</label><input name="footballClubId" placeholder="00..."></div>
               <div class="field full"><label>Fussball.de Mannschafts-ID</label><input name="footballTeamId" placeholder="01..."></div>
               <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
@@ -1461,6 +1470,11 @@ for update using (true);</textarea>
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
     const FOOTBALL_API_BASE = "https://api-fussball.de";
+    const FOOTBALL_CLUB_ALIASES = {
+      biedenkopf: "00ES8GN9K000003HVV0AG08LVUPGND5I",
+      "vfl biedenkopf": "00ES8GN9K000003HVV0AG08LVUPGND5I",
+      "vfl 1911 biedenkopf": "00ES8GN9K000003HVV0AG08LVUPGND5I"
+    };
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
@@ -1865,13 +1879,33 @@ for update using (true);</textarea>
       };
     }
 
+    function footballClubIdFromInput(value) {
+      const input = String(value || "").trim();
+      if (!input) return "";
+      const idMatch = input.match(/(?:\/id\/|^)([A-Z0-9]{20,})/i);
+      if (idMatch) return idMatch[1].toUpperCase();
+      return FOOTBALL_CLUB_ALIASES[input.toLowerCase()] || "";
+    }
+
+    function syncFootballInputs() {
+      const tokenInput = $("#footballTokenInput");
+      const clubInput = $("#footballClubInput");
+      if (tokenInput) settings.footballToken = tokenInput.value.trim();
+      if (!clubInput) return;
+      const value = clubInput.value.trim();
+      if (value) settings.footballClubName = value;
+      const clubId = footballClubIdFromInput(value);
+      if (clubId) settings.footballClubId = clubId;
+      saveSettings();
+    }
+
     function footballApiSettingsReady(requireClub = false) {
       if (!settings.footballToken) {
         setStatus("api-fussball.de Token fehlt.");
         return false;
       }
       if (requireClub && !settings.footballClubId) {
-        setStatus("Fussball.de Vereins-ID fehlt.");
+        setStatus("Verein nicht gefunden. Bitte Biedenkopf, eine Fussball.de-Vereins-URL oder die Vereins-ID eingeben.");
         return false;
       }
       if (!requireClub && !settings.footballTeamId) {
@@ -1940,6 +1974,7 @@ for update using (true);</textarea>
         key: parsed.key || DEFAULT_SUPABASE_ANON_KEY,
         table: parsed.table || "club_documents",
         footballToken: parsed.footballToken || "",
+        footballClubName: parsed.footballClubName || "",
         footballClubId: parsed.footballClubId || "",
         footballTeamId: parsed.footballTeamId || ""
       };
@@ -2649,6 +2684,10 @@ for update using (true);</textarea>
       const teamSelect = $("#footballTeamSelect");
       const tableList = $("#footballTableList");
       if (!teamSelect || !tableList) return;
+      const tokenInput = $("#footballTokenInput");
+      if (tokenInput) tokenInput.value = settings.footballToken || "";
+      const clubInput = $("#footballClubInput");
+      if (clubInput) clubInput.value = settings.footballClubName || settings.footballClubId || currentClub().name || "";
 
       const teams = state.footballTeams || [];
       teamSelect.innerHTML = teams.length
@@ -2679,6 +2718,7 @@ for update using (true);</textarea>
     }
 
     async function loadFootballTeams() {
+      syncFootballInputs();
       if (!footballApiSettingsReady(true)) return;
       setStatus("Lade Mannschaften von api-fussball.de ...");
       try {
@@ -2697,6 +2737,7 @@ for update using (true);</textarea>
     }
 
     async function importFootballGames() {
+      syncFootballInputs();
       if (!footballApiSettingsReady(false)) return;
       setStatus("Importiere Spielplan von api-fussball.de ...");
       try {
@@ -2715,6 +2756,7 @@ for update using (true);</textarea>
     }
 
     async function importFootballResults() {
+      syncFootballInputs();
       if (!footballApiSettingsReady(false)) return;
       setStatus("Importiere Ergebnisse von api-fussball.de ...");
       try {
@@ -2733,6 +2775,7 @@ for update using (true);</textarea>
     }
 
     async function loadFootballTable() {
+      syncFootballInputs();
       if (!footballApiSettingsReady(false)) return;
       setStatus("Lade Tabelle von api-fussball.de ...");
       try {
@@ -3772,6 +3815,14 @@ for update using (true);</textarea>
       saveSettings();
       renderFootballApi();
     });
+    $("#footballTokenInput").addEventListener("change", () => {
+      syncFootballInputs();
+      renderFootballApi();
+    });
+    $("#footballClubInput").addEventListener("change", () => {
+      syncFootballInputs();
+      renderFootballApi();
+    });
     $("#loadFootballTeamsBtn").addEventListener("click", loadFootballTeams);
     $("#importFootballGamesBtn").addEventListener("click", importFootballGames);
     $("#importFootballResultsBtn").addEventListener("click", importFootballResults);
@@ -3796,6 +3847,7 @@ for update using (true);</textarea>
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
     $("#settingsForm").elements.footballToken.value = settings.footballToken;
+    $("#settingsForm").elements.footballClubName.value = settings.footballClubName;
     $("#settingsForm").elements.footballClubId.value = settings.footballClubId;
     $("#settingsForm").elements.footballTeamId.value = settings.footballTeamId;
     render();
