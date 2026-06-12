@@ -223,6 +223,10 @@
       border-radius: 8px;
     }
 
+    .nav button[hidden] {
+      display: none !important;
+    }
+
     .nav button.active {
       background: var(--club-soft);
       color: var(--club-dark);
