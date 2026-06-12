@@ -7,6 +7,8 @@
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const INSTALL_DISMISSED_KEY = "soccer-dtr-install-dismissed";
     const SEEN_PREFIX = "soccer-dtr-seen";
+    const PUSH_PUBLIC_KEY = "BMzLO4YI3nJQ2J6OPpj22v7-S8XOuMTq7Ftm5L62CihAq-gNemRJPWAqhn3xzolyq97jJZ6x5KIrrgpdur7Hb8E";
+    const PUSH_FUNCTION_NAME = "send-push";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
@@ -853,6 +855,123 @@
       updateAppBadge(counts.messages);
     }
 
+    function pushSupported() {
+      return Boolean("serviceWorker" in navigator && "PushManager" in window && "Notification" in window);
+    }
+
+    function pushFunctionUrl() {
+      return settings.url ? `${settings.url.replace(/\/$/, "")}/functions/v1/${PUSH_FUNCTION_NAME}` : "";
+    }
+
+    function urlBase64ToUint8Array(value) {
+      const padding = "=".repeat((4 - value.length % 4) % 4);
+      const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = window.atob(base64);
+      return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+    }
+
+    async function currentPushSubscription() {
+      if (!pushSupported()) return null;
+      const registration = await navigator.serviceWorker.ready;
+      return registration.pushManager.getSubscription();
+    }
+
+    async function renderPushPanel() {
+      const status = $("#pushStatus");
+      const button = $("#enablePushBtn");
+      if (!status || !button) return;
+      if (!pushSupported()) {
+        status.textContent = "Dieses Geraet unterstuetzt Web Push fuer diese App nicht.";
+        button.hidden = true;
+        return;
+      }
+      if (!settings.url || !settings.key) {
+        status.textContent = "Push braucht die Supabase-Verbindung.";
+        button.hidden = true;
+        return;
+      }
+      const permission = Notification.permission;
+      const subscription = await currentPushSubscription().catch(() => null);
+      if (permission === "granted" && subscription) {
+        status.textContent = "Push-Benachrichtigungen sind auf diesem Geraet aktiv.";
+        button.textContent = "Benachrichtigungen aktualisieren";
+      } else if (permission === "denied") {
+        status.textContent = "Benachrichtigungen sind im Browser blockiert.";
+        button.hidden = true;
+      } else {
+        status.textContent = "Aktivieren, um Mitteilungen auch bei geschlossener App zu sehen.";
+        button.textContent = "Benachrichtigungen aktivieren";
+      }
+    }
+
+    async function savePushSubscription(subscription) {
+      const client = getSupabaseClient();
+      if (!client || !subscription) return false;
+      const payload = {
+        endpoint: subscription.endpoint,
+        club_id: currentClubId,
+        user_name: activeUser(),
+        groups: allowedMessageGroups(),
+        subscription: subscription.toJSON(),
+        updated_at: new Date().toISOString()
+      };
+      const result = await client.from("push_subscriptions").upsert(payload);
+      if (result.error) {
+        setStatus("Push-Fehler: " + result.error.message);
+        return false;
+      }
+      setStatus("Push-Benachrichtigungen aktiviert.");
+      return true;
+    }
+
+    async function enablePushNotifications() {
+      if (!pushSupported()) {
+        window.alert("Dieses Geraet unterstuetzt Web Push fuer diese App nicht.");
+        return;
+      }
+      if (!settings.url || !settings.key) {
+        window.alert("Push braucht die Supabase-Verbindung.");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        renderPushPanel();
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY)
+      });
+      await savePushSubscription(subscription);
+      renderPushPanel();
+    }
+
+    async function sendPushForMessage(message) {
+      if (!settings.url || !settings.key || !pushFunctionUrl()) return;
+      try {
+        await fetch(pushFunctionUrl(), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: settings.key,
+            Authorization: `Bearer ${settings.key}`
+          },
+          body: JSON.stringify({
+            clubId: currentClubId,
+            group: message.group,
+            excludeUser: activeUser(),
+            title: `Neue Mitteilung: ${message.group}`,
+            body: `${message.author}: ${message.body}`,
+            url: `${location.origin}${location.pathname}#messages`
+          })
+        });
+      } catch (error) {
+        console.warn("Push konnte nicht gesendet werden.", error);
+      }
+    }
+
     function render() {
       applyClubTheme();
       applyPermissions();
@@ -873,6 +992,7 @@
       renderMessages();
       renderDashboard();
       renderNotificationBadges();
+      renderPushPanel();
     }
 
     function applyPermissions() {
@@ -1949,15 +2069,17 @@
       const values = formValues(event.currentTarget);
       const groups = allowedMessageGroups();
       const group = groups.includes($("#messageGroup").value) ? $("#messageGroup").value : groups[0];
-      state.messages.push({
+      const message = {
         id: crypto.randomUUID(),
         group,
         author: activeUser(),
         body: values.body,
         createdAt: new Date().toISOString()
-      });
+      };
+      state.messages.push(message);
       event.currentTarget.reset();
       saveState();
+      sendPushForMessage(message);
     });
 
     $("#cashFineCatalog").addEventListener("change", () => {
@@ -2377,6 +2499,7 @@
       localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
       renderInstallPanel();
     });
+    $("#enablePushBtn").addEventListener("click", enablePushNotifications);
 
     $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";
     const restoredLogin = restoreLogin();

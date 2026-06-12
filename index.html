@@ -292,8 +292,9 @@ Nein</textarea></div>
             </form>
           </section>
           <section class="panel">
-            <h3>Hinweise</h3>
-            <p class="meta">Mitteilungen werden nach Gruppe gefiltert. Mit Supabase-Konfiguration sind sie fuer alle Vereinsmitglieder synchron verfuegbar.</p>
+            <h3>Benachrichtigungen</h3>
+            <p class="meta" id="pushStatus">Push-Benachrichtigungen sind noch nicht aktiv.</p>
+            <button class="btn-primary" id="enablePushBtn" type="button">Benachrichtigungen aktivieren</button>
           </section>
         </div>
       </section>
@@ -337,6 +338,28 @@ create policy "club write" on club_documents
 for insert with check (true);
 
 create policy "club update" on club_documents
+for update using (true);</textarea>
+          </section>
+          <section class="panel superadmin-only">
+            <h3>Push-Tabelle</h3>
+            <textarea readonly style="min-height: 230px;">create table if not exists public.push_subscriptions (
+  endpoint text primary key,
+  club_id text not null,
+  user_name text not null,
+  groups text[] not null default '{}',
+  subscription jsonb not null,
+  updated_at timestamptz default now()
+);
+
+alter table public.push_subscriptions enable row level security;
+
+create policy "push read" on public.push_subscriptions
+for select using (true);
+
+create policy "push write" on public.push_subscriptions
+for insert with check (true);
+
+create policy "push update" on public.push_subscriptions
 for update using (true);</textarea>
           </section>
         </div>
