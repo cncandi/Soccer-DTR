@@ -101,10 +101,6 @@
         <div class="actions">
           <button class="btn-secondary" id="exportBtn">Export</button>
         </div>
-        <div class="mobile-club-field">
-          <label for="mobileClubSelect">Verein</label>
-          <select id="mobileClubSelect"></select>
-        </div>
       </section>
 
       <section class="view active" id="dashboard">
@@ -194,13 +190,10 @@
             </form>
           </section>
           <section class="panel">
-            <h3>Kalender</h3>
-            <div class="calendar-tools">
-              <div class="field"><label for="calendarMode">Ansicht</label><select id="calendarMode"><option value="week">Woche</option><option value="month">Monat</option></select></div>
-              <div class="field"><label for="calendarMonth">Monat</label><input id="calendarMonth" type="month"></div>
-              <button class="btn-secondary" id="prevCalendarBtn" type="button">Zurueck</button>
-              <button class="btn-secondary" id="todayCalendarBtn" type="button">Heute</button>
-              <button class="btn-secondary" id="nextCalendarBtn" type="button">Weiter</button>
+            <div class="calendar-head">
+              <button class="icon-btn" id="prevCalendarBtn" type="button" aria-label="Vorherige Woche">&lt;</button>
+              <h3 id="calendarWeekLabel">Woche</h3>
+              <button class="icon-btn" id="nextCalendarBtn" type="button" aria-label="Naechste Woche">&gt;</button>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>

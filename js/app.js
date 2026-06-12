@@ -5,7 +5,6 @@
     const LOGIN_USER_KEY = "soccer-dtr-current-user";
     const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
-    const CALENDAR_MODE_KEY = "soccer-dtr-calendar-mode";
     const INSTALL_DISMISSED_KEY = "soccer-dtr-install-dismissed";
     const SEEN_PREFIX = "soccer-dtr-seen";
     const DOC_ID = "club-state";
@@ -137,8 +136,7 @@
     let state = loadState();
     let settings = loadSettings();
     let calendarDate = isoDate(new Date());
-    let calendarMonth = calendarDate.slice(0, 7);
-    let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) || (window.matchMedia("(max-width: 760px)").matches ? "week" : "month");
+    let expandedEventId = "";
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -848,10 +846,11 @@
         if (type === "total") return;
         $$(`[data-nav-badge="${type}"]`).forEach((badge) => {
           badge.hidden = count === 0;
+          badge.textContent = count ? (count > 99 ? "99+" : String(count)) : "";
           badge.title = count ? `${count} neu` : "";
         });
       });
-      updateAppBadge(counts.total);
+      updateAppBadge(counts.messages);
     }
 
     function render() {
@@ -902,7 +901,7 @@
       const options = clubs
         .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
         .join("");
-      [$("#clubSelect"), $("#mobileClubSelect"), $("#loginClubSelect")].forEach((select) => {
+      [$("#clubSelect"), $("#loginClubSelect")].forEach((select) => {
         if (!select) return;
         select.innerHTML = options;
         select.value = currentClubId;
@@ -1044,8 +1043,8 @@
     function rsvpRecord(event, playerName) {
       const raw = (event.rsvps || {})[playerName];
       if (!raw) return null;
-      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0 };
-      return { status: raw.status || "yes", updatedAt: raw.updatedAt || "", fine: Number(raw.fine || 0) };
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "" };
+      return { status: raw.status || "yes", updatedAt: raw.updatedAt || "", fine: Number(raw.fine || 0), reason: raw.reason || "" };
     }
 
     function playerUnavailableForEvent(player, event) {
@@ -1070,6 +1069,68 @@
 
     function countRsvp(event, status) {
       return rosterPlayers().filter((player) => effectiveRsvp(event, player) === status).length;
+    }
+
+    function weekStart(dateStr = calendarDate) {
+      const date = new Date(`${dateStr}T00:00`);
+      const mondayOffset = (date.getDay() + 6) % 7;
+      date.setDate(date.getDate() - mondayOffset);
+      return date;
+    }
+
+    function currentWeekRange() {
+      const start = weekStart(calendarDate);
+      const end = addDays(start, 6);
+      return { start: isoDate(start), end: isoDate(end), startDate: start, endDate: end };
+    }
+
+    function weekLabel() {
+      const { startDate, endDate } = currentWeekRange();
+      return `${formatShortDate(isoDate(startDate))} - ${formatShortDate(isoDate(endDate))}`;
+    }
+
+    function visibleWeekEvents() {
+      const { start, end } = currentWeekRange();
+      return state.events
+        .filter((event) => dateInPeriod(event.date, start, end))
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    }
+
+    function rsvpDetails(event) {
+      const players = rosterPlayers().slice().sort((a, b) => a.name.localeCompare(b.name, "de"));
+      const yes = [];
+      const no = [];
+      players.forEach((player) => {
+        const record = rsvpRecord(event, player.name);
+        const unavailable = playerUnavailableForEvent(player, event);
+        const status = effectiveRsvp(event, player);
+        const entry = {
+          name: player.name,
+          reason: record?.reason || (unavailable ? "Status: nicht verfuegbar" : ""),
+          explicit: Boolean(record)
+        };
+        if (status === "no") no.push(entry);
+        else yes.push(entry);
+      });
+      return { yes, no };
+    }
+
+    function renderRsvpDetails(event) {
+      const details = rsvpDetails(event);
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}</span>`).join("");
+      const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
+      return `
+        <div class="attendance-panel">
+          <div>
+            <strong>Zusagen (${details.yes.length})</strong>
+            <div class="attendee-list">${yesItems || "<span class=\"meta\">Keine Zusagen.</span>"}</div>
+          </div>
+          <div>
+            <strong>Absagen (${details.no.length})</strong>
+            <div class="attendee-list">${noItems || "<span class=\"meta\">Keine Absagen.</span>"}</div>
+          </div>
+        </div>
+      `;
     }
 
     function playerCalendarStats(player) {
@@ -1101,14 +1162,11 @@
 
     function renderCalendar() {
       const grid = $("#calendarGrid");
-      const monthInput = $("#calendarMonth");
-      const modeInput = $("#calendarMode");
-      if (!grid || !monthInput || !modeInput) return;
-      calendarMonth = calendarDate.slice(0, 7);
-      monthInput.value = calendarMonth;
-      modeInput.value = calendarMode;
+      const weekLabelEl = $("#calendarWeekLabel");
+      if (!grid || !weekLabelEl) return;
+      weekLabelEl.textContent = weekLabel();
       grid.innerHTML = "";
-      grid.classList.toggle("week-mode", calendarMode === "week");
+      grid.classList.add("week-mode");
       ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((day) => {
         const label = document.createElement("div");
         label.className = "calendar-weekday";
@@ -1116,14 +1174,9 @@
         grid.appendChild(label);
       });
 
-      const focus = new Date(`${calendarDate}T00:00`);
-      const first = new Date(`${calendarMonth}-01T00:00`);
-      const start = calendarMode === "week" ? new Date(focus) : new Date(first);
-      const mondayOffset = (start.getDay() + 6) % 7;
-      start.setDate(start.getDate() - mondayOffset);
-      const daysToRender = calendarMode === "week" ? 7 : 42;
+      const start = weekStart(calendarDate);
 
-      for (let i = 0; i < daysToRender; i += 1) {
+      for (let i = 0; i < 7; i += 1) {
         const date = new Date(start);
         date.setDate(start.getDate() + i);
         const dateStr = isoDate(date);
@@ -1134,7 +1187,6 @@
         const cell = document.createElement("div");
         cell.className = [
           "calendar-day",
-          date.getMonth() !== first.getMonth() ? "outside" : "",
           date.getDay() === 0 ? "sunday" : "",
           holiday ? "holiday" : ""
         ].filter(Boolean).join(" ");
@@ -1157,34 +1209,38 @@
     function renderEvents() {
       const list = $("#eventList");
       list.innerHTML = "";
-      if (!state.events.length) return empty(list, "Noch keine Termine erstellt.");
-      state.events
-        .slice()
-        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+      const events = visibleWeekEvents();
+      if (!events.length) return empty(list, "Keine Termine in dieser Woche.");
+      events
         .forEach((event) => {
           const yes = countRsvp(event, "yes");
           const no = countRsvp(event, "no");
           const player = playerByName(activeUser());
           const myStatus = player && hasMemberRole(player, "Spieler") ? effectiveRsvp(event, player) : "none";
+          const myRecord = player ? rsvpRecord(event, player.name) : null;
           const deadline = eventSupportsRsvp(event) ? eventDeadline(event).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
           const lateText = eventSupportsRsvp(event) && isLateAbsence(event) ? "Spaete Absage kostet 10 EUR." : "";
+          const expanded = expandedEventId === event.id;
+          const statusChip = myStatus === "no" ? `<span class="chip red">Abgesagt${myRecord?.reason ? `: ${escapeHtml(myRecord.reason)}` : ""}</span>` : `<span class="chip blue">Zugesagt</span>`;
           list.appendChild(item(`
-            <div class="item-head">
+            <div class="item-head" data-toggle-event-details="${event.id}">
               <div>
                 <p class="item-title">${escapeHtml(event.title)}</p>
                 <div class="meta"><span>${escapeHtml(event.type)}</span><span>${formatDate(event.date, event.time)}</span><span>${escapeHtml(event.location || "Ort offen")}</span></div>
               </div>
-              ${eventSupportsRsvp(event) ? `<span class="chip blue">${yes} Zusagen</span>` : `<span class="chip">${escapeHtml(event.type)}</span>`}
+              ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? statusChip : `<span class="chip">${escapeHtml(event.type)}</span>`}
             </div>
             ${event.details ? `<p class="meta">${escapeHtml(event.details)}</p>` : ""}
-            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} dabei</span><span>${no} raus</span><span>Dein Status: ${escapeHtml(rsvpLabel(myStatus))}</span><span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
+            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span><span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
             <div class="row-actions">
               ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? `
-                <button class="mini yes" data-rsvp="${event.id}" data-status="yes">Zusage</button>
+                <button class="mini yes" data-rsvp="${event.id}" data-status="yes" ${myStatus === "yes" ? "disabled" : ""}>Zusage</button>
                 <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
               ` : ""}
+              ${eventSupportsRsvp(event) ? `<button class="mini" data-toggle-event-details="${event.id}">${expanded ? "Teilnehmer ausblenden" : "Teilnehmer anzeigen"}</button>` : ""}
               ${canManage() ? `<button class="mini no" data-delete-event="${event.id}">Loeschen</button>` : ""}
             </div>
+            ${expanded ? renderRsvpDetails(event) : ""}
           `));
         });
     }
@@ -2095,7 +2151,20 @@
       const openPlayerId = target.dataset.openPlayer;
       const toggleFineId = target.dataset.toggleFine;
       const editCatalogFineId = target.dataset.editCatalogFine;
+      const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
+      const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
+      if (toggleEventDetailsId) {
+        expandedEventId = expandedEventId === toggleEventDetailsId ? "" : toggleEventDetailsId;
+        renderEvents();
+        return;
+      }
+      if (calendarEventId) {
+        expandedEventId = calendarEventId;
+        renderEvents();
+        $("#eventList").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       if (openPlayerId && canManagePlayers()) openPlayerModal(openPlayerId);
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
       if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
@@ -2118,17 +2187,27 @@
         const item = state.events.find((eventItem) => eventItem.id === rsvpId);
         const player = playerByName(activeUser());
         if (!item || !player || !hasMemberRole(player, "Spieler") || !eventSupportsRsvp(item)) return;
-        if (target.dataset.status === "yes" && playerUnavailableForEvent(player, item)) {
+        const status = target.dataset.status;
+        if (status === "yes" && playerUnavailableForEvent(player, item)) {
           window.alert("Der Spieler ist fuer diesen Zeitraum als Urlaub, verletzt oder nicht verfuegbar markiert.");
           return;
         }
+        let reason = "";
+        if (status === "no") {
+          reason = window.prompt("Warum sagst du ab?")?.trim() || "";
+          if (!reason) {
+            window.alert("Bitte einen Grund fuer die Absage eingeben.");
+            return;
+          }
+        }
         item.rsvps = item.rsvps || {};
         const oldRecord = rsvpRecord(item, player.name);
-        const fine = target.dataset.status === "no" && isLateAbsence(item) ? 10 : 0;
+        const fine = status === "no" && isLateAbsence(item) ? 10 : 0;
         item.rsvps[player.name] = {
-          status: target.dataset.status,
+          status,
           updatedAt: new Date().toISOString(),
-          fine: fine || (target.dataset.status === "no" ? oldRecord?.fine || 0 : 0)
+          fine: fine || (status === "no" ? oldRecord?.fine || 0 : 0),
+          reason
         };
         if (item.rsvps[player.name].fine) {
           setStatus(`Spaete Absage: 10 EUR Strafe fuer ${player.name}.`);
@@ -2143,34 +2222,21 @@
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
-    $("#calendarMode").addEventListener("change", () => {
-      calendarMode = $("#calendarMode").value === "month" ? "month" : "week";
-      localStorage.setItem(CALENDAR_MODE_KEY, calendarMode);
-      renderCalendar();
-    });
-    $("#calendarMonth").addEventListener("change", () => {
-      calendarMonth = $("#calendarMonth").value || new Date().toISOString().slice(0, 7);
-      calendarDate = `${calendarMonth}-01`;
-      renderCalendar();
-    });
     $("#prevCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      if (calendarMode === "week") date.setDate(date.getDate() - 7);
-      else date.setMonth(date.getMonth() - 1);
+      date.setDate(date.getDate() - 7);
       calendarDate = isoDate(date);
       renderCalendar();
-    });
-    $("#todayCalendarBtn").addEventListener("click", () => {
-      calendarDate = isoDate(new Date());
-      calendarMonth = calendarDate.slice(0, 7);
-      renderCalendar();
+      renderEvents();
+      renderFines();
     });
     $("#nextCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      if (calendarMode === "week") date.setDate(date.getDate() + 7);
-      else date.setMonth(date.getMonth() + 1);
+      date.setDate(date.getDate() + 7);
       calendarDate = isoDate(date);
       renderCalendar();
+      renderEvents();
+      renderFines();
     });
     $("#calendarGrid").addEventListener("dblclick", (event) => {
       if (!canManage()) return;
@@ -2202,7 +2268,6 @@
       event.preventDefault();
       calendarEvent.date = day.dataset.calendarDate;
       calendarDate = calendarEvent.date;
-      calendarMonth = calendarEvent.date.slice(0, 7);
       saveState();
     });
     $("#messageGroup").addEventListener("change", renderMessages);
@@ -2220,7 +2285,6 @@
     }
 
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
-    $("#mobileClubSelect").addEventListener("change", () => changeClub($("#mobileClubSelect").value));
     $("#loginClubSelect").addEventListener("change", () => {
       currentClubId = $("#loginClubSelect").value;
       state = loadState();
