@@ -1,0 +1,104 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GitHub Pages braucht diese Permissions
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Pro Branch nur ein Deploy gleichzeitig laufen lassen
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1) Statische Site fuer GitHub Pages bauen und veroeffentlichen
+  # ---------------------------------------------------------------
+  pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JS Syntax-Check der index.html
+        run: |
+          node -e "const fs=require('fs');const html=fs.readFileSync('index.html','utf8');const scripts=[...html.matchAll(/<script[^>]*>([\\s\\S]*?)<\\/script>/g)].map(m=>m[1]);for(const s of scripts)new Function(s);console.log('JS syntax OK, scripts:', scripts.length);"
+
+      - name: Site-Artefakt vorbereiten
+        run: |
+          mkdir -p _site
+          # Alles relevante kopieren, server-package und backups ausschliessen
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='_site' \
+            --exclude='server-package' \
+            --exclude='*.backup' \
+            --exclude='node_modules' \
+            ./ _site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages-Artefakt
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ---------------------------------------------------------------
+  # 2) Gleiche Dateien per FTP zu fastmill.biz spiegeln
+  # ---------------------------------------------------------------
+  ftp:
+    name: Deploy to FTP (fastmill.biz)
+    runs-on: ubuntu-latest
+    # Laeuft parallel zu Pages; bei FTP-Ausfall blockiert das Pages nicht
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pruefen ob FTP-Secrets vorhanden
+        id: check
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "FTP-Secrets fehlen, Schritt wird uebersprungen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: FTP-Upload
+        if: steps.check.outputs.skip == 'false'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_TARGET_DIR != '' && format('{0}/', secrets.FTP_TARGET_DIR) || '/soccer/' }}
+          local-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/server-package/**
+            **/*.backup
+            **/node_modules/**
+            **/_site/**
+            **/README.md
