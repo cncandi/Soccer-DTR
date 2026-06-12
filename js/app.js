@@ -5,6 +5,9 @@
     const LOGIN_USER_KEY = "soccer-dtr-current-user";
     const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
+    const CALENDAR_MODE_KEY = "soccer-dtr-calendar-mode";
+    const INSTALL_DISMISSED_KEY = "soccer-dtr-install-dismissed";
+    const SEEN_PREFIX = "soccer-dtr-seen";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
@@ -133,7 +136,10 @@
     let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
-    let calendarMonth = new Date().toISOString().slice(0, 7);
+    let calendarDate = isoDate(new Date());
+    let calendarMonth = calendarDate.slice(0, 7);
+    let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) || (window.matchMedia("(max-width: 760px)").matches ? "week" : "month");
+    let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
     let pendingCloudSync = false;
@@ -379,6 +385,7 @@
         details: event.details || "",
         repeat: event.repeat || "",
         repeatGroup: event.repeatGroup || "",
+        createdAt: event.createdAt || new Date().toISOString(),
         rsvps: event.rsvps || {}
       };
     }
@@ -396,6 +403,7 @@
     function saveState(options = {}) {
       state = ensureDefaultPlayers(state);
       localStorage.setItem(stateKey(), JSON.stringify(state));
+      markActiveViewSeen();
       render();
       if (options.sync !== false) queueCloudSync();
     }
@@ -460,6 +468,7 @@
       }
       $("#currentUser").value = storedUser;
       updateRoleFromUser();
+      ensureSeenDefaults();
       return true;
     }
 
@@ -772,12 +781,86 @@
       setStatus(`${club ? club.name : "Verein"} - ${mode}`);
     }
 
+    function installHintText() {
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+      if (standalone) return "";
+      const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      return isiOS ? "Teilen und Zum Home-Bildschirm waehlen." : "Als App auf dem Home-Bildschirm speichern.";
+    }
+
+    function renderInstallPanel() {
+      const panel = $("#installPanel");
+      if (!panel) return;
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+      const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === "true";
+      const hint = installHintText();
+      panel.hidden = standalone || dismissed || !hint;
+      $("#installHint").textContent = hint;
+      $("#installAppBtn").hidden = !deferredInstallPrompt;
+    }
+
+    function seenKey(type) {
+      return `${SEEN_PREFIX}:${currentClubId}:${activeUser().toLowerCase()}:${type}`;
+    }
+
+    function ensureSeenDefaults() {
+      if (!isLoggedIn()) return;
+      ["events", "messages"].forEach((type) => {
+        const key = seenKey(type);
+        if (!localStorage.getItem(key)) localStorage.setItem(key, new Date().toISOString());
+      });
+    }
+
+    function markSeen(type) {
+      if (!isLoggedIn()) return;
+      localStorage.setItem(seenKey(type), new Date().toISOString());
+    }
+
+    function markActiveViewSeen() {
+      const activeView = $(".view.active")?.id;
+      if (activeView === "events") markSeen("events");
+      if (activeView === "messages") markSeen("messages");
+    }
+
+    function unreadCounts() {
+      if (!isLoggedIn()) return { events: 0, messages: 0, total: 0 };
+      const eventSeen = localStorage.getItem(seenKey("events")) || new Date().toISOString();
+      const messageSeen = localStorage.getItem(seenKey("messages")) || new Date().toISOString();
+      const allowedGroups = allowedMessageGroups();
+      const events = state.events.filter((event) => (event.createdAt || "") > eventSeen).length;
+      const messages = state.messages.filter((message) => allowedGroups.includes(message.group) && (message.createdAt || "") > messageSeen).length;
+      return { events, messages, total: events + messages };
+    }
+
+    async function updateAppBadge(total) {
+      if (!("setAppBadge" in navigator) || !("clearAppBadge" in navigator)) return;
+      try {
+        if (total > 0) await navigator.setAppBadge(total);
+        else await navigator.clearAppBadge();
+      } catch (error) {
+        // App-Badges sind nicht in jedem Browser erlaubt.
+      }
+    }
+
+    function renderNotificationBadges() {
+      const counts = unreadCounts();
+      Object.entries(counts).forEach(([type, count]) => {
+        if (type === "total") return;
+        $$(`[data-nav-badge="${type}"]`).forEach((badge) => {
+          badge.hidden = count === 0;
+          badge.title = count ? `${count} neu` : "";
+        });
+      });
+      updateAppBadge(counts.total);
+    }
+
     function render() {
       applyClubTheme();
       applyPermissions();
       renderClubSelect();
       renderLoginUsers();
       renderClubDesignForm();
+      renderInstallPanel();
       renderStatus();
       renderStats();
       renderMessageGroups();
@@ -790,6 +873,7 @@
       renderPolls();
       renderMessages();
       renderDashboard();
+      renderNotificationBadges();
     }
 
     function applyPermissions() {
@@ -1018,9 +1102,13 @@
     function renderCalendar() {
       const grid = $("#calendarGrid");
       const monthInput = $("#calendarMonth");
-      if (!grid || !monthInput) return;
+      const modeInput = $("#calendarMode");
+      if (!grid || !monthInput || !modeInput) return;
+      calendarMonth = calendarDate.slice(0, 7);
       monthInput.value = calendarMonth;
+      modeInput.value = calendarMode;
       grid.innerHTML = "";
+      grid.classList.toggle("week-mode", calendarMode === "week");
       ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((day) => {
         const label = document.createElement("div");
         label.className = "calendar-weekday";
@@ -1028,12 +1116,14 @@
         grid.appendChild(label);
       });
 
+      const focus = new Date(`${calendarDate}T00:00`);
       const first = new Date(`${calendarMonth}-01T00:00`);
-      const start = new Date(first);
-      const mondayOffset = (first.getDay() + 6) % 7;
-      start.setDate(first.getDate() - mondayOffset);
+      const start = calendarMode === "week" ? new Date(focus) : new Date(first);
+      const mondayOffset = (start.getDay() + 6) % 7;
+      start.setDate(start.getDate() - mondayOffset);
+      const daysToRender = calendarMode === "week" ? 7 : 42;
 
-      for (let i = 0; i < 42; i += 1) {
+      for (let i = 0; i < daysToRender; i += 1) {
         const date = new Date(start);
         date.setDate(start.getDate() + i);
         const dateStr = isoDate(date);
@@ -1695,6 +1785,7 @@
       const repeat = values.repeat || "";
       const repeatUntil = values.repeatUntil || values.date;
       const repeatGroup = repeat ? crypto.randomUUID() : "";
+      const createdAt = new Date().toISOString();
       const dates = [];
       let cursor = new Date(`${values.date}T00:00`);
       const end = new Date(`${repeatUntil}T00:00`) < cursor ? new Date(cursor) : new Date(`${repeatUntil}T00:00`);
@@ -1715,6 +1806,7 @@
         details: values.details,
         repeat,
         repeatGroup,
+        createdAt,
         rsvps: {}
       }));
     }
@@ -1728,6 +1820,10 @@
       $("#" + viewName).classList.add("active");
       $("#viewTitle").textContent = titles[viewName][0];
       $("#viewSubtitle").textContent = titles[viewName][1];
+      if (viewName === "events" || viewName === "messages") {
+        markSeen(viewName);
+        renderNotificationBadges();
+      }
     }
 
     $$(".nav button").forEach((button) => {
@@ -2047,12 +2143,33 @@
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
+    $("#calendarMode").addEventListener("change", () => {
+      calendarMode = $("#calendarMode").value === "month" ? "month" : "week";
+      localStorage.setItem(CALENDAR_MODE_KEY, calendarMode);
+      renderCalendar();
+    });
     $("#calendarMonth").addEventListener("change", () => {
       calendarMonth = $("#calendarMonth").value || new Date().toISOString().slice(0, 7);
+      calendarDate = `${calendarMonth}-01`;
+      renderCalendar();
+    });
+    $("#prevCalendarBtn").addEventListener("click", () => {
+      const date = new Date(`${calendarDate}T00:00`);
+      if (calendarMode === "week") date.setDate(date.getDate() - 7);
+      else date.setMonth(date.getMonth() - 1);
+      calendarDate = isoDate(date);
       renderCalendar();
     });
     $("#todayCalendarBtn").addEventListener("click", () => {
-      calendarMonth = new Date().toISOString().slice(0, 7);
+      calendarDate = isoDate(new Date());
+      calendarMonth = calendarDate.slice(0, 7);
+      renderCalendar();
+    });
+    $("#nextCalendarBtn").addEventListener("click", () => {
+      const date = new Date(`${calendarDate}T00:00`);
+      if (calendarMode === "week") date.setDate(date.getDate() + 7);
+      else date.setMonth(date.getMonth() + 1);
+      calendarDate = isoDate(date);
       renderCalendar();
     });
     $("#calendarGrid").addEventListener("dblclick", (event) => {
@@ -2084,6 +2201,7 @@
       if (!day || !calendarEvent) return;
       event.preventDefault();
       calendarEvent.date = day.dataset.calendarDate;
+      calendarDate = calendarEvent.date;
       calendarMonth = calendarEvent.date.slice(0, 7);
       saveState();
     });
@@ -2136,6 +2254,7 @@
       }
       $("#loginError").textContent = "";
       updateRoleFromUser();
+      ensureSeenDefaults();
       setLoginVisible(false);
       render();
       syncWithSupabase({ silent: true });
@@ -2143,6 +2262,7 @@
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
       sessionStorage.removeItem(LOGIN_KEY);
+      updateAppBadge(0);
       renderLoginUsers();
       renderClubSelect();
       setLoginVisible(true);
@@ -2168,6 +2288,31 @@
       link.download = "soccer-dtr-export.json";
       link.click();
       URL.revokeObjectURL(url);
+    });
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      renderInstallPanel();
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
+      renderInstallPanel();
+    });
+
+    $("#installAppBtn").addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice.catch(() => {});
+      deferredInstallPrompt = null;
+      renderInstallPanel();
+    });
+
+    $("#dismissInstallBtn").addEventListener("click", () => {
+      localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
+      renderInstallPanel();
     });
 
     $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";

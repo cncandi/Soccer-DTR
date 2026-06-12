@@ -7,8 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Soccer-DTR">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Soccer-DTR">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>Soccer-DTR Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="css/app.css">
@@ -80,10 +82,10 @@
       <nav class="nav" aria-label="Hauptnavigation">
         <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
         <button data-view="players" data-min-role="admin">Spieler</button>
-        <button data-view="events" data-min-role="player">Training & Spiele</button>
+        <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
         <button data-view="cash" data-min-role="player">Kasse</button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
-        <button data-view="messages" data-min-role="player">Mitteilungen</button>
+        <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
         <button data-view="settings" data-min-role="superadmin">Einstellungen</button>
       </nav>
 
@@ -107,6 +109,16 @@
       </section>
 
       <section class="view active" id="dashboard">
+        <section class="install-panel" id="installPanel" hidden>
+          <div>
+            <h3>Soccer-DTR installieren</h3>
+            <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
+          </div>
+          <div class="row-actions">
+            <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>
+            <button class="btn-secondary" id="dismissInstallBtn" type="button">Ausblenden</button>
+          </div>
+        </section>
         <div class="grid stats">
           <div class="stat"><strong id="statPlayers">0</strong><span>Verf&uuml;gbare Spieler</span></div>
           <div class="stat"><strong id="statInjured">0</strong><span>Verletzte Spieler</span></div>
@@ -185,8 +197,11 @@
           <section class="panel">
             <h3>Kalender</h3>
             <div class="calendar-tools">
+              <div class="field"><label for="calendarMode">Ansicht</label><select id="calendarMode"><option value="week">Woche</option><option value="month">Monat</option></select></div>
               <div class="field"><label for="calendarMonth">Monat</label><input id="calendarMonth" type="month"></div>
+              <button class="btn-secondary" id="prevCalendarBtn" type="button">Zurueck</button>
               <button class="btn-secondary" id="todayCalendarBtn" type="button">Heute</button>
+              <button class="btn-secondary" id="nextCalendarBtn" type="button">Weiter</button>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>

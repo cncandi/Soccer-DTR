@@ -1,9 +1,14 @@
-const CACHE_NAME = "soccer-dtr-v20";
+const CACHE_NAME = "soccer-dtr-v21";
 const APP_SHELL = [
   "./",
   "index.html",
+  "css/app.css",
+  "js/app.js",
   "manifest.webmanifest",
-  "icon.svg"
+  "icon.svg",
+  "icon-192.png",
+  "icon-512.png",
+  "apple-touch-icon.png"
 ];
 
 self.addEventListener("install", (event) => {
