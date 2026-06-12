@@ -57,7 +57,7 @@
       <section class="profile-card">
         <label for="currentUser">Angemeldeter Name</label>
         <input id="currentUser" autocomplete="name" readonly>
-        <div class="profile-role admin-only">
+        <div class="profile-role superadmin-only">
           <label for="currentRole">Rolle</label>
           <select id="currentRole" disabled>
             <option>Superadmin</option>
@@ -68,7 +68,7 @@
         <button class="logout-btn" id="logoutBtn" type="button">Abmelden</button>
       </section>
 
-      <section class="tenant-card admin-only">
+      <section class="tenant-card superadmin-only">
         <label for="clubSelect">Verein</label>
         <select id="clubSelect"></select>
         <div class="tenant-actions">
@@ -78,13 +78,13 @@
       </section>
 
       <nav class="nav" aria-label="Hauptnavigation">
-        <button class="active" data-view="dashboard" data-min-role="staff">Uebersicht</button>
-        <button data-view="players" data-min-role="staff">Spieler</button>
+        <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
+        <button data-view="players" data-min-role="admin">Spieler</button>
         <button data-view="events" data-min-role="player">Training & Spiele</button>
         <button data-view="cash" data-min-role="player">Kasse</button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="messages" data-min-role="player">Mitteilungen</button>
-        <button data-view="settings" data-min-role="admin">Einstellungen</button>
+        <button data-view="settings" data-min-role="superadmin">Einstellungen</button>
       </nav>
 
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
@@ -293,7 +293,7 @@ Nein</textarea></div>
 
       <section class="view" id="settings">
         <div class="grid two">
-          <section class="panel admin-only">
+          <section class="panel superadmin-only">
             <h3>Vereinsdesign</h3>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>

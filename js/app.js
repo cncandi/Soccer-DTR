@@ -503,14 +503,11 @@
     }
 
     function canManageCash() {
-      const person = playerByName(activeUser());
-      return canManage() || Boolean(person && hasMemberRole(person, "Trainer"));
+      return canManage();
     }
 
     function canManagePlayers() {
-      if (canManage()) return true;
-      const person = playerByName(activeUser());
-      return Boolean(person && (hasMemberRole(person, "Trainer") || hasMemberRole(person, "Betreuer")));
+      return canManage();
     }
 
     function isSuperadmin() {
@@ -519,7 +516,6 @@
 
     function canAccess(minRole) {
       const normalizedRole = String(minRole || "Spieler").toLowerCase();
-      if (normalizedRole === "staff") return canManagePlayers();
       const requiredRole = {
         player: "Spieler",
         spieler: "Spieler",
@@ -784,6 +780,7 @@
       renderClubDesignForm();
       renderStatus();
       renderStats();
+      renderMessageGroups();
       renderPlayers();
       renderStaff();
       renderCalendar();
@@ -1364,10 +1361,12 @@
     }
 
     function renderMessages() {
-      const group = $("#messageGroup").value;
+      const allowedGroups = allowedMessageGroups();
+      const group = allowedGroups.includes($("#messageGroup").value) ? $("#messageGroup").value : allowedGroups[0];
+      $("#messageGroup").value = group;
       const feed = $("#messageFeed");
       feed.innerHTML = "";
-      const messages = state.messages.filter((message) => message.group === group);
+      const messages = state.messages.filter((message) => message.group === group && allowedGroups.includes(message.group));
       if (!messages.length) {
         const box = document.createElement("div");
         box.className = "empty";
@@ -1407,7 +1406,11 @@
 
       const latest = $("#latestMessages");
       latest.innerHTML = "";
-      const messages = state.messages.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+      const allowedGroups = allowedMessageGroups();
+      const messages = state.messages
+        .filter((message) => allowedGroups.includes(message.group))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 5);
       if (!messages.length) empty(latest, "Noch keine Mitteilungen.");
       messages.forEach((message) => latest.appendChild(item(`
         <div class="item-head">
@@ -1458,6 +1461,22 @@
 
     function groupOptions(selected) {
       return optionList(["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"], selected);
+    }
+
+    function allowedMessageGroups() {
+      if (canManage()) return TEAM_GROUPS;
+      const person = playerByName(activeUser());
+      return person ? normalizeGroups(person) : ["Mannschaft"];
+    }
+
+    function renderMessageGroups() {
+      const select = $("#messageGroup");
+      const selected = select.value;
+      const groups = allowedMessageGroups();
+      select.innerHTML = groups
+        .map((group) => `<option ${group === selected ? "selected" : ""}>${escapeHtml(group)}</option>`)
+        .join("");
+      if (!groups.includes(select.value)) select.value = groups[0];
     }
 
     function groupEditor(player) {
@@ -1776,9 +1795,11 @@
     $("#messageForm").addEventListener("submit", (event) => {
       event.preventDefault();
       const values = formValues(event.currentTarget);
+      const groups = allowedMessageGroups();
+      const group = groups.includes($("#messageGroup").value) ? $("#messageGroup").value : groups[0];
       state.messages.push({
         id: crypto.randomUUID(),
-        group: $("#messageGroup").value,
+        group,
         author: activeUser(),
         body: values.body,
         createdAt: new Date().toISOString()
