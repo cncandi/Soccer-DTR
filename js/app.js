@@ -260,16 +260,20 @@
 
     function normalizePlayer(player) {
       const nameKey = playerNameKey(player.name);
+      const memberRoles = normalizeMemberRoles(player);
+      const isPlayerMember = memberRoles.includes("Spieler");
       return {
         ...player,
         name: String(player.name || "").trim(),
         password: player.password || DEFAULT_USER_PASSWORDS[nameKey] || DEFAULT_PASSWORD,
         role: player.role || DEFAULT_USER_ROLES[nameKey] || "Spieler",
-        memberRoles: normalizeMemberRoles(player),
+        memberRoles,
         groups: normalizeGroups(player),
         group: normalizeGroups(player)[0],
         photo: player.photo || "",
-        alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
+        // Reine Trainer/Betreuer ohne Spieler-Rolle haben keine Position
+        position: isPlayerMember ? (player.position || "") : "",
+        alternatePositions: isPlayerMember && Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: normalizeAvailability(player.availability),
         performance: { ...defaultPerformance(), ...(player.performance || {}) }
       };
@@ -488,6 +492,12 @@
       $("#currentRole").value = roleForUser(activeUser());
     }
 
+    function displayPosition(player) {
+      // Position nur fuer Personen anzeigen, die auch Spieler sind.
+      // Reine Trainer oder Betreuer haben keine Position.
+      return hasMemberRole(player, "Spieler") ? (player.position || "") : "";
+    }
+
     function canManage() {
       return ROLE_LEVELS[activeRole()] >= ROLE_LEVELS.Admin;
     }
@@ -497,12 +507,19 @@
       return canManage() || Boolean(person && hasMemberRole(person, "Trainer"));
     }
 
+    function canManagePlayers() {
+      if (canManage()) return true;
+      const person = playerByName(activeUser());
+      return Boolean(person && (hasMemberRole(person, "Trainer") || hasMemberRole(person, "Betreuer")));
+    }
+
     function isSuperadmin() {
       return activeRole() === "Superadmin";
     }
 
     function canAccess(minRole) {
       const normalizedRole = String(minRole || "Spieler").toLowerCase();
+      if (normalizedRole === "staff") return canManagePlayers();
       const requiredRole = {
         player: "Spieler",
         spieler: "Spieler",
@@ -861,7 +878,7 @@
                     <p class="item-title">${escapeHtml(player.name)}</p>
                     ${renderAvailabilityBadges(player)}
                   </div>
-                  <div class="meta"><span>${escapeHtml(player.position)}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
               <span class="chip">${escapeHtml(groupLabels(player))}</span>
@@ -870,11 +887,11 @@
             ${renderPlayerCalendarStats(player)}
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() ? renderPerformanceSummary(player) : ""}
-            ${canManage() ? `
-              <div class="row-actions"><button class="mini" data-open-player="${player.id}">Spieler bearbeiten</button></div>
-              <div class="row-actions">
-                <button class="mini no" data-delete-player="${player.id}">Entfernen</button>
-              </div>
+            ${canManagePlayers() ? `
+              <div class="row-actions"><button class="mini" data-open-player="${escapeAttr(player.id)}">Spieler bearbeiten</button></div>
+              ${canManage() ? `<div class="row-actions">
+                <button class="mini no" data-delete-player="${escapeAttr(player.id)}">Entfernen</button>
+              </div>` : ""}
             ` : ""}
           `));
         });
@@ -1527,7 +1544,7 @@
       const availability = activeAvailabilityEntries(player).map(availabilityText).join(" ");
       return [
         player.name,
-        player.position,
+        displayPosition(player),
         player.role,
         memberRoleLabels(player),
         groupLabels(player),
@@ -1600,19 +1617,20 @@
 
     function openPlayerModal(playerId) {
       const player = state.players.find((item) => item.id === playerId);
-      if (!player || !canManage()) return;
+      if (!player || !canManagePlayers()) return;
       const isRosterPlayer = hasMemberRole(player, "Spieler");
+      const fullAccess = canManage();
       $("#playerModalTitle").textContent = `${player.name} bearbeiten`;
       $("#playerEditForm").innerHTML = `
         <input type="hidden" name="id" value="${escapeAttr(player.id)}">
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
-        <div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>
+        ${isRosterPlayer ? `<div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
-        <div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>
+        ${fullAccess ? `<div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>` : ""}
         <div class="field full"><label>Gruppen</label><div class="inline-checks">${groupEditor(player)}</div></div>
-        <div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>
-        <div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>
-        <div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>
+        ${fullAccess ? `<div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>` : ""}
+        ${fullAccess ? `<div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>` : ""}
+        ${fullAccess ? `<div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>` : ""}
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
         <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
@@ -1620,7 +1638,7 @@
           <label>Status</label>
           <div class="availability-grid">${availabilityEditor(player)}</div>
         </div>
-        ${isRosterPlayer ? `<details class="form-details field full">
+        ${isRosterPlayer && fullAccess ? `<details class="form-details field full">
           <summary>Leistungsdaten</summary>
           <div class="form-grid">
             <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
@@ -1706,16 +1724,19 @@
         return;
       }
       const groups = groupsFromValues(values);
+      const memberRoles = memberRolesFromValues(values);
+      // Reine Trainer/Betreuer haben keine Position
+      const isPlayer = memberRoles.includes("Spieler");
       state.players.push({
         id: crypto.randomUUID(),
         name: values.name,
-        position: values.position,
+        position: isPlayer ? values.position : "",
         phone: values.phone,
         role: values.role,
         group: groups[0],
         groups,
         notes: values.notes,
-        memberRoles: memberRolesFromValues(values),
+        memberRoles,
         password: DEFAULT_PASSWORD,
         photo: "",
         alternatePositions: [],
@@ -1883,7 +1904,7 @@
 
     $("#playerEditForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!canManage()) return;
+      if (!canManagePlayers()) return;
       const form = event.currentTarget;
       const values = formValues(form);
       const player = state.players.find((item) => item.id === values.id);
@@ -1895,25 +1916,36 @@
       }
 
       player.name = nextName;
-      player.position = values.position;
       player.phone = values.phone.trim();
       player.groups = groupsFromValues(values);
       player.group = player.groups[0];
-      player.role = values.role;
-      player.memberRoles = memberRolesFromValues(values);
+      // Berechtigungsrolle und Mitgliedsrollen darf nur Admin/Superadmin aendern
+      if (canManage()) {
+        player.role = values.role;
+        player.memberRoles = memberRolesFromValues(values);
+      }
+      // Position nur fuer Spieler; bei reinen Trainern/Betreuern leeren
+      // (nach memberRoles-Update, damit Rollenwechsel sofort greift)
+      player.position = hasMemberRole(player, "Spieler") ? values.position : "";
       player.notes = values.notes.trim();
-      player.password = values.password.trim() || DEFAULT_PASSWORD;
+      // Passwort darf nur Admin/Superadmin aendern
+      if (canManage()) {
+        player.password = values.password.trim() || DEFAULT_PASSWORD;
+      }
       player.availability = availabilityFromValues(values);
       player.alternatePositions = hasMemberRole(player, "Spieler")
         ? (values.alternatePositions || "").split(",").map((value) => value.trim()).filter(Boolean)
         : [];
-      player.performance = {
-        ...defaultPerformance(),
-        ...Object.fromEntries(GRADE_FIELDS.map((field) => [field, values[field] || ""])),
-        strengths: (values.strengths || "").trim(),
-        weaknesses: (values.weaknesses || "").trim(),
-        talks: (values.talks || "").trim()
-      };
+      // Performance-/Bewertungsdaten nur fuer Admin/Superadmin
+      if (canManage()) {
+        player.performance = {
+          ...defaultPerformance(),
+          ...Object.fromEntries(GRADE_FIELDS.map((field) => [field, values[field] || ""])),
+          strengths: (values.strengths || "").trim(),
+          weaknesses: (values.weaknesses || "").trim(),
+          talks: (values.talks || "").trim()
+        };
+      }
 
       const photoFile = form.elements.photoFile.files[0];
       if (photoFile) {
@@ -1947,7 +1979,7 @@
       const toggleFineId = target.dataset.toggleFine;
       const editCatalogFineId = target.dataset.editCatalogFine;
 
-      if (openPlayerId && canManage()) openPlayerModal(openPlayerId);
+      if (openPlayerId && canManagePlayers()) openPlayerModal(openPlayerId);
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
       if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
       if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);

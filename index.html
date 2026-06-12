@@ -57,19 +57,21 @@
       <section class="profile-card">
         <label for="currentUser">Angemeldeter Name</label>
         <input id="currentUser" autocomplete="name" readonly>
-        <label for="currentRole">Rolle</label>
-        <select id="currentRole" disabled>
-          <option>Superadmin</option>
-          <option>Admin</option>
-          <option>Spieler</option>
-        </select>
+        <div class="profile-role admin-only">
+          <label for="currentRole">Rolle</label>
+          <select id="currentRole" disabled>
+            <option>Superadmin</option>
+            <option>Admin</option>
+            <option>Spieler</option>
+          </select>
+        </div>
         <button class="logout-btn" id="logoutBtn" type="button">Abmelden</button>
       </section>
 
-      <section class="tenant-card">
+      <section class="tenant-card admin-only">
         <label for="clubSelect">Verein</label>
         <select id="clubSelect"></select>
-        <div class="tenant-actions admin-only">
+        <div class="tenant-actions">
           <input id="newClubName" placeholder="Neuer Verein">
           <button id="addClubBtn" type="button">+</button>
         </div>
@@ -77,7 +79,7 @@
 
       <nav class="nav" aria-label="Hauptnavigation">
         <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
-        <button data-view="players" data-min-role="admin">Spieler</button>
+        <button data-view="players" data-min-role="staff">Spieler</button>
         <button data-view="events" data-min-role="player">Training & Spiele</button>
         <button data-view="cash" data-min-role="player">Kasse</button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
