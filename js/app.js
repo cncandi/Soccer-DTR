@@ -130,7 +130,8 @@
       cashFines: [],
       fineCatalog: defaultFineCatalog(),
       polls: [],
-      messages: []
+      messages: [],
+      hallOfFame: { selfTrainings: [], bonusPoints: [] }
     };
 
     let clubs = loadClubs();
@@ -140,6 +141,7 @@
     let calendarDate = isoDate(new Date());
     let calendarMode = "week";
     let expandedEventId = "";
+    let selectedFamePlayer = "";
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -152,6 +154,7 @@
       polls: ["Abstimmungen", "Schnelle Entscheidungen fuer Mannschaft, Mannschaftsrat und Kasse."],
       messages: ["Mitteilungen", "Gruppen-Kommunikation im Stil eines Team-Chats."],
       cash: ["Mannschaftskasse", "Strafen, offene Betraege und Kassenstand."],
+      fame: ["Hall of Fame", "Punkte, Rangliste und besondere Leistungen."],
       settings: ["Einstellungen", "Vereinsdesign und Datenbank-Einstellungen verwalten."]
     };
 
@@ -331,7 +334,8 @@
         cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
-        messages: loadedState.messages || []
+        messages: loadedState.messages || [],
+        hallOfFame: normalizeHallOfFame(loadedState.hallOfFame)
       };
     }
 
@@ -372,6 +376,37 @@
         createdAt: fine.createdAt || new Date().toISOString(),
         paid: Boolean(fine.paid),
         paidAt: fine.paidAt || ""
+      };
+    }
+
+    function normalizeSelfTraining(entry) {
+      return {
+        id: entry.id || crypto.randomUUID(),
+        player: entry.player || "",
+        date: entry.date || new Date().toISOString().slice(0, 10),
+        note: entry.note || "",
+        proof: entry.proof || "",
+        createdBy: entry.createdBy || entry.player || "",
+        createdAt: entry.createdAt || new Date().toISOString()
+      };
+    }
+
+    function normalizeBonusPoint(entry) {
+      return {
+        id: entry.id || crypto.randomUUID(),
+        player: entry.player || "",
+        points: Number(entry.points || 0),
+        reason: entry.reason || "",
+        date: entry.date || new Date().toISOString().slice(0, 10),
+        createdBy: entry.createdBy || "",
+        createdAt: entry.createdAt || new Date().toISOString()
+      };
+    }
+
+    function normalizeHallOfFame(hallOfFame = {}) {
+      return {
+        selfTrainings: (hallOfFame.selfTrainings || []).map(normalizeSelfTraining),
+        bonusPoints: (hallOfFame.bonusPoints || []).map(normalizeBonusPoint)
       };
     }
 
@@ -517,6 +552,11 @@
 
     function canManageCash() {
       return canManage();
+    }
+
+    function canAwardFamePoints() {
+      const player = playerByName(activeUser());
+      return canManage() || Boolean(player && hasMemberRole(player, "Trainer"));
     }
 
     function canManagePlayers() {
@@ -776,7 +816,11 @@
         cashFines: mergeById(localState.cashFines || [], remoteState.cashFines || []),
         fineCatalog: mergeById(localState.fineCatalog || [], remoteState.fineCatalog || []),
         polls: mergeById(localState.polls, remoteState.polls || []),
-        messages: mergeById(localState.messages, remoteState.messages || [])
+        messages: mergeById(localState.messages, remoteState.messages || []),
+        hallOfFame: {
+          selfTrainings: mergeById(localState.hallOfFame?.selfTrainings || [], remoteState.hallOfFame?.selfTrainings || []),
+          bonusPoints: mergeById(localState.hallOfFame?.bonusPoints || [], remoteState.hallOfFame?.bonusPoints || [])
+        }
       });
     }
 
@@ -1033,6 +1077,7 @@
       renderAllEventsList();
       renderFines();
       renderCash();
+      renderFame();
       renderPolls();
       renderMessages();
       renderDashboard();
@@ -1049,6 +1094,9 @@
       });
       $$(".cash-manage").forEach((el) => {
         el.style.display = canManageCash() ? "" : "none";
+      });
+      $$(".fame-award").forEach((el) => {
+        el.style.display = canAwardFamePoints() ? "" : "none";
       });
       $$(".nav button").forEach((button) => {
         button.hidden = !canAccess(button.dataset.minRole);
@@ -1483,6 +1531,144 @@
             <button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>
           </div>
         `)));
+    }
+
+    function fameEntriesForPlayer(player) {
+      const now = new Date();
+      const entries = [];
+      state.events.forEach((event) => {
+        if (!eventSupportsRsvp(event) || eventDateTime(event) > now || effectiveRsvp(event, player) !== "yes") return;
+        if (event.type === "Training") {
+          entries.push({
+            id: `event::${event.id}::${player.name}`,
+            type: "training",
+            date: event.date,
+            title: "Training",
+            text: `${event.title}${event.location ? `, ${event.location}` : ""}`,
+            points: 5
+          });
+        }
+        if (event.type === "Spiel") {
+          entries.push({
+            id: `event::${event.id}::${player.name}`,
+            type: "squad",
+            date: event.date,
+            title: "Kader",
+            text: `${event.title}${event.location ? `, ${event.location}` : ""}`,
+            points: 10
+          });
+        }
+      });
+      (state.hallOfFame?.selfTrainings || [])
+        .filter((entry) => playerNameKey(entry.player) === playerNameKey(player.name))
+        .forEach((entry) => entries.push({
+          id: entry.id,
+          type: "self",
+          date: entry.date,
+          title: "Eigenes Training",
+          text: entry.note || "Training mit Bildnachweis",
+          proof: entry.proof,
+          points: 5
+        }));
+      (state.hallOfFame?.bonusPoints || [])
+        .filter((entry) => playerNameKey(entry.player) === playerNameKey(player.name))
+        .forEach((entry) => entries.push({
+          id: entry.id,
+          type: "bonus",
+          date: entry.date,
+          title: "Besondere Leistung",
+          text: entry.reason,
+          createdBy: entry.createdBy,
+          points: entry.points
+        }));
+      return entries.sort((a, b) => `${b.date}${b.title}`.localeCompare(`${a.date}${a.title}`));
+    }
+
+    function fameRows() {
+      return rosterPlayers()
+        .map((player) => {
+          const entries = fameEntriesForPlayer(player);
+          return {
+            player,
+            entries,
+            total: entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+          };
+        })
+        .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name, "de"));
+    }
+
+    function renderFameForm() {
+      const selfForm = $("#selfTrainingForm");
+      if (selfForm && !selfForm.elements.date.value) selfForm.elements.date.value = new Date().toISOString().slice(0, 10);
+      const bonusForm = $("#bonusPointForm");
+      if (!bonusForm) return;
+      if (!bonusForm.elements.date.value) bonusForm.elements.date.value = new Date().toISOString().slice(0, 10);
+      const current = $("#bonusPointPlayer").value;
+      const players = rosterPlayers().map((player) => player.name).sort((a, b) => a.localeCompare(b, "de"));
+      $("#bonusPointPlayer").innerHTML = players.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("");
+      $("#bonusPointPlayer").value = players.includes(current) ? current : players[0] || "";
+    }
+
+    function canViewFameDetails(name) {
+      return canManage() || playerNameKey(name) === playerNameKey(activeUser());
+    }
+
+    function renderFame() {
+      const ranking = $("#fameRanking");
+      const details = $("#fameDetails");
+      if (!ranking || !details) return;
+      renderFameForm();
+      const rows = fameRows();
+      const activeName = activeUser();
+      if (!selectedFamePlayer || !rows.some((row) => playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer))) {
+        selectedFamePlayer = rows.some((row) => playerNameKey(row.player.name) === playerNameKey(activeName)) ? activeName : rows[0]?.player.name || "";
+      }
+      const leader = rows[0];
+      const myRow = rows.find((row) => playerNameKey(row.player.name) === playerNameKey(activeName));
+      $("#fameLeader").textContent = leader ? `${leader.player.name} (${leader.total})` : "-";
+      $("#fameMyPoints").textContent = myRow ? myRow.total : 0;
+      $("#fameTotalPoints").textContent = rows.reduce((sum, row) => sum + row.total, 0);
+
+      ranking.innerHTML = "";
+      if (!rows.length) empty(ranking, "Noch keine Spieler vorhanden.");
+      rows.forEach((row, index) => {
+        const selected = playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer);
+        ranking.appendChild(item(`
+          <div class="item-head">
+            <div>
+              <p class="item-title">#${index + 1} ${escapeHtml(row.player.name)}</p>
+              <div class="meta"><span>${row.entries.length} Eintraege</span>${canViewFameDetails(row.player.name) ? "<span>Details sichtbar</span>" : "<span>Details privat</span>"}</div>
+            </div>
+            <span class="score-badge">${row.total}</span>
+          </div>
+          <div class="row-actions">
+            <button class="mini ${selected ? "yes" : ""}" data-fame-player="${escapeAttr(row.player.name)}">${canViewFameDetails(row.player.name) ? "Details anzeigen" : "Punkte ansehen"}</button>
+          </div>
+        `));
+      });
+
+      const selectedRow = rows.find((row) => playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer));
+      $("#fameDetailTitle").textContent = selectedRow ? `Punktedetails: ${selectedRow.player.name}` : "Punktedetails";
+      details.innerHTML = "";
+      if (!selectedRow) return empty(details, "Bitte einen Spieler auswaehlen.");
+      if (!canViewFameDetails(selectedRow.player.name)) {
+        return empty(details, "Details sind nur fuer den eigenen Namen sichtbar.");
+      }
+      if (!selectedRow.entries.length) return empty(details, "Noch keine Punkte vorhanden.");
+      selectedRow.entries.forEach((entry) => {
+        details.appendChild(item(`
+          <div class="item-head">
+            <div>
+              <p class="item-title">${escapeHtml(entry.title)}</p>
+              <div class="meta"><span>${formatShortDate(entry.date)}</span><span>${escapeHtml(entry.text || "")}</span>${entry.createdBy ? `<span>Von ${escapeHtml(entry.createdBy)}</span>` : ""}</div>
+            </div>
+            <span class="score-badge">${entry.points > 0 ? "+" : ""}${entry.points}</span>
+          </div>
+          ${entry.proof ? `<img class="proof-image" src="${escapeAttr(entry.proof)}" alt="Bildnachweis eigenes Training">` : ""}
+          ${canManage() && entry.type === "self" ? `<div class="row-actions"><button class="mini no" data-delete-self-training="${escapeAttr(entry.id)}">Eigentraining entfernen</button></div>` : ""}
+          ${canManage() && entry.type === "bonus" ? `<div class="row-actions"><button class="mini no" data-delete-bonus-point="${escapeAttr(entry.id)}">Sonderpunkte entfernen</button></div>` : ""}
+        `));
+      });
     }
 
     function renderFines() {
@@ -2353,6 +2539,47 @@
       saveState();
     });
 
+    $("#selfTrainingForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const values = formValues(form);
+      const file = form.elements.proofFile.files[0];
+      if (!file) {
+        window.alert("Bitte ein Bild als Nachweis hochladen.");
+        return;
+      }
+      state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
+      state.hallOfFame.selfTrainings.push(normalizeSelfTraining({
+        id: crypto.randomUUID(),
+        player: activeUser(),
+        date: values.date,
+        note: values.note,
+        proof: await readFileAsDataUrl(file),
+        createdBy: activeUser(),
+        createdAt: new Date().toISOString()
+      }));
+      form.reset();
+      saveState();
+    });
+
+    $("#bonusPointForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!canAwardFamePoints()) return;
+      const values = formValues(event.currentTarget);
+      state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
+      state.hallOfFame.bonusPoints.push(normalizeBonusPoint({
+        id: crypto.randomUUID(),
+        player: values.player,
+        points: values.points,
+        reason: values.reason,
+        date: values.date,
+        createdBy: activeUser(),
+        createdAt: new Date().toISOString()
+      }));
+      event.currentTarget.reset();
+      saveState();
+    });
+
     $("#fineCatalogForm").addEventListener("submit", (event) => {
       event.preventDefault();
       if (!canManage()) return;
@@ -2517,6 +2744,9 @@
       const toggleFineId = target.dataset.toggleFine;
       const editCatalogFineId = target.dataset.editCatalogFine;
       const editEventId = target.dataset.editEvent;
+      const famePlayer = target.dataset.famePlayer;
+      const deleteSelfTrainingId = target.dataset.deleteSelfTraining;
+      const deleteBonusPointId = target.dataset.deleteBonusPoint;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
@@ -2532,6 +2762,11 @@
         return;
       }
       if (openPlayerId && canManagePlayers()) openPlayerModal(openPlayerId);
+      if (famePlayer) {
+        selectedFamePlayer = famePlayer;
+        renderFame();
+        return;
+      }
       if (editEventId && canManage()) {
         editEvent(editEventId);
         return;
@@ -2555,6 +2790,14 @@
       }
       if (toggleFineId && canManage()) {
         toggleFinePaid(toggleFineId);
+      }
+      if (deleteSelfTrainingId && canManage()) {
+        state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
+        state.hallOfFame.selfTrainings = state.hallOfFame.selfTrainings.filter((entry) => entry.id !== deleteSelfTrainingId);
+      }
+      if (deleteBonusPointId && canManage()) {
+        state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
+        state.hallOfFame.bonusPoints = state.hallOfFame.bonusPoints.filter((entry) => entry.id !== deleteBonusPointId);
       }
       if (rsvpId) {
         const item = state.events.find((eventItem) => eventItem.id === rsvpId);
@@ -2591,7 +2834,7 @@
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || toggleFineId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || toggleFineId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
@@ -2662,6 +2905,7 @@
     $("#messageGroup").addEventListener("change", renderMessages);
     $("#currentUser").addEventListener("input", () => {
       localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
+      selectedFamePlayer = $("#currentUser").value;
       updateRoleFromUser();
       render();
     });
