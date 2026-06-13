@@ -12,6 +12,7 @@
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
     const CLUB_URL_PARAM = "club";
+    const PUBLIC_APP_URL = "https://cncandi.github.io/Soccer-DTR/";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
@@ -897,9 +898,7 @@
     }
 
     function clubInstallUrl(clubId = currentClubId) {
-      const url = new URL(location.href);
-      url.hash = "";
-      url.searchParams.delete("v");
+      const url = new URL(PUBLIC_APP_URL);
       url.searchParams.set(CLUB_URL_PARAM, clubId);
       return url.toString();
     }
