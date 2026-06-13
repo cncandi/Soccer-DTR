@@ -1,4 +1,7 @@
-const CACHE_NAME = "soccer-dtr-v25";
+const CACHE_NAME = "soccer-dtr-v26";
+const BADGE_DB_NAME = "soccer-dtr-badges";
+const BADGE_STORE_NAME = "counts";
+const MESSAGE_BADGE_KEY = "messages";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -41,6 +44,51 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+function openBadgeDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(BADGE_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(BADGE_STORE_NAME);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readBadgeCount() {
+  const db = await openBadgeDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(BADGE_STORE_NAME, "readonly");
+    const request = tx.objectStore(BADGE_STORE_NAME).get(MESSAGE_BADGE_KEY);
+    request.onsuccess = () => resolve(Number(request.result || 0));
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function writeBadgeCount(count) {
+  const db = await openBadgeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(BADGE_STORE_NAME, "readwrite");
+    tx.objectStore(BADGE_STORE_NAME).put(Math.max(0, Number(count || 0)), MESSAGE_BADGE_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function setMessageBadge(count) {
+  await writeBadgeCount(count);
+  if ("setAppBadge" in navigator && "clearAppBadge" in navigator) {
+    if (count > 0) await navigator.setAppBadge(count);
+    else await navigator.clearAppBadge();
+  }
+}
+
+async function incrementMessageBadge() {
+  const nextCount = await readBadgeCount() + 1;
+  await setMessageBadge(nextCount);
+  return nextCount;
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -57,7 +105,12 @@ self.addEventListener("push", (event) => {
       url: payload.url || "./index.html#messages"
     }
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    Promise.all([
+      incrementMessageBadge().catch(() => {}),
+      self.registration.showNotification(title, options)
+    ])
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -73,4 +126,10 @@ self.addEventListener("notificationclick", (event) => {
       return clients.openWindow(url);
     })
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CLEAR_MESSAGE_BADGE") {
+    event.waitUntil(setMessageBadge(0).catch(() => {}));
+  }
 });

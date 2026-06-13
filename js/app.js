@@ -842,6 +842,15 @@
       }
     }
 
+    function clearServiceWorkerMessageBadge() {
+      if (!("serviceWorker" in navigator)) return;
+      const message = { type: "CLEAR_MESSAGE_BADGE" };
+      navigator.serviceWorker.controller?.postMessage(message);
+      navigator.serviceWorker.ready
+        .then((registration) => registration.active?.postMessage(message))
+        .catch(() => {});
+    }
+
     function renderNotificationBadges() {
       const counts = unreadCounts();
       Object.entries(counts).forEach(([type, count]) => {
@@ -853,6 +862,7 @@
         });
       });
       updateAppBadge(counts.messages);
+      if (counts.messages === 0) clearServiceWorkerMessageBadge();
     }
 
     function pushSupported() {
@@ -2511,6 +2521,9 @@
     $("#settingsForm").elements.table.value = settings.table;
     render();
     setLoginVisible(!restoredLogin);
+    if (restoredLogin && location.hash === "#messages") {
+      switchView("messages");
+    }
     syncWithSupabase({ silent: true });
 
     if ("serviceWorker" in navigator) {
