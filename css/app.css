@@ -791,6 +791,60 @@
       color: #991b1b;
     }
 
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .fame-table {
+      width: 100%;
+      min-width: 680px;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+
+    .fame-table th,
+    .fame-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .fame-table th {
+      background: #eef4f0;
+      color: var(--muted);
+      font-size: .76rem;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .fame-table td:not(:nth-child(2)),
+    .fame-table th:not(:nth-child(2)) {
+      text-align: right;
+    }
+
+    .fame-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .fame-table tr.selected td {
+      background: var(--club-soft);
+    }
+
+    .link-button {
+      padding: 0;
+      min-height: 0;
+      border: 0;
+      background: transparent;
+      color: var(--green);
+      font: inherit;
+      font-weight: 850;
+      text-align: left;
+    }
+
     .score-badge {
       min-width: 48px;
       min-height: 38px;

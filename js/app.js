@@ -1588,10 +1588,22 @@
       return rosterPlayers()
         .map((player) => {
           const entries = fameEntriesForPlayer(player);
+          const trainingPoints = entries
+            .filter((entry) => entry.type === "training" || entry.type === "self")
+            .reduce((sum, entry) => sum + Number(entry.points || 0), 0);
+          const gamePoints = entries
+            .filter((entry) => entry.type === "squad")
+            .reduce((sum, entry) => sum + Number(entry.points || 0), 0);
+          const bonusPoints = entries
+            .filter((entry) => entry.type === "bonus")
+            .reduce((sum, entry) => sum + Number(entry.points || 0), 0);
           return {
             player,
             entries,
-            total: entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+            trainingPoints,
+            gamePoints,
+            bonusPoints,
+            total: trainingPoints + gamePoints + bonusPoints
           };
         })
         .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name, "de"));
@@ -1620,35 +1632,34 @@
       renderFameForm();
       const rows = fameRows();
       const activeName = activeUser();
+      if (!canManage()) selectedFamePlayer = activeName;
       if (!selectedFamePlayer || !rows.some((row) => playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer))) {
         selectedFamePlayer = rows.some((row) => playerNameKey(row.player.name) === playerNameKey(activeName)) ? activeName : rows[0]?.player.name || "";
       }
-      const leader = rows[0];
-      const myRow = rows.find((row) => playerNameKey(row.player.name) === playerNameKey(activeName));
-      $("#fameLeader").textContent = leader ? `${leader.player.name} (${leader.total})` : "-";
-      $("#fameMyPoints").textContent = myRow ? myRow.total : 0;
-      $("#fameTotalPoints").textContent = rows.reduce((sum, row) => sum + row.total, 0);
 
       ranking.innerHTML = "";
-      if (!rows.length) empty(ranking, "Noch keine Spieler vorhanden.");
+      if (!rows.length) {
+        ranking.innerHTML = `<tr><td colspan="6">Noch keine Spieler vorhanden.</td></tr>`;
+      }
       rows.forEach((row, index) => {
         const selected = playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer);
-        ranking.appendChild(item(`
-          <div class="item-head">
-            <div>
-              <p class="item-title">#${index + 1} ${escapeHtml(row.player.name)}</p>
-              <div class="meta"><span>${row.entries.length} Eintraege</span>${canViewFameDetails(row.player.name) ? "<span>Details sichtbar</span>" : "<span>Details privat</span>"}</div>
-            </div>
-            <span class="score-badge">${row.total}</span>
-          </div>
-          <div class="row-actions">
-            <button class="mini ${selected ? "yes" : ""}" data-fame-player="${escapeAttr(row.player.name)}">${canViewFameDetails(row.player.name) ? "Details anzeigen" : "Punkte ansehen"}</button>
-          </div>
-        `));
+        const tr = document.createElement("tr");
+        tr.className = selected ? "selected" : "";
+        tr.dataset.famePlayer = row.player.name;
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td><button class="link-button" type="button" data-fame-player="${escapeAttr(row.player.name)}">${escapeHtml(row.player.name)}</button></td>
+          <td>${row.trainingPoints}</td>
+          <td>${row.gamePoints}</td>
+          <td>${row.bonusPoints}</td>
+          <td><strong>${row.total}</strong></td>
+        `;
+        ranking.appendChild(tr);
       });
 
       const selectedRow = rows.find((row) => playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer));
-      $("#fameDetailTitle").textContent = selectedRow ? `Punktedetails: ${selectedRow.player.name}` : "Punktedetails";
+      const selectedIsMe = selectedRow && playerNameKey(selectedRow.player.name) === playerNameKey(activeName);
+      $("#fameDetailTitle").textContent = selectedRow && canManage() && !selectedIsMe ? `Details: ${selectedRow.player.name}` : "Details meiner Punkte";
       details.innerHTML = "";
       if (!selectedRow) return empty(details, "Bitte einen Spieler auswaehlen.");
       if (!canViewFameDetails(selectedRow.player.name)) {
@@ -2763,6 +2774,7 @@
       }
       if (openPlayerId && canManagePlayers()) openPlayerModal(openPlayerId);
       if (famePlayer) {
+        if (!canViewFameDetails(famePlayer)) return;
         selectedFamePlayer = famePlayer;
         renderFame();
         return;

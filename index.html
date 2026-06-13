@@ -277,11 +277,24 @@
       </section>
 
       <section class="view" id="fame">
-        <div class="grid stats cash-summary">
-          <div class="stat"><strong id="fameLeader">-</strong><span>Fuehrender Spieler</span></div>
-          <div class="stat"><strong id="fameMyPoints">0</strong><span>Meine Punkte</span></div>
-          <div class="stat"><strong id="fameTotalPoints">0</strong><span>Punkte gesamt</span></div>
-        </div>
+        <section class="panel">
+          <h3>Rangliste</h3>
+          <div class="table-wrap">
+            <table class="fame-table">
+              <thead>
+                <tr>
+                  <th>Platz</th>
+                  <th>Spieler</th>
+                  <th>Punkte Training</th>
+                  <th>Punkte Spiele</th>
+                  <th>Sonderpunkte</th>
+                  <th>Gesamt</th>
+                </tr>
+              </thead>
+              <tbody id="fameRanking"></tbody>
+            </table>
+          </div>
+        </section>
         <div class="grid two">
           <section class="panel">
             <h3>Eigenes Training</h3>
@@ -291,6 +304,10 @@
               <div class="field full"><label>Bemerkung</label><textarea name="note" placeholder="Was hast du trainiert?"></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Eigenes Training einreichen</button></div>
             </form>
+          </section>
+          <section class="panel">
+            <h3 id="fameDetailTitle">Details meiner Punkte</h3>
+            <div class="list" id="fameDetails"></div>
           </section>
           <section class="panel fame-award">
             <h3>Besondere Leistung</h3>
@@ -303,14 +320,6 @@
             </form>
           </section>
         </div>
-        <section class="panel">
-          <h3>Rangliste</h3>
-          <div class="list" id="fameRanking"></div>
-        </section>
-        <section class="panel">
-          <h3 id="fameDetailTitle">Punktedetails</h3>
-          <div class="list" id="fameDetails"></div>
-        </section>
       </section>
 
       <section class="view" id="polls">
