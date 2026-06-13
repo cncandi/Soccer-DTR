@@ -1125,6 +1125,24 @@
       background: var(--club-soft);
     }
 
+    .paypal-box {
+      margin-top: 8px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .paypal-box[hidden] {
+      display: none;
+    }
+
+    .paypal-status {
+      margin-top: 6px;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
     .empty {
       border: 1px dashed var(--line);
       border-radius: 8px;

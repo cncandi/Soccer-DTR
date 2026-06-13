@@ -8,6 +8,9 @@
     const SEEN_PREFIX = "soccer-dtr-seen";
     const PUSH_PUBLIC_KEY = "BMzLO4YI3nJQ2J6OPpj22v7-S8XOuMTq7Ftm5L62CihAq-gNemRJPWAqhn3xzolyq97jJZ6x5KIrrgpdur7Hb8E";
     const PUSH_FUNCTION_NAME = "send-push";
+    const PAYPAL_SETTINGS_FUNCTION = "paypal-settings";
+    const PAYPAL_CREATE_ORDER_FUNCTION = "paypal-create-order";
+    const PAYPAL_CAPTURE_ORDER_FUNCTION = "paypal-capture-order";
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
@@ -147,6 +150,9 @@
     let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
+    let paypalSettings = null;
+    let paypalSdkKey = "";
+    let paypalLoading = null;
     let calendarDate = isoDate(new Date());
     let calendarMode = "week";
     let expandedEventId = "";
@@ -385,7 +391,10 @@
         createdBy: fine.createdBy || "",
         createdAt: fine.createdAt || new Date().toISOString(),
         paid: Boolean(fine.paid),
-        paidAt: fine.paidAt || ""
+        paidAt: fine.paidAt || "",
+        paymentStatus: fine.paymentStatus || (fine.paid ? "paid" : "open"),
+        paypalOrderId: fine.paypalOrderId || "",
+        paypalCaptureId: fine.paypalCaptureId || ""
       };
     }
 
@@ -987,6 +996,159 @@
       return settings.url ? `${settings.url.replace(/\/$/, "")}/functions/v1/${PUSH_FUNCTION_NAME}` : "";
     }
 
+    function edgeFunctionUrl(name) {
+      return settings.url ? `${settings.url.replace(/\/$/, "")}/functions/v1/${name}` : "";
+    }
+
+    function edgeHeaders() {
+      return {
+        "Content-Type": "application/json",
+        apikey: settings.key,
+        Authorization: `Bearer ${settings.key}`
+      };
+    }
+
+    function paypalConfigured() {
+      return Boolean(paypalSettings?.paypal_enabled && paypalSettings?.paypal_client_id && settings.url && settings.key);
+    }
+
+    async function loadPaypalSettings() {
+      if (!settings.url || !settings.key || !edgeFunctionUrl(PAYPAL_SETTINGS_FUNCTION)) {
+        paypalSettings = null;
+        renderPaypalSettingsForm();
+        return;
+      }
+      try {
+        const response = await fetch(`${edgeFunctionUrl(PAYPAL_SETTINGS_FUNCTION)}?clubId=${encodeURIComponent(currentClubId)}`, {
+          headers: edgeHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "PayPal-Einstellungen konnten nicht geladen werden.");
+        paypalSettings = data;
+        renderPaypalSettingsForm();
+        renderCash();
+      } catch (error) {
+        paypalSettings = null;
+        const status = $("#paypalStatus");
+        if (status) status.textContent = "PayPal nicht verbunden: " + (error.message || error);
+      }
+    }
+
+    function renderPaypalSettingsForm() {
+      const form = $("#paypalSettingsForm");
+      const status = $("#paypalStatus");
+      if (!form || !status) return;
+      const data = paypalSettings || {};
+      form.elements.paypal_enabled.checked = Boolean(data.paypal_enabled);
+      form.elements.paypal_mode.value = data.paypal_mode || "sandbox";
+      form.elements.paypal_client_id.value = data.paypal_client_id || "";
+      form.elements.paypal_client_secret.value = "";
+      form.elements.paypal_receiver_email.value = data.paypal_receiver_email || "";
+      form.elements.paypal_webhook_id.value = data.paypal_webhook_id || "";
+      status.textContent = data.paypal_enabled && data.paypal_client_id
+        ? `Verbunden (${data.paypal_mode === "live" ? "Live" : "Sandbox"})`
+        : "PayPal ist nicht verbunden.";
+    }
+
+    async function savePaypalSettings(event) {
+      event.preventDefault();
+      if (!settings.url || !settings.key) {
+        window.alert("PayPal braucht zuerst die Supabase-Verbindung.");
+        return;
+      }
+      const values = formValues(event.currentTarget);
+      const response = await fetch(`${edgeFunctionUrl(PAYPAL_SETTINGS_FUNCTION)}?clubId=${encodeURIComponent(currentClubId)}`, {
+        method: "POST",
+        headers: edgeHeaders(),
+        body: JSON.stringify({
+          paypal_enabled: values.paypal_enabled === "on",
+          paypal_mode: values.paypal_mode,
+          paypal_client_id: values.paypal_client_id,
+          paypal_client_secret: values.paypal_client_secret,
+          paypal_receiver_email: values.paypal_receiver_email,
+          paypal_webhook_id: values.paypal_webhook_id
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        $("#paypalStatus").textContent = "PayPal-Fehler: " + (data.error || "Speichern fehlgeschlagen.");
+        return;
+      }
+      paypalSettings = data;
+      renderPaypalSettingsForm();
+      renderCash();
+      setStatus("PayPal-Konfiguration gespeichert.");
+    }
+
+    async function loadPaypalSdk() {
+      if (!paypalConfigured()) throw new Error("PayPal ist fuer diesen Verein nicht aktiv.");
+      const key = `${paypalSettings.paypal_client_id}:${paypalSettings.paypal_mode}`;
+      if (window.paypal && paypalSdkKey === key) return;
+      if (paypalLoading) return paypalLoading;
+      delete window.paypal;
+      paypalSdkKey = key;
+      paypalLoading = new Promise((resolve, reject) => {
+        const existing = $("#paypalSdkScript");
+        if (existing) existing.remove();
+        const script = document.createElement("script");
+        script.id = "paypalSdkScript";
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(paypalSettings.paypal_client_id)}&currency=EUR&intent=capture`;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("PayPal SDK konnte nicht geladen werden."));
+        document.head.appendChild(script);
+      }).finally(() => { paypalLoading = null; });
+      await paypalLoading;
+    }
+
+    function renderPaypalButtons() {
+      if (!paypalConfigured()) return;
+      $$(".paypal-box").forEach(async (box) => {
+        if (box.dataset.rendered === "true") return;
+        const penaltyId = box.dataset.penaltyId;
+        const status = box.querySelector(".paypal-status");
+        try {
+          await loadPaypalSdk();
+          box.dataset.rendered = "true";
+          window.paypal.Buttons({
+            style: { layout: "vertical", height: 38, tagline: false },
+            createOrder: async () => {
+              status.textContent = "PayPal-Order wird erstellt ...";
+              const response = await fetch(edgeFunctionUrl(PAYPAL_CREATE_ORDER_FUNCTION), {
+                method: "POST",
+                headers: edgeHeaders(),
+                body: JSON.stringify({ clubId: currentClubId, penaltyId })
+              });
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error || "Order konnte nicht erstellt werden.");
+              status.textContent = "PayPal geoeffnet ...";
+              return data.id;
+            },
+            onApprove: async (data) => {
+              status.textContent = "Zahlung wird bestaetigt ...";
+              const response = await fetch(edgeFunctionUrl(PAYPAL_CAPTURE_ORDER_FUNCTION), {
+                method: "POST",
+                headers: edgeHeaders(),
+                body: JSON.stringify({ clubId: currentClubId, penaltyId, orderId: data.orderID })
+              });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.error || "Capture fehlgeschlagen.");
+              status.textContent = "Bezahlt. Daten werden aktualisiert ...";
+              await syncWithSupabase({ silent: true });
+              render();
+            },
+            onCancel: () => {
+              status.textContent = "Zahlung abgebrochen. Die Strafe bleibt offen.";
+            },
+            onError: (error) => {
+              status.textContent = "PayPal-Fehler: " + (error.message || String(error));
+            }
+          }).render(box.querySelector(".paypal-button-host"));
+        } catch (error) {
+          status.textContent = "PayPal nicht verfuegbar: " + (error.message || String(error));
+        }
+      });
+    }
+
     function urlBase64ToUint8Array(value) {
       const padding = "=".repeat((4 - value.length % 4) % 4);
       const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -1120,6 +1282,7 @@
       renderDashboard();
       renderNotificationBadges();
       renderPushPanel();
+      renderPaypalSettingsForm();
     }
 
     function applyPermissions() {
@@ -1828,7 +1991,10 @@
         note: fine.note || "",
         createdBy: fine.createdBy || "",
         paid: Boolean(fine.paid),
-        paidAt: fine.paidAt || ""
+        paidAt: fine.paidAt || "",
+        paymentStatus: fine.paymentStatus || (fine.paid ? "paid" : "open"),
+        paypalOrderId: fine.paypalOrderId || "",
+        paypalCaptureId: fine.paypalCaptureId || ""
       }));
       const automatic = [];
       state.events.forEach((event) => {
@@ -1846,7 +2012,10 @@
             note: `${event.type} am ${formatDate(event.date, event.time)}`,
             createdBy: record.noShowBy || "Kalender",
             paid: Boolean(record.paid),
-            paidAt: record.paidAt || ""
+            paidAt: record.paidAt || "",
+            paymentStatus: record.paymentStatus || (record.paid ? "paid" : "open"),
+            paypalOrderId: record.paypalOrderId || "",
+            paypalCaptureId: record.paypalCaptureId || ""
           });
         });
       });
@@ -1867,6 +2036,7 @@
       renderFineRows($("#cashOpenList"), rows.filter((fine) => !fine.paid), "Keine offenen Betraege.");
       renderFineRows($("#cashFineList"), rows, "Noch keine Kassenbewegungen.");
       renderFineCatalog();
+      renderPaypalButtons();
     }
 
     function renderDonationForm() {
@@ -1899,17 +2069,28 @@
       container.innerHTML = "";
       if (!rows.length) return empty(container, emptyText);
       rows.forEach((fine) => {
+        const paidInfo = fine.paid
+          ? `<div class="meta"><span>Bezahlt am ${fine.paidAt ? new Date(fine.paidAt).toLocaleString("de-DE") : "unbekannt"}</span>${fine.paypalCaptureId ? `<span>PayPal: ${escapeHtml(fine.paypalCaptureId)}</span>` : ""}</div>`
+          : "";
+        const paypalBox = !fine.paid && !fine.penalty && Number(fine.amount || 0) > 0 && paypalConfigured()
+          ? `<div class="paypal-box" data-penalty-id="${escapeAttr(fine.id)}">
+              <div class="paypal-button-host"></div>
+              <div class="paypal-status">Bereit fuer PayPal-Zahlung.</div>
+            </div>`
+          : "";
         container.appendChild(item(`
           <div class="item-head">
             <div>
               <p class="item-title">${escapeHtml(fine.player)}</p>
               <div class="meta"><span>${escapeHtml(fine.label)}</span><span>${formatShortDate(fine.date)}</span><span>${escapeHtml(fine.createdBy || "")}</span>${fine.note ? `<span>${escapeHtml(fine.note)}</span>` : ""}</div>
+              ${paidInfo}
             </div>
             <div class="row-actions">
               ${fine.paid ? `<span class="paid-check" title="Bezahlt bestaetigt">&#10003;</span>` : ""}
               <span class="chip ${fine.paid ? "blue" : "red"}">${fine.penalty ? escapeHtml(fine.penalty) : `${formatCurrency(fine.amount)} EUR`}</span>
             </div>
           </div>
+          ${paypalBox}
           ${canManage() ? `<div class="row-actions">
             <button class="mini ${fine.paid ? "" : "yes"}" data-toggle-fine="${escapeAttr(fine.id)}">${fine.paid ? "Als offen markieren" : "Bezahlt bestaetigen"}</button>
             ${fine.source === "manual" ? `<button class="mini" data-edit-cash-fine="${escapeAttr(fine.id)}">Bearbeiten</button><button class="mini no" data-delete-cash-fine="${escapeAttr(fine.id)}">Entfernen</button>` : ""}
@@ -1953,7 +2134,10 @@
         event.rsvps[name] = {
           ...record,
           paid,
-          paidAt: paid ? new Date().toISOString() : ""
+          paidAt: paid ? new Date().toISOString() : "",
+          paymentStatus: paid ? "paid" : "open",
+          paypalOrderId: paid ? record.paypalOrderId || "" : "",
+          paypalCaptureId: paid ? record.paypalCaptureId || "" : ""
         };
         return;
       }
@@ -1961,6 +2145,11 @@
       if (!fine) return;
       fine.paid = !fine.paid;
       fine.paidAt = fine.paid ? new Date().toISOString() : "";
+      fine.paymentStatus = fine.paid ? "paid" : "open";
+      if (!fine.paid) {
+        fine.paypalOrderId = "";
+        fine.paypalCaptureId = "";
+      }
     }
 
     function renderCashFineEditPlayers(selected = "") {
@@ -2885,6 +3074,15 @@
       saveSettings();
       setStatus("Supabase-Konfiguration gespeichert.");
       syncWithSupabase();
+      loadPaypalSettings();
+    });
+
+    $("#paypalSettingsForm")?.addEventListener("submit", savePaypalSettings);
+    $("#paypalTestBtn")?.addEventListener("click", async () => {
+      await loadPaypalSettings();
+      $("#paypalStatus").textContent = paypalConfigured()
+        ? "Sandbox-Test bereit: Eine offene Strafe kann jetzt mit PayPal getestet werden."
+        : "PayPal ist noch nicht vollstaendig konfiguriert.";
     });
 
     $("#clubDesignForm").addEventListener("submit", async (event) => {
@@ -3242,6 +3440,7 @@
       state = loadState();
       render();
       syncWithSupabase({ silent: true });
+      loadPaypalSettings();
     }
 
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
@@ -3252,6 +3451,7 @@
       renderClubSelect();
       renderLoginUsers();
       renderInstallPanel();
+      loadPaypalSettings();
     });
     $("#loginUser").addEventListener("change", fillSavedLoginPassword);
     $("#loginForm").addEventListener("submit", (event) => {
@@ -3284,6 +3484,7 @@
       setLoginVisible(false);
       render();
       syncWithSupabase({ silent: true });
+      loadPaypalSettings();
     });
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
@@ -3356,6 +3557,7 @@
       switchView("messages");
     }
     syncWithSupabase({ silent: true });
+    loadPaypalSettings();
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
