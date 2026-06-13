@@ -1278,8 +1278,18 @@
     function rsvpRecord(event, playerName) {
       const raw = (event.rsvps || {})[playerName];
       if (!raw) return null;
-      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "" };
-      return { status: raw.status || "yes", updatedAt: raw.updatedAt || "", fine: Number(raw.fine || 0), reason: raw.reason || "" };
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "" };
+      return {
+        status: raw.status || "yes",
+        updatedAt: raw.updatedAt || "",
+        fine: Number(raw.fine || 0),
+        reason: raw.reason || "",
+        noShow: Boolean(raw.noShow),
+        noShowAt: raw.noShowAt || "",
+        noShowBy: raw.noShowBy || "",
+        paid: Boolean(raw.paid),
+        paidAt: raw.paidAt || ""
+      };
     }
 
     function playerUnavailableForEvent(player, event) {
@@ -1299,6 +1309,7 @@
       if (!eventSupportsRsvp(event)) return "none";
       if (playerUnavailableForEvent(player, event)) return "no";
       const record = rsvpRecord(event, player.name);
+      if (record?.noShow) return "no";
       return record ? record.status : "yes";
     }
 
@@ -1355,6 +1366,7 @@
       const players = rosterPlayers().slice().sort((a, b) => a.name.localeCompare(b.name, "de"));
       const yes = [];
       const no = [];
+      const absent = [];
       players.forEach((player) => {
         const record = rsvpRecord(event, player.name);
         const unavailable = playerUnavailableForEvent(player, event);
@@ -1362,18 +1374,23 @@
         const entry = {
           name: player.name,
           reason: record?.reason || (unavailable ? "Status: nicht verfuegbar" : ""),
-          explicit: Boolean(record)
+          explicit: Boolean(record),
+          noShow: Boolean(record?.noShow),
+          noShowBy: record?.noShowBy || "",
+          fine: Number(record?.fine || 0)
         };
-        if (status === "no") no.push(entry);
+        if (entry.noShow) absent.push(entry);
+        else if (status === "no") no.push(entry);
         else yes.push(entry);
       });
-      return { yes, no };
+      return { yes, no, absent };
     }
 
     function renderRsvpDetails(event) {
       const details = rsvpDetails(event);
-      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}</span>`).join("");
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
+      const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${entry.fine ? ` - ${formatCurrency(entry.fine)} EUR` : ""}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
       return `
         <div class="attendance-panel">
           <div>
@@ -1383,6 +1400,10 @@
           <div>
             <strong>Absagen (${details.no.length})</strong>
             <div class="attendee-list">${noItems || "<span class=\"meta\">Keine Absagen.</span>"}</div>
+          </div>
+          <div>
+            <strong>Angemeldet, nicht da (${details.absent.length})</strong>
+            <div class="attendee-list">${absentItems || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
           </div>
         </div>
       `;
@@ -1485,8 +1506,10 @@
       if (!events.length) return empty(list, calendarMode === "month" && canManage() ? "Keine Termine in diesem Monat." : "Keine Termine in dieser Woche.");
       events
         .forEach((event) => {
-          const yes = countRsvp(event, "yes");
-          const no = countRsvp(event, "no");
+          const attendance = rsvpDetails(event);
+          const yes = attendance.yes.length;
+          const no = attendance.no.length;
+          const absent = attendance.absent.length;
           const player = playerByName(activeUser());
           const myStatus = player && hasMemberRole(player, "Spieler") ? effectiveRsvp(event, player) : "none";
           const myRecord = player ? rsvpRecord(event, player.name) : null;
@@ -1504,7 +1527,7 @@
             </div>
             ${event.details ? `<p class="meta">${escapeHtml(event.details)}</p>` : ""}
             ${eventInfoLine(event)}
-            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span><span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
+            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span>${absent ? `<span>${absent} nicht da</span>` : ""}<span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
             <div class="row-actions">
               ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? `
                 <button class="mini yes" data-rsvp="${event.id}" data-status="yes" ${myStatus === "yes" ? "disabled" : ""}>Zusage</button>
@@ -1787,11 +1810,11 @@
             source: "event",
             eventId: event.id,
             player: name,
-            label: `Spaete Absage: ${event.title}`,
+            label: `${record.noShow ? "Angemeldet, nicht da" : "Spaete Absage"}: ${event.title}`,
             amount: Number(record.fine || 0),
             date: (record.updatedAt || event.date).slice(0, 10),
             note: `${event.type} am ${formatDate(event.date, event.time)}`,
-            createdBy: "Kalender",
+            createdBy: record.noShowBy || "Kalender",
             paid: Boolean(record.paid),
             paidAt: record.paidAt || ""
           });
@@ -1906,6 +1929,60 @@
       if (!fine) return;
       fine.paid = !fine.paid;
       fine.paidAt = fine.paid ? new Date().toISOString() : "";
+    }
+
+    function markNoShow(eventId, playerName) {
+      const eventItem = state.events.find((item) => item.id === eventId);
+      if (!eventItem || !canManage()) return;
+      const player = playerByName(playerName);
+      if (!player || !hasMemberRole(player, "Spieler")) return;
+      const oldRecord = rsvpRecord(eventItem, player.name) || { status: "yes", fine: 0, reason: "" };
+      const reason = window.prompt("Bemerkung fuer nicht erschienen:", oldRecord.reason || "Angemeldet, nicht da");
+      if (reason === null) return;
+      let fine = 0;
+      if (window.confirm("Soll eine Strafe wegen unabgemeldet/nicht erschienen erfasst werden?")) {
+        const amountText = window.prompt("Betrag EUR:", String(oldRecord.fine || 10));
+        if (amountText === null) return;
+        fine = Number(String(amountText).replace(",", ".") || 0);
+        if (Number.isNaN(fine) || fine < 0) {
+          window.alert("Bitte einen gueltigen Betrag eingeben.");
+          return;
+        }
+      }
+      eventItem.rsvps = eventItem.rsvps || {};
+      eventItem.rsvps[player.name] = {
+        ...oldRecord,
+        status: "yes",
+        updatedAt: new Date().toISOString(),
+        reason: reason.trim() || "Angemeldet, nicht da",
+        noShow: true,
+        noShowAt: new Date().toISOString(),
+        noShowBy: activeUser(),
+        fine,
+        paid: fine > 0 ? Boolean(oldRecord.paid) : false,
+        paidAt: fine > 0 ? oldRecord.paidAt || "" : ""
+      };
+      setStatus(`${player.name} wurde als nicht erschienen markiert.`);
+    }
+
+    function clearNoShow(eventId, playerName) {
+      const eventItem = state.events.find((item) => item.id === eventId);
+      if (!eventItem || !canManage()) return;
+      const oldRecord = rsvpRecord(eventItem, playerName);
+      if (!oldRecord) return;
+      eventItem.rsvps[playerName] = {
+        ...oldRecord,
+        status: "yes",
+        updatedAt: new Date().toISOString(),
+        reason: "",
+        noShow: false,
+        noShowAt: "",
+        noShowBy: "",
+        fine: 0,
+        paid: false,
+        paidAt: ""
+      };
+      setStatus(`No-Show-Markierung fuer ${playerName} entfernt.`);
     }
 
     function formatCurrency(value) {
@@ -2821,9 +2898,22 @@
       const approveSelfTrainingId = target.dataset.approveSelfTraining;
       const deleteSelfTrainingId = target.dataset.deleteSelfTraining;
       const deleteBonusPointId = target.dataset.deleteBonusPoint;
+      const markNoShowId = target.dataset.markNoshow;
+      const clearNoShowId = target.dataset.clearNoshow;
+      const attendancePlayer = target.dataset.player;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
+      if (markNoShowId && attendancePlayer && canManage()) {
+        markNoShow(markNoShowId, attendancePlayer);
+        saveState();
+        return;
+      }
+      if (clearNoShowId && attendancePlayer && canManage()) {
+        clearNoShow(clearNoShowId, attendancePlayer);
+        saveState();
+        return;
+      }
       if (toggleEventDetailsId) {
         expandedEventId = expandedEventId === toggleEventDetailsId ? "" : toggleEventDetailsId;
         renderEvents();
@@ -2907,7 +2997,12 @@
           status,
           updatedAt: new Date().toISOString(),
           fine: fine || (status === "no" ? oldRecord?.fine || 0 : 0),
-          reason
+          reason,
+          noShow: false,
+          noShowAt: "",
+          noShowBy: "",
+          paid: false,
+          paidAt: ""
         };
         if (item.rsvps[player.name].fine) {
           setStatus(`Spaete Absage: 10 EUR Strafe fuer ${player.name}.`);
