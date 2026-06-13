@@ -56,15 +56,17 @@
       z-index: 100;
       display: none;
       align-items: center;
-      justify-content: center;
-      padding: 24px;
+      justify-content: flex-end;
+      padding: 24px max(24px, 10vw);
       background:
+        linear-gradient(rgba(2,18,14,.18), rgba(2,18,14,.18)),
+        url("../assets/kadrivo-login-banner.jpg") left max(24px, 8vw) center / min(620px, 46vw) auto no-repeat,
         radial-gradient(circle at 50% 50%, transparent 0 58px, rgba(255,255,255,.28) 59px 61px, transparent 62px),
         linear-gradient(90deg, transparent calc(50% - 1px), rgba(255,255,255,.22) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
         linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px),
         linear-gradient(135deg, #0b3d28 0%, #155e3b 52%, #0a281b 100%);
-      background-size: 100% 100%, 100% 100%, 100% 76px, 76px 100%, 100% 100%;
+      background-size: 100% 100%, min(620px, 46vw) auto, 100% 100%, 100% 100%, 100% 76px, 76px 100%, 100% 100%;
     }
 
     body.needs-login .login-screen {
@@ -1110,6 +1112,14 @@
     @media (max-width: 1100px) {
       body {
         background: #f6f8f6;
+      }
+
+      .login-screen {
+        align-items: flex-end;
+        justify-content: center;
+        padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
+        background-position: center center, center 10%, center center, center center, center center, center center, center center;
+        background-size: 100% 100%, min(480px, 88vw) auto, 100% 100%, 100% 100%, 100% 64px, 64px 100%, 100% 100%;
       }
 
       .app-shell {

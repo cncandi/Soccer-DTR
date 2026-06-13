@@ -5,7 +5,6 @@
     const LOGIN_USER_KEY = "soccer-dtr-current-user";
     const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
-    const INSTALL_DISMISSED_KEY = "soccer-dtr-install-dismissed";
     const SEEN_PREFIX = "soccer-dtr-seen";
     const PUSH_PUBLIC_KEY = "BMzLO4YI3nJQ2J6OPpj22v7-S8XOuMTq7Ftm5L62CihAq-gNemRJPWAqhn3xzolyq97jJZ6x5KIrrgpdur7Hb8E";
     const PUSH_FUNCTION_NAME = "send-push";
@@ -876,9 +875,8 @@
       const panel = $("#installPanel");
       if (!panel) return;
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-      const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === "true";
       const hint = installHintText();
-      panel.hidden = standalone || dismissed || !hint;
+      panel.hidden = standalone || !hint;
       $("#installHint").textContent = hint;
       $("#installAppBtn").hidden = !deferredInstallPrompt;
     }
@@ -3264,7 +3262,6 @@
 
     window.addEventListener("appinstalled", () => {
       deferredInstallPrompt = null;
-      localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
       renderInstallPanel();
     });
 
@@ -3276,10 +3273,6 @@
       renderInstallPanel();
     });
 
-    $("#dismissInstallBtn").addEventListener("click", () => {
-      localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
-      renderInstallPanel();
-    });
     $("#enablePushBtn").addEventListener("click", enablePushNotifications);
 
     $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";
