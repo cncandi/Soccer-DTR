@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v34";
+const CACHE_NAME = "soccer-dtr-v35";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -96,7 +96,7 @@ self.addEventListener("push", (event) => {
   } catch (error) {
     payload = {};
   }
-  const title = payload.title || "Soccer-DTR";
+  const title = payload.title || "Kadrivo";
   const options = {
     body: payload.body || "Neue Mitteilung",
     icon: "icon-192.png",

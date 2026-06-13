@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#155e3b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Soccer-DTR">
+  <meta name="apple-mobile-web-app-title" content="Kadrivo">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="Soccer-DTR">
+  <meta name="application-name" content="Kadrivo">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <title>Soccer-DTR Vereinsmanager</title>
+  <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="css/app.css">
 </head>
@@ -21,7 +21,7 @@
       <div class="brand">
         <div class="brand-mark"><span class="brand-initials">DTR</span></div>
         <div>
-          <h1>Soccer-DTR</h1>
+          <h1>Kadrivo</h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -43,6 +43,16 @@
       </label>
       <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary" type="submit">Anmelden</button>
+      <section class="install-panel login-install" id="installPanel" hidden>
+        <div>
+          <h3>Kadrivo installieren</h3>
+          <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
+        </div>
+        <div class="row-actions">
+          <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>
+          <button class="btn-secondary" id="dismissInstallBtn" type="button">Ausblenden</button>
+        </div>
+      </section>
     </form>
   </section>
 
@@ -51,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">DTR</span></div>
         <div>
-          <h1>Soccer-DTR</h1>
+          <h1>Kadrivo</h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -105,16 +115,6 @@
       </section>
 
       <section class="view active" id="dashboard">
-        <section class="install-panel" id="installPanel" hidden>
-          <div>
-            <h3>Soccer-DTR installieren</h3>
-            <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
-          </div>
-          <div class="row-actions">
-            <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>
-            <button class="btn-secondary" id="dismissInstallBtn" type="button">Ausblenden</button>
-          </div>
-        </section>
         <div class="grid stats">
           <div class="stat"><strong id="statPlayers">0</strong><span>Verf&uuml;gbare Spieler</span></div>
           <div class="stat"><strong id="statInjured">0</strong><span>Verletzte Spieler</span></div>
@@ -262,7 +262,11 @@
           <div class="list" id="cashFineList"></div>
         </section>
         <section class="panel staff-panel admin-only">
-          <h3>Strafenkatalog</h3>
+          <div class="item-head">
+            <h3>Strafenkatalog</h3>
+            <button class="mini" id="toggleFineCatalogBtn" type="button">Anzeigen</button>
+          </div>
+          <div id="fineCatalogPanel" hidden>
           <form id="fineCatalogForm" class="form-grid">
             <input type="hidden" name="id">
             <div class="field"><label>Name</label><input name="label" required></div>
@@ -273,6 +277,7 @@
             <div class="field"><button class="btn-primary" type="submit">Katalog speichern</button></div>
           </form>
           <div class="list" id="fineCatalogList" style="margin-top: 12px;"></div>
+          </div>
         </section>
       </section>
 
@@ -447,6 +452,28 @@ for update using (true);</textarea>
         <button class="mini" id="closePlayerModalBtn" type="button">Schliessen</button>
       </div>
       <form id="playerEditForm" class="form-grid"></form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="cashFineModal" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="cashFineModalTitle">
+      <div class="modal-head">
+        <h3 id="cashFineModalTitle">Strafe bearbeiten</h3>
+        <button class="mini" id="closeCashFineModalBtn" type="button">Schliessen</button>
+      </div>
+      <form id="cashFineEditForm" class="form-grid">
+        <input type="hidden" name="id">
+        <div class="field"><label>Person</label><select name="player" id="cashFineEditPlayer"></select></div>
+        <div class="field"><label>Name</label><input name="label" required></div>
+        <div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div>
+        <div class="field"><label>Datum</label><input type="date" name="date" required></div>
+        <div class="field full"><label>Notiz</label><textarea name="note"></textarea></div>
+        <div class="field full"><label class="check-row"><input type="checkbox" name="paid"> Bezahlt</label></div>
+        <div class="field full row-actions">
+          <button class="btn-primary" type="submit">Speichern</button>
+          <button class="btn-secondary" id="deleteCashFineBtn" type="button">Entfernen</button>
+        </div>
+      </form>
     </section>
   </div>
 

@@ -58,7 +58,13 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: var(--club-dark);
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 58px, rgba(255,255,255,.28) 59px 61px, transparent 62px),
+        linear-gradient(90deg, transparent calc(50% - 1px), rgba(255,255,255,.22) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px),
+        linear-gradient(135deg, #0b3d28 0%, #155e3b 52%, #0a281b 100%);
+      background-size: 100% 100%, 100% 100%, 100% 76px, 76px 100%, 100% 100%;
     }
 
     body.needs-login .login-screen {
@@ -71,12 +77,13 @@
 
     .login-panel {
       width: min(420px, 100%);
-      background: #fff;
+      background: rgba(255,255,255,.96);
       border-radius: 8px;
       padding: 22px;
       box-shadow: 0 18px 60px rgba(0,0,0,.28);
       display: grid;
       gap: 14px;
+      backdrop-filter: blur(8px);
     }
 
     .login-panel h1 {
@@ -88,6 +95,14 @@
       margin: 0;
       color: var(--muted);
       line-height: 1.4;
+    }
+
+    .login-install {
+      margin-top: 4px;
+      padding: 12px;
+      background: #f3f8f5;
+      border: 1px solid var(--line);
+      border-radius: 8px;
     }
 
     .sidebar {

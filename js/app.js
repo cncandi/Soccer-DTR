@@ -1861,7 +1861,7 @@
         .join("");
       if (!form.elements.date.value) form.elements.date.value = new Date().toISOString().slice(0, 10);
       const selected = fineCatalogById(catalogSelect.value) || state.fineCatalog[0];
-      if (!amountInput.value) amountInput.value = selected.amount;
+      if (selected && !amountInput.value) amountInput.value = selected.amount;
     }
 
     function renderFineRows(container, rows, emptyText) {
@@ -1882,6 +1882,7 @@
           </div>
           ${canManage() ? `<div class="row-actions">
             <button class="mini ${fine.paid ? "" : "yes"}" data-toggle-fine="${escapeAttr(fine.id)}">${fine.paid ? "Als offen markieren" : "Bezahlt bestaetigen"}</button>
+            ${fine.source === "manual" ? `<button class="mini" data-edit-cash-fine="${escapeAttr(fine.id)}">Bearbeiten</button><button class="mini no" data-delete-cash-fine="${escapeAttr(fine.id)}">Entfernen</button>` : ""}
           </div>` : ""}
         `));
       });
@@ -1902,6 +1903,7 @@
           </div>
           <div class="row-actions">
             <button class="mini" data-edit-catalog-fine="${escapeAttr(fine.id)}">Bearbeiten</button>
+            <button class="mini no" data-delete-catalog-fine="${escapeAttr(fine.id)}">Entfernen</button>
           </div>
         `));
       });
@@ -1929,6 +1931,36 @@
       if (!fine) return;
       fine.paid = !fine.paid;
       fine.paidAt = fine.paid ? new Date().toISOString() : "";
+    }
+
+    function renderCashFineEditPlayers(selected = "") {
+      const select = $("#cashFineEditPlayer");
+      if (!select) return;
+      const names = rosterPlayers().map((player) => player.name).sort((a, b) => a.localeCompare(b, "de"));
+      select.innerHTML = names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("");
+      select.value = names.includes(selected) ? selected : names[0] || "";
+    }
+
+    function openCashFineModal(id) {
+      const fine = (state.cashFines || []).find((item) => item.id === id);
+      if (!fine || !canManage()) return;
+      const form = $("#cashFineEditForm");
+      renderCashFineEditPlayers(fine.player);
+      form.elements.id.value = fine.id;
+      form.elements.player.value = fine.player;
+      form.elements.label.value = fine.label;
+      form.elements.amount.value = fine.amount;
+      form.elements.date.value = fine.date;
+      form.elements.note.value = fine.note || "";
+      form.elements.paid.checked = Boolean(fine.paid);
+      $("#cashFineModal").classList.add("open");
+      $("#cashFineModal").setAttribute("aria-hidden", "false");
+    }
+
+    function closeCashFineModal() {
+      $("#cashFineModal").classList.remove("open");
+      $("#cashFineModal").setAttribute("aria-hidden", "true");
+      $("#cashFineEditForm").reset();
     }
 
     function markNoShow(eventId, playerName) {
@@ -2642,7 +2674,7 @@
       event.preventDefault();
       if (!canManageCash()) return;
       const values = formValues(event.currentTarget);
-      const catalog = fineCatalogById(values.catalog) || state.fineCatalog[0];
+      const catalog = fineCatalogById(values.catalog) || state.fineCatalog[0] || { label: "Strafe", amount: values.amount, penalty: "", description: "" };
       state.cashFines = state.cashFines || [];
       state.cashFines.push(normalizeCashFine({
         id: crypto.randomUUID(),
@@ -2657,6 +2689,32 @@
         paid: false
       }));
       event.currentTarget.reset();
+      saveState();
+    });
+
+    $("#cashFineEditForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!canManage()) return;
+      const values = formValues(event.currentTarget);
+      const fine = (state.cashFines || []).find((item) => item.id === values.id);
+      if (!fine) return;
+      fine.player = values.player;
+      fine.label = values.label;
+      fine.amount = Number(values.amount || 0);
+      fine.date = values.date;
+      fine.note = values.note;
+      fine.paid = values.paid === "on";
+      fine.paidAt = fine.paid ? fine.paidAt || new Date().toISOString() : "";
+      closeCashFineModal();
+      saveState();
+    });
+
+    $("#deleteCashFineBtn").addEventListener("click", () => {
+      if (!canManage()) return;
+      const id = $("#cashFineEditForm").elements.id.value;
+      if (!id || !window.confirm("Diese Strafe wirklich entfernen?")) return;
+      state.cashFines = (state.cashFines || []).filter((fine) => fine.id !== id);
+      closeCashFineModal();
       saveState();
     });
 
@@ -2752,8 +2810,16 @@
     });
 
     $("#newCatalogFineBtn").addEventListener("click", () => {
+      $("#fineCatalogPanel").hidden = false;
+      $("#toggleFineCatalogBtn").textContent = "Ausblenden";
       $("#fineCatalogForm").reset();
       $("#fineCatalogForm").elements.id.value = "";
+    });
+
+    $("#toggleFineCatalogBtn").addEventListener("click", () => {
+      const panel = $("#fineCatalogPanel");
+      panel.hidden = !panel.hidden;
+      $("#toggleFineCatalogBtn").textContent = panel.hidden ? "Anzeigen" : "Ausblenden";
     });
 
     $("#settingsForm").addEventListener("submit", (event) => {
@@ -2796,6 +2862,10 @@
     $("#closePlayerModalBtn").addEventListener("click", closePlayerModal);
     $("#playerModal").addEventListener("click", (event) => {
       if (event.target === $("#playerModal")) closePlayerModal();
+    });
+    $("#closeCashFineModalBtn").addEventListener("click", closeCashFineModal);
+    $("#cashFineModal").addEventListener("click", (event) => {
+      if (event.target === $("#cashFineModal")) closeCashFineModal();
     });
 
     $("#playerEditForm").addEventListener("click", (event) => {
@@ -2893,6 +2963,9 @@
       const openPlayerId = target.dataset.openPlayer;
       const toggleFineId = target.dataset.toggleFine;
       const editCatalogFineId = target.dataset.editCatalogFine;
+      const deleteCatalogFineId = target.dataset.deleteCatalogFine;
+      const editCashFineId = target.dataset.editCashFine;
+      const deleteCashFineId = target.dataset.deleteCashFine;
       const editEventId = target.dataset.editEvent;
       const famePlayer = target.dataset.famePlayer;
       const approveSelfTrainingId = target.dataset.approveSelfTraining;
@@ -2936,6 +3009,17 @@
         editEvent(editEventId);
         return;
       }
+      if (editCashFineId && canManage()) {
+        openCashFineModal(editCashFineId);
+        return;
+      }
+      if (deleteCashFineId && canManage()) {
+        if (window.confirm("Diese Strafe wirklich entfernen?")) {
+          state.cashFines = (state.cashFines || []).filter((fine) => fine.id !== deleteCashFineId);
+          saveState();
+        }
+        return;
+      }
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
       if (eventId && canManage()) {
         state.events = state.events.filter((item) => item.id !== eventId);
@@ -2946,11 +3030,18 @@
         const fine = fineCatalogById(editCatalogFineId);
         const form = $("#fineCatalogForm");
         if (fine && form) {
+          $("#fineCatalogPanel").hidden = false;
+          $("#toggleFineCatalogBtn").textContent = "Ausblenden";
           form.elements.id.value = fine.id;
           form.elements.label.value = fine.label;
           form.elements.description.value = fine.description;
           form.elements.amount.value = fine.amount;
           form.elements.penalty.value = fine.penalty;
+        }
+      }
+      if (deleteCatalogFineId && canManage()) {
+        if (window.confirm("Diesen Katalogeintrag wirklich entfernen?")) {
+          state.fineCatalog = (state.fineCatalog || []).filter((fine) => fine.id !== deleteCatalogFineId);
         }
       }
       if (toggleFineId && canManage()) {
@@ -3013,7 +3104,7 @@
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || toggleFineId || approveSelfTrainingId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || toggleFineId || deleteCatalogFineId || approveSelfTrainingId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);

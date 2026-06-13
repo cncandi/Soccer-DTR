@@ -1,6 +1,6 @@
 {
-  "name": "Soccer-DTR Vereinsmanager",
-  "short_name": "Soccer-DTR",
+  "name": "Kadrivo Vereinsmanager",
+  "short_name": "Kadrivo",
   "description": "Mobile Webapp fuer Mannschaft, Termine, Abstimmungen und Mitteilungen.",
   "id": "/Soccer-DTR/",
   "start_url": "./index.html",
