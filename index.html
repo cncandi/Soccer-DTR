@@ -83,9 +83,9 @@
         <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
         <button data-view="players" data-min-role="admin">Spieler</button>
         <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
-        <button data-view="cash" data-min-role="player">Kasse</button>
-        <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
+        <button data-view="polls" data-min-role="player">Abstimmungen</button>
+        <button data-view="cash" data-min-role="player">Kasse</button>
         <button data-view="settings" data-min-role="superadmin">Einstellungen</button>
       </nav>
 
@@ -178,6 +178,7 @@
           <section class="panel admin-only">
             <h3>Termin erstellen</h3>
             <form id="eventForm" class="form-grid">
+              <input type="hidden" name="eventId">
               <div class="field"><label>Typ</label><select name="type"><option>Training</option><option>Spiel</option><option>Event</option><option>Geburtstag</option><option>Sonstiges</option></select></div>
               <div class="field"><label>Titel</label><input name="title" required></div>
               <div class="field"><label>Datum</label><input type="date" name="date" required></div>
@@ -185,8 +186,11 @@
               <div class="field"><label>Wiederholung</label><select name="repeat"><option value="">Einmalig</option><option value="weekly">Woechentlich</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Monatlich</option></select></div>
               <div class="field"><label>Wiederholen bis</label><input type="date" name="repeatUntil"></div>
               <div class="field full"><label>Ort</label><input name="location"></div>
+              <div class="field"><label>Verantwortlicher Trainer</label><select name="coach" id="eventCoach"></select></div>
+              <div class="field"><label>Schwerpunkt</label><input name="trainingFocus" placeholder="z.B. Pressing, Standards"></div>
               <div class="field full"><label>Details</label><textarea name="details"></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Termin speichern</button></div>
+              <div class="field full"><label>Bemerkung</label><textarea name="remark"></textarea></div>
+              <div class="field full row-actions"><button class="btn-primary" type="submit" id="eventSubmitBtn">Termin speichern</button><button class="btn-secondary" type="button" id="cancelEventEditBtn" hidden>Abbrechen</button></div>
             </form>
           </section>
           <section class="panel">
@@ -194,6 +198,10 @@
               <button class="icon-btn" id="prevCalendarBtn" type="button" aria-label="Vorherige Woche">&lt;</button>
               <h3 id="calendarWeekLabel">Woche</h3>
               <button class="icon-btn" id="nextCalendarBtn" type="button" aria-label="Naechste Woche">&gt;</button>
+            </div>
+            <div class="calendar-mode admin-only" aria-label="Kalenderansicht">
+              <button class="mini active" type="button" data-calendar-mode="week">Woche</button>
+              <button class="mini" type="button" data-calendar-mode="month">Monat</button>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </section>
@@ -207,6 +215,13 @@
           <h3>Strafen</h3>
           <div class="list" id="fineList"></div>
         </section>
+        <section class="panel staff-panel admin-only">
+          <div class="item-head">
+            <h3>Alle Termine</h3>
+            <button class="mini" type="button" id="exportEventsBtn">Termine exportieren</button>
+          </div>
+          <div class="list" id="allEventsList"></div>
+        </section>
       </section>
 
       <section class="view" id="cash">
@@ -216,6 +231,15 @@
           <div class="stat"><strong id="cashOpen">0,00</strong><span>Offen EUR</span></div>
         </div>
         <div class="grid two">
+          <section class="panel">
+            <h3>Spende</h3>
+            <form id="donationForm" class="form-grid">
+              <div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0.5" step="0.5" required></div>
+              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
+              <div class="field full"><label>Notiz</label><textarea name="note" placeholder="Optional"></textarea></div>
+              <div class="field full"><button class="btn-primary" type="submit">Spende speichern</button></div>
+            </form>
+          </section>
           <section class="panel cash-manage">
             <h3>Strafe festlegen</h3>
             <form id="cashFineForm" class="form-grid">
@@ -274,6 +298,11 @@ Nein</textarea></div>
       <section class="view" id="messages">
         <div class="grid two">
           <section class="panel">
+            <h3>Benachrichtigungen</h3>
+            <p class="meta" id="pushStatus">Push-Benachrichtigungen sind noch nicht aktiv.</p>
+            <button class="btn-primary" id="enablePushBtn" type="button">Benachrichtigungen aktivieren</button>
+          </section>
+          <section class="panel">
             <h3>Gruppen</h3>
             <div class="field">
               <label for="messageGroup">Gruppe</label>
@@ -290,11 +319,6 @@ Nein</textarea></div>
               <div class="field full"><label>Mitteilung</label><textarea name="body" required></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Senden</button></div>
             </form>
-          </section>
-          <section class="panel">
-            <h3>Benachrichtigungen</h3>
-            <p class="meta" id="pushStatus">Push-Benachrichtigungen sind noch nicht aktiv.</p>
-            <button class="btn-primary" id="enablePushBtn" type="button">Benachrichtigungen aktivieren</button>
           </section>
         </div>
       </section>

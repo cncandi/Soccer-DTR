@@ -138,6 +138,7 @@
     let state = loadState();
     let settings = loadSettings();
     let calendarDate = isoDate(new Date());
+    let calendarMode = "week";
     let expandedEventId = "";
     let deferredInstallPrompt = null;
     let syncTimer = null;
@@ -383,6 +384,9 @@
         time: event.time || "18:00",
         location: event.location || "",
         details: event.details || "",
+        coach: event.coach || "",
+        focus: event.focus || "",
+        remark: event.remark || "",
         repeat: event.repeat || "",
         repeatGroup: event.repeatGroup || "",
         createdAt: event.createdAt || new Date().toISOString(),
@@ -604,6 +608,35 @@
       if (!date) return "";
       const value = new Date(`${date}T${time || "00:00"}`);
       return value.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function formatNavLabel(label) {
+      const words = label.trim().split(/\s+/).filter(Boolean);
+      if (words.length <= 4) return document.createTextNode(label.trim());
+      const fragment = document.createDocumentFragment();
+      fragment.append(document.createTextNode(words.slice(0, 4).join(" ")));
+      fragment.append(document.createElement("br"));
+      fragment.append(document.createTextNode(words.slice(4).join(" ")));
+      return fragment;
+    }
+
+    function setupNavLabels() {
+      $$(".nav button").forEach((button) => {
+        if (button.querySelector(".nav-label")) return;
+        const badges = Array.from(button.querySelectorAll(".nav-badge"));
+        const label = Array.from(button.childNodes)
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent)
+          .join(" ")
+          .trim();
+        if (!label) return;
+        button.setAttribute("aria-label", label);
+        button.textContent = "";
+        const labelNode = document.createElement("span");
+        labelNode.className = "nav-label";
+        labelNode.append(formatNavLabel(label));
+        button.append(labelNode, ...badges);
+      });
     }
 
     function getSupabaseClient() {
@@ -994,8 +1027,10 @@
       renderMessageGroups();
       renderPlayers();
       renderStaff();
+      renderEventForm();
       renderCalendar();
       renderEvents();
+      renderAllEventsList();
       renderFines();
       renderCash();
       renderPolls();
@@ -1138,6 +1173,18 @@
       });
     }
 
+    function renderEventForm() {
+      const coachSelect = $("#eventCoach");
+      if (!coachSelect) return;
+      const current = coachSelect.value;
+      const coaches = state.players
+        .filter((player) => hasMemberRole(player, "Trainer"))
+        .map((player) => player.name)
+        .sort((a, b) => a.localeCompare(b, "de"));
+      coachSelect.innerHTML = `<option value="">Nicht zugewiesen</option>${coaches.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}`;
+      coachSelect.value = coaches.includes(current) ? current : "";
+    }
+
     function rosterPlayers() {
       return state.players.filter((player) => hasMemberRole(player, "Spieler"));
     }
@@ -1214,13 +1261,33 @@
       return { start: isoDate(start), end: isoDate(end), startDate: start, endDate: end };
     }
 
+    function currentMonthRange() {
+      const date = new Date(`${calendarDate}T00:00`);
+      const start = new Date(date.getFullYear(), date.getMonth(), 1);
+      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      return { start: isoDate(start), end: isoDate(end), startDate: start, endDate: end };
+    }
+
+    function currentCalendarRange() {
+      return calendarMode === "month" && canManage() ? currentMonthRange() : currentWeekRange();
+    }
+
     function weekLabel() {
       const { startDate, endDate } = currentWeekRange();
       return `${formatShortDate(isoDate(startDate))} - ${formatShortDate(isoDate(endDate))}`;
     }
 
-    function visibleWeekEvents() {
-      const { start, end } = currentWeekRange();
+    function monthLabel() {
+      const date = new Date(`${calendarDate}T00:00`);
+      return date.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    }
+
+    function calendarLabel() {
+      return calendarMode === "month" && canManage() ? monthLabel() : weekLabel();
+    }
+
+    function visibleCalendarEvents() {
+      const { start, end } = currentCalendarRange();
       return state.events
         .filter((event) => dateInPeriod(event.date, start, end))
         .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
@@ -1294,9 +1361,13 @@
       const grid = $("#calendarGrid");
       const weekLabelEl = $("#calendarWeekLabel");
       if (!grid || !weekLabelEl) return;
-      weekLabelEl.textContent = weekLabel();
+      if (!canManage()) calendarMode = "week";
+      weekLabelEl.textContent = calendarLabel();
       grid.innerHTML = "";
-      grid.classList.add("week-mode");
+      grid.classList.toggle("month-mode", calendarMode === "month" && canManage());
+      $$(".calendar-mode [data-calendar-mode]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.calendarMode === calendarMode);
+      });
       ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((day) => {
         const label = document.createElement("div");
         label.className = "calendar-weekday";
@@ -1304,9 +1375,13 @@
         grid.appendChild(label);
       });
 
-      const start = weekStart(calendarDate);
+      const monthRange = currentMonthRange();
+      const start = calendarMode === "month" && canManage() ? weekStart(monthRange.start) : weekStart(calendarDate);
+      const dayCount = calendarMode === "month" && canManage()
+        ? Math.ceil(((weekStart(monthRange.end).getTime() - start.getTime()) / 86400000) + 7)
+        : 7;
 
-      for (let i = 0; i < 7; i += 1) {
+      for (let i = 0; i < dayCount; i += 1) {
         const date = new Date(start);
         date.setDate(start.getDate() + i);
         const dateStr = isoDate(date);
@@ -1317,6 +1392,7 @@
         const cell = document.createElement("div");
         cell.className = [
           "calendar-day",
+          calendarMode === "month" && canManage() && !dateInPeriod(dateStr, monthRange.start, monthRange.end) ? "outside" : "",
           date.getDay() === 0 ? "sunday" : "",
           holiday ? "holiday" : ""
         ].filter(Boolean).join(" ");
@@ -1336,11 +1412,19 @@
       return "";
     }
 
+    function eventInfoLine(event) {
+      const items = [];
+      if (event.coach) items.push(`Trainer: ${event.coach}`);
+      if (event.focus) items.push(`Schwerpunkt: ${event.focus}`);
+      if (event.remark) items.push(`Bemerkung: ${event.remark}`);
+      return items.length ? `<div class="meta">${items.map((text) => `<span>${escapeHtml(text)}</span>`).join("")}</div>` : "";
+    }
+
     function renderEvents() {
       const list = $("#eventList");
       list.innerHTML = "";
-      const events = visibleWeekEvents();
-      if (!events.length) return empty(list, "Keine Termine in dieser Woche.");
+      const events = visibleCalendarEvents();
+      if (!events.length) return empty(list, calendarMode === "month" && canManage() ? "Keine Termine in diesem Monat." : "Keine Termine in dieser Woche.");
       events
         .forEach((event) => {
           const yes = countRsvp(event, "yes");
@@ -1361,6 +1445,7 @@
               ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? statusChip : `<span class="chip">${escapeHtml(event.type)}</span>`}
             </div>
             ${event.details ? `<p class="meta">${escapeHtml(event.details)}</p>` : ""}
+            ${eventInfoLine(event)}
             ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span><span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
             <div class="row-actions">
               ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? `
@@ -1368,11 +1453,36 @@
                 <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
               ` : ""}
               ${eventSupportsRsvp(event) ? `<button class="mini" data-toggle-event-details="${event.id}">${expanded ? "Teilnehmer ausblenden" : "Teilnehmer anzeigen"}</button>` : ""}
-              ${canManage() ? `<button class="mini no" data-delete-event="${event.id}">Loeschen</button>` : ""}
+              ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
+              ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
             </div>
             ${expanded ? renderRsvpDetails(event) : ""}
           `));
         });
+    }
+
+    function renderAllEventsList() {
+      const list = $("#allEventsList");
+      if (!list) return;
+      list.innerHTML = "";
+      if (!state.events.length) return empty(list, "Noch keine Termine erfasst.");
+      state.events
+        .slice()
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+        .forEach((event) => list.appendChild(item(`
+          <div class="item-head">
+            <div>
+              <p class="item-title">${escapeHtml(event.title)}</p>
+              <div class="meta"><span>${escapeHtml(event.type)}</span><span>${formatDate(event.date, event.time)}</span><span>${escapeHtml(event.location || "Ort offen")}</span></div>
+              ${eventInfoLine(event)}
+            </div>
+            <span class="chip">${countRsvp(event, "yes")} / ${countRsvp(event, "no")}</span>
+          </div>
+          <div class="row-actions">
+            <button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>
+            <button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>
+          </div>
+        `)));
     }
 
     function renderFines() {
@@ -1439,9 +1549,7 @@
 
     function renderCash() {
       if (!$("#cashTotal")) return;
-      const rows = canManageCash()
-        ? allFineRows()
-        : allFineRows().filter((fine) => fine.player.trim().toLowerCase() === activeUser().trim().toLowerCase());
+      const rows = allFineRows();
       const total = rows.reduce((sum, fine) => sum + fine.amount, 0);
       const paid = rows.filter((fine) => fine.paid).reduce((sum, fine) => sum + fine.amount, 0);
       const open = total - paid;
@@ -1449,9 +1557,16 @@
       $("#cashPaid").textContent = formatCurrency(paid);
       $("#cashOpen").textContent = formatCurrency(open);
       renderCashForm();
+      renderDonationForm();
       renderFineRows($("#cashOpenList"), rows.filter((fine) => !fine.paid), "Keine offenen Betraege.");
       renderFineRows($("#cashFineList"), rows, "Noch keine Kassenbewegungen.");
       renderFineCatalog();
+    }
+
+    function renderDonationForm() {
+      const form = $("#donationForm");
+      if (!form) return;
+      if (!form.elements.date.value) form.elements.date.value = new Date().toISOString().slice(0, 10);
     }
 
     function renderCashForm() {
@@ -1990,11 +2105,87 @@
         time: values.time,
         location: values.location,
         details: values.details,
+        coach: values.coach,
+        focus: values.trainingFocus,
+        remark: values.remark,
         repeat,
         repeatGroup,
         createdAt,
         rsvps: {}
       }));
+    }
+
+    function updateEventFormState() {
+      const form = $("#eventForm");
+      if (!form) return;
+      const editing = Boolean(form.elements.namedItem("eventId").value);
+      $("#eventSubmitBtn").textContent = editing ? "Termin aktualisieren" : "Termin speichern";
+      $("#cancelEventEditBtn").hidden = !editing;
+      form.elements.repeat.disabled = editing;
+      form.elements.repeatUntil.disabled = editing;
+    }
+
+    function resetEventForm() {
+      const form = $("#eventForm");
+      if (!form) return;
+      form.reset();
+      form.elements.namedItem("eventId").value = "";
+      updateEventFormState();
+      renderEventForm();
+    }
+
+    function editEvent(eventId) {
+      const eventItem = state.events.find((item) => item.id === eventId);
+      const form = $("#eventForm");
+      if (!eventItem || !form || !canManage()) return;
+      renderEventForm();
+      form.elements.namedItem("eventId").value = eventItem.id;
+      form.elements.type.value = eventItem.type;
+      form.elements.title.value = eventItem.title;
+      form.elements.date.value = eventItem.date;
+      form.elements.time.value = eventItem.time;
+      form.elements.repeat.value = "";
+      form.elements.repeatUntil.value = "";
+      form.elements.location.value = eventItem.location || "";
+      form.elements.coach.value = eventItem.coach || "";
+      form.elements.namedItem("trainingFocus").value = eventItem.focus || "";
+      form.elements.details.value = eventItem.details || "";
+      form.elements.remark.value = eventItem.remark || "";
+      updateEventFormState();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function csvValue(value) {
+      return `"${String(value || "").replace(/"/g, '""')}"`;
+    }
+
+    function exportEventsCsv() {
+      const rows = [
+        ["Typ", "Titel", "Datum", "Uhrzeit", "Ort", "Trainer", "Schwerpunkt", "Bemerkung", "Details", "Zusagen", "Absagen"],
+        ...state.events
+          .slice()
+          .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+          .map((event) => [
+            event.type,
+            event.title,
+            event.date,
+            event.time,
+            event.location,
+            event.coach,
+            event.focus,
+            event.remark,
+            event.details,
+            countRsvp(event, "yes"),
+            countRsvp(event, "no")
+          ])
+      ];
+      const blob = new Blob([rows.map((row) => row.map(csvValue).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "soccer-dtr-termine.csv";
+      link.click();
+      URL.revokeObjectURL(url);
     }
 
     function switchView(viewName) {
@@ -2011,6 +2202,8 @@
         renderNotificationBadges();
       }
     }
+
+    setupNavLabels();
 
     $$(".nav button").forEach((button) => {
       button.addEventListener("click", () => switchView(button.dataset.view));
@@ -2052,8 +2245,25 @@
       event.preventDefault();
       if (!canManage()) return;
       const values = formValues(event.currentTarget);
-      state.events.push(...createEventsFromForm(values));
-      event.currentTarget.reset();
+      if (values.eventId) {
+        const existing = state.events.find((item) => item.id === values.eventId);
+        if (!existing) return;
+        Object.assign(existing, normalizeEvent({
+          ...existing,
+          type: values.type,
+          title: values.title,
+          date: values.date,
+          time: values.time,
+          location: values.location,
+          details: values.details,
+          coach: values.coach,
+          focus: values.trainingFocus,
+          remark: values.remark
+        }));
+      } else {
+        state.events.push(...createEventsFromForm(values));
+      }
+      resetEventForm();
       saveState();
     });
 
@@ -2115,6 +2325,29 @@
         createdBy: activeUser(),
         createdAt: new Date().toISOString(),
         paid: false
+      }));
+      event.currentTarget.reset();
+      saveState();
+    });
+
+    $("#donationForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const values = formValues(event.currentTarget);
+      const amount = Number(values.amount || 0);
+      if (amount <= 0) return;
+      state.cashFines = state.cashFines || [];
+      state.cashFines.push(normalizeCashFine({
+        id: crypto.randomUUID(),
+        player: activeUser(),
+        label: "Spende",
+        amount,
+        penalty: "",
+        date: values.date || new Date().toISOString().slice(0, 10),
+        note: values.note,
+        createdBy: activeUser(),
+        createdAt: new Date().toISOString(),
+        paid: true,
+        paidAt: new Date().toISOString()
       }));
       event.currentTarget.reset();
       saveState();
@@ -2283,6 +2516,7 @@
       const openPlayerId = target.dataset.openPlayer;
       const toggleFineId = target.dataset.toggleFine;
       const editCatalogFineId = target.dataset.editCatalogFine;
+      const editEventId = target.dataset.editEvent;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
@@ -2298,8 +2532,15 @@
         return;
       }
       if (openPlayerId && canManagePlayers()) openPlayerModal(openPlayerId);
+      if (editEventId && canManage()) {
+        editEvent(editEventId);
+        return;
+      }
       if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
-      if (eventId && canManage()) state.events = state.events.filter((item) => item.id !== eventId);
+      if (eventId && canManage()) {
+        state.events = state.events.filter((item) => item.id !== eventId);
+        if ($("#eventForm")?.elements.namedItem("eventId").value === eventId) resetEventForm();
+      }
       if (pollId && canManage()) state.polls = state.polls.filter((poll) => poll.id !== pollId);
       if (editCatalogFineId && canManage()) {
         const fine = fineCatalogById(editCatalogFineId);
@@ -2354,20 +2595,36 @@
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
+    $$(".calendar-mode [data-calendar-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!canManage()) return;
+        calendarMode = button.dataset.calendarMode || "week";
+        renderCalendar();
+        renderEvents();
+      });
+    });
+    $("#cancelEventEditBtn").addEventListener("click", resetEventForm);
+    $("#exportEventsBtn").addEventListener("click", () => {
+      if (canManage()) exportEventsCsv();
+    });
     $("#prevCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      date.setDate(date.getDate() - 7);
+      if (calendarMode === "month" && canManage()) date.setMonth(date.getMonth() - 1);
+      else date.setDate(date.getDate() - 7);
       calendarDate = isoDate(date);
       renderCalendar();
       renderEvents();
+      renderAllEventsList();
       renderFines();
     });
     $("#nextCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      date.setDate(date.getDate() + 7);
+      if (calendarMode === "month" && canManage()) date.setMonth(date.getMonth() + 1);
+      else date.setDate(date.getDate() + 7);
       calendarDate = isoDate(date);
       renderCalendar();
       renderEvents();
+      renderAllEventsList();
       renderFines();
     });
     $("#calendarGrid").addEventListener("dblclick", (event) => {

@@ -234,6 +234,10 @@
       font-weight: 800;
     }
 
+    .nav-label {
+      min-width: 0;
+    }
+
     .nav-badge {
       min-width: 18px;
       height: 18px;
@@ -637,6 +641,19 @@
       margin: 0;
       text-align: center;
       font-size: .98rem;
+    }
+
+    .calendar-mode {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin: 0 0 8px;
+    }
+
+    .calendar-mode .mini.active {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
     }
 
     .icon-btn {
@@ -1057,7 +1074,7 @@
 
       .nav button {
         justify-content: center;
-        min-height: 54px;
+        min-height: 58px;
         padding: 6px 3px;
         color: var(--muted);
         border-radius: 8px;
@@ -1065,7 +1082,14 @@
         font-weight: 800;
         text-align: center;
         white-space: normal;
-        line-height: 1.05;
+        line-height: 1.08;
+      }
+
+      .nav-label {
+        display: block;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: normal;
       }
 
       .nav-badge {
@@ -1081,7 +1105,7 @@
       }
 
       main {
-        padding: calc(88px + env(safe-area-inset-top)) 12px calc(88px + env(safe-area-inset-bottom));
+        padding: calc(88px + env(safe-area-inset-top)) 12px calc(94px + env(safe-area-inset-bottom));
       }
 
       .topbar {
