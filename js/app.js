@@ -387,7 +387,10 @@
         note: entry.note || "",
         proof: entry.proof || "",
         createdBy: entry.createdBy || entry.player || "",
-        createdAt: entry.createdAt || new Date().toISOString()
+        createdAt: entry.createdAt || new Date().toISOString(),
+        approved: Boolean(entry.approved),
+        approvedBy: entry.approvedBy || "",
+        approvedAt: entry.approvedAt || ""
       };
     }
 
@@ -555,8 +558,7 @@
     }
 
     function canAwardFamePoints() {
-      const player = playerByName(activeUser());
-      return canManage() || Boolean(player && hasMemberRole(player, "Trainer"));
+      return canManage();
     }
 
     function canManagePlayers() {
@@ -1560,7 +1562,7 @@
         }
       });
       (state.hallOfFame?.selfTrainings || [])
-        .filter((entry) => playerNameKey(entry.player) === playerNameKey(player.name))
+        .filter((entry) => entry.approved && playerNameKey(entry.player) === playerNameKey(player.name))
         .forEach((entry) => entries.push({
           id: entry.id,
           type: "self",
@@ -1568,6 +1570,7 @@
           title: "Eigenes Training",
           text: entry.note || "Training mit Bildnachweis",
           proof: entry.proof,
+          createdBy: entry.approvedBy ? `bestaetigt von ${entry.approvedBy}` : "",
           points: 5
         }));
       (state.hallOfFame?.bonusPoints || [])
@@ -1582,6 +1585,12 @@
           points: entry.points
         }));
       return entries.sort((a, b) => `${b.date}${b.title}`.localeCompare(`${a.date}${a.title}`));
+    }
+
+    function pendingSelfTrainingsForPlayer(playerName) {
+      return (state.hallOfFame?.selfTrainings || [])
+        .filter((entry) => !entry.approved && playerNameKey(entry.player) === playerNameKey(playerName))
+        .sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
     }
 
     function fameRows() {
@@ -1625,11 +1634,36 @@
       return canManage() || playerNameKey(name) === playerNameKey(activeUser());
     }
 
+    function renderSelfTrainingApprovals() {
+      const list = $("#selfTrainingApprovalList");
+      if (!list) return;
+      list.innerHTML = "";
+      const pending = (state.hallOfFame?.selfTrainings || [])
+        .filter((entry) => !entry.approved)
+        .sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
+      if (!pending.length) return empty(list, "Keine offenen Eigentrainings.");
+      pending.forEach((entry) => list.appendChild(item(`
+        <div class="item-head">
+          <div>
+            <p class="item-title">${escapeHtml(entry.player)}</p>
+            <div class="meta"><span>${formatShortDate(entry.date)}</span><span>${escapeHtml(entry.note || "Ohne Bemerkung")}</span></div>
+          </div>
+          <span class="chip">offen</span>
+        </div>
+        ${entry.proof ? `<img class="proof-image" src="${escapeAttr(entry.proof)}" alt="Bildnachweis eigenes Training">` : ""}
+        <div class="row-actions">
+          <button class="mini yes" data-approve-self-training="${escapeAttr(entry.id)}">Bestaetigen</button>
+          <button class="mini no" data-delete-self-training="${escapeAttr(entry.id)}">Entfernen</button>
+        </div>
+      `)));
+    }
+
     function renderFame() {
       const ranking = $("#fameRanking");
       const details = $("#fameDetails");
       if (!ranking || !details) return;
       renderFameForm();
+      renderSelfTrainingApprovals();
       const rows = fameRows();
       const activeName = activeUser();
       if (!canManage()) selectedFamePlayer = activeName;
@@ -1665,7 +1699,21 @@
       if (!canViewFameDetails(selectedRow.player.name)) {
         return empty(details, "Details sind nur fuer den eigenen Namen sichtbar.");
       }
-      if (!selectedRow.entries.length) return empty(details, "Noch keine Punkte vorhanden.");
+      const pendingOwn = pendingSelfTrainingsForPlayer(selectedRow.player.name);
+      if (!selectedRow.entries.length && !pendingOwn.length) return empty(details, "Noch keine Punkte vorhanden.");
+      pendingOwn.forEach((entry) => {
+        details.appendChild(item(`
+          <div class="item-head">
+            <div>
+              <p class="item-title">Eigenes Training</p>
+              <div class="meta"><span>${formatShortDate(entry.date)}</span><span>${escapeHtml(entry.note || "Training mit Bildnachweis")}</span></div>
+            </div>
+            <span class="chip">wartet</span>
+          </div>
+          ${entry.proof ? `<img class="proof-image" src="${escapeAttr(entry.proof)}" alt="Bildnachweis eigenes Training">` : ""}
+          ${canAwardFamePoints() ? `<div class="row-actions"><button class="mini yes" data-approve-self-training="${escapeAttr(entry.id)}">Bestaetigen</button><button class="mini no" data-delete-self-training="${escapeAttr(entry.id)}">Entfernen</button></div>` : ""}
+        `));
+      });
       selectedRow.entries.forEach((entry) => {
         details.appendChild(item(`
           <div class="item-head">
@@ -1676,8 +1724,8 @@
             <span class="score-badge">${entry.points > 0 ? "+" : ""}${entry.points}</span>
           </div>
           ${entry.proof ? `<img class="proof-image" src="${escapeAttr(entry.proof)}" alt="Bildnachweis eigenes Training">` : ""}
-          ${canManage() && entry.type === "self" ? `<div class="row-actions"><button class="mini no" data-delete-self-training="${escapeAttr(entry.id)}">Eigentraining entfernen</button></div>` : ""}
-          ${canManage() && entry.type === "bonus" ? `<div class="row-actions"><button class="mini no" data-delete-bonus-point="${escapeAttr(entry.id)}">Sonderpunkte entfernen</button></div>` : ""}
+          ${canAwardFamePoints() && entry.type === "self" ? `<div class="row-actions"><button class="mini no" data-delete-self-training="${escapeAttr(entry.id)}">Eigentraining entfernen</button></div>` : ""}
+          ${canAwardFamePoints() && entry.type === "bonus" ? `<div class="row-actions"><button class="mini no" data-delete-bonus-point="${escapeAttr(entry.id)}">Sonderpunkte entfernen</button></div>` : ""}
         `));
       });
     }
@@ -2567,9 +2615,11 @@
         note: values.note,
         proof: await readFileAsDataUrl(file),
         createdBy: activeUser(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        approved: false
       }));
       form.reset();
+      setStatus("Eigentraining eingereicht. Punkte werden nach Bestaetigung gutgeschrieben.");
       saveState();
     });
 
@@ -2756,6 +2806,7 @@
       const editCatalogFineId = target.dataset.editCatalogFine;
       const editEventId = target.dataset.editEvent;
       const famePlayer = target.dataset.famePlayer;
+      const approveSelfTrainingId = target.dataset.approveSelfTraining;
       const deleteSelfTrainingId = target.dataset.deleteSelfTraining;
       const deleteBonusPointId = target.dataset.deleteBonusPoint;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
@@ -2803,11 +2854,20 @@
       if (toggleFineId && canManage()) {
         toggleFinePaid(toggleFineId);
       }
-      if (deleteSelfTrainingId && canManage()) {
+      if (approveSelfTrainingId && canAwardFamePoints()) {
+        state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
+        const training = state.hallOfFame.selfTrainings.find((entry) => entry.id === approveSelfTrainingId);
+        if (training) {
+          training.approved = true;
+          training.approvedBy = activeUser();
+          training.approvedAt = new Date().toISOString();
+        }
+      }
+      if (deleteSelfTrainingId && canAwardFamePoints()) {
         state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
         state.hallOfFame.selfTrainings = state.hallOfFame.selfTrainings.filter((entry) => entry.id !== deleteSelfTrainingId);
       }
-      if (deleteBonusPointId && canManage()) {
+      if (deleteBonusPointId && canAwardFamePoints()) {
         state.hallOfFame = normalizeHallOfFame(state.hallOfFame);
         state.hallOfFame.bonusPoints = state.hallOfFame.bonusPoints.filter((entry) => entry.id !== deleteBonusPointId);
       }
@@ -2846,7 +2906,7 @@
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || toggleFineId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (playerId || eventId || pollId || toggleFineId || approveSelfTrainingId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
