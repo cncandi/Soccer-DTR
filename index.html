@@ -350,13 +350,8 @@ Nein</textarea></div>
       </section>
 
       <section class="view" id="messages">
-        <div class="grid two">
-          <section class="panel">
-            <h3>Benachrichtigungen</h3>
-            <p class="meta" id="pushStatus">Push-Benachrichtigungen sind noch nicht aktiv.</p>
-            <button class="btn-primary" id="enablePushBtn" type="button">Benachrichtigungen aktivieren</button>
-          </section>
-          <section class="panel">
+        <div class="grid">
+          <section class="panel message-panel">
             <h3>Gruppen</h3>
             <div class="field">
               <label for="messageGroup">Gruppe</label>
@@ -371,6 +366,16 @@ Nein</textarea></div>
             <div class="message-feed" id="messageFeed"></div>
             <form id="messageForm" class="form-grid" style="margin-top: 10px;">
               <div class="field full"><label>Mitteilung</label><textarea name="body" required></textarea></div>
+              <div class="emoji-row field full" aria-label="Smileys">
+                <button type="button" data-emoji="👍">👍</button>
+                <button type="button" data-emoji="👏">👏</button>
+                <button type="button" data-emoji="💪">💪</button>
+                <button type="button" data-emoji="⚽">⚽</button>
+                <button type="button" data-emoji="🔥">🔥</button>
+                <button type="button" data-emoji="😊">😊</button>
+                <button type="button" data-emoji="🙏">🙏</button>
+                <button type="button" data-emoji="✅">✅</button>
+              </div>
               <div class="field full"><button class="btn-primary" type="submit">Senden</button></div>
             </form>
           </section>

@@ -995,6 +995,31 @@
       gap: 9px;
     }
 
+    .message-feed.group-mannschaft {
+      background: #edf7ef;
+      border-color: #cfe9d5;
+    }
+
+    .message-feed.group-trainer {
+      background: #eef5ff;
+      border-color: #c9dbf6;
+    }
+
+    .message-feed.group-kasse {
+      background: #fff7e6;
+      border-color: #f4d99b;
+    }
+
+    .message-feed.group-betreuer {
+      background: #f4efff;
+      border-color: #d8c8f4;
+    }
+
+    .message-feed.group-mannschaftsrat {
+      background: #eef7f8;
+      border-color: #bfdee2;
+    }
+
     .bubble {
       max-width: min(720px, 92%);
       background: #fff;
@@ -1009,6 +1034,12 @@
       align-self: flex-end;
     }
 
+    .bubble.group-mannschaft { border-left: 4px solid #16a34a; }
+    .bubble.group-trainer { border-left: 4px solid #2563eb; }
+    .bubble.group-kasse { border-left: 4px solid #d97706; }
+    .bubble.group-betreuer { border-left: 4px solid #7c3aed; }
+    .bubble.group-mannschaftsrat { border-left: 4px solid #0891b2; }
+
     .bubble strong {
       display: block;
       margin-bottom: 3px;
@@ -1018,6 +1049,30 @@
     .bubble p {
       margin: 0;
       white-space: pre-wrap;
+    }
+
+    .emoji-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: -2px;
+    }
+
+    .emoji-row button {
+      width: 38px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+    }
+
+    .emoji-row button:hover {
+      background: var(--club-soft);
     }
 
     .empty {

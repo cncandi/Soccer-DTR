@@ -14,6 +14,13 @@
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
+    const MESSAGE_GROUP_CLASSES = {
+      Mannschaft: "group-mannschaft",
+      Mannschaftsrat: "group-mannschaftsrat",
+      Kasse: "group-kasse",
+      Trainer: "group-trainer",
+      Betreuer: "group-betreuer"
+    };
     const DEFAULT_FINE_CATALOG = [
       { label: "Zu spaet zur Teambesprechung", description: "", amount: 3, penalty: "" },
       { label: "Gelbe Karte", description: "", amount: 2, penalty: "" },
@@ -2116,6 +2123,7 @@
       const group = allowedGroups.includes($("#messageGroup").value) ? $("#messageGroup").value : allowedGroups[0];
       $("#messageGroup").value = group;
       const feed = $("#messageFeed");
+      feed.className = `message-feed ${MESSAGE_GROUP_CLASSES[group] || ""}`.trim();
       feed.innerHTML = "";
       const messages = state.messages.filter((message) => message.group === group && allowedGroups.includes(message.group));
       if (!messages.length) {
@@ -2130,11 +2138,19 @@
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .forEach((message) => {
           const bubble = document.createElement("article");
-          bubble.className = "bubble" + (message.author === activeUser() ? " mine" : "");
+          bubble.className = `bubble ${MESSAGE_GROUP_CLASSES[group] || ""}${message.author === activeUser() ? " mine" : ""}`;
           bubble.innerHTML = `<strong>${escapeHtml(message.author)} <span class="meta">${new Date(message.createdAt).toLocaleString("de-DE")}</span></strong><p>${escapeHtml(message.body)}</p>`;
           feed.appendChild(bubble);
         });
-      feed.scrollTop = feed.scrollHeight;
+      scrollMessagesToBottom();
+    }
+
+    function scrollMessagesToBottom() {
+      const feed = $("#messageFeed");
+      if (!feed) return;
+      requestAnimationFrame(() => {
+        feed.scrollTop = feed.scrollHeight;
+      });
     }
 
     function renderDashboard() {
@@ -2561,6 +2577,7 @@
         markSeen(viewName);
         renderNotificationBadges();
       }
+      if (viewName === "messages") scrollMessagesToBottom();
     }
 
     setupNavLabels();
@@ -2660,6 +2677,22 @@
       event.currentTarget.reset();
       saveState();
       sendPushForMessage(message);
+    });
+
+    $$(".emoji-row button").forEach((button) => {
+      button.addEventListener("click", () => {
+        const textarea = $("#messageForm textarea[name='body']");
+        const emoji = button.dataset.emoji || "";
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? textarea.value.length;
+        const before = textarea.value.slice(0, start);
+        const after = textarea.value.slice(end);
+        const spacer = before && !before.endsWith(" ") ? " " : "";
+        textarea.value = `${before}${spacer}${emoji}${after}`;
+        const caret = before.length + spacer.length + emoji.length;
+        textarea.focus();
+        textarea.setSelectionRange(caret, caret);
+      });
     });
 
     $("#cashFineCatalog").addEventListener("change", () => {
@@ -3273,7 +3306,7 @@
       renderInstallPanel();
     });
 
-    $("#enablePushBtn").addEventListener("click", enablePushNotifications);
+    $("#enablePushBtn")?.addEventListener("click", enablePushNotifications);
 
     $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";
     const restoredLogin = restoreLogin();
