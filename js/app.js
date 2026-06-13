@@ -561,6 +561,11 @@
       return canManage();
     }
 
+    function canJoinHallOfFame(name = activeUser()) {
+      const player = playerByName(name);
+      return Boolean(player && hasMemberRole(player, "Spieler"));
+    }
+
     function canManagePlayers() {
       return canManage();
     }
@@ -1100,6 +1105,9 @@
       $$(".fame-award").forEach((el) => {
         el.style.display = canAwardFamePoints() ? "" : "none";
       });
+      $$(".fame-player-only").forEach((el) => {
+        el.style.display = canJoinHallOfFame() ? "" : "none";
+      });
       $$(".nav button").forEach((button) => {
         button.hidden = !canAccess(button.dataset.minRole);
       });
@@ -1631,7 +1639,7 @@
     }
 
     function canViewFameDetails(name) {
-      return canManage() || playerNameKey(name) === playerNameKey(activeUser());
+      return canJoinHallOfFame(name) && (canManage() || playerNameKey(name) === playerNameKey(activeUser()));
     }
 
     function renderSelfTrainingApprovals() {
@@ -1666,9 +1674,9 @@
       renderSelfTrainingApprovals();
       const rows = fameRows();
       const activeName = activeUser();
-      if (!canManage()) selectedFamePlayer = activeName;
+      if (!canManage() && canJoinHallOfFame(activeName)) selectedFamePlayer = activeName;
       if (!selectedFamePlayer || !rows.some((row) => playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer))) {
-        selectedFamePlayer = rows.some((row) => playerNameKey(row.player.name) === playerNameKey(activeName)) ? activeName : rows[0]?.player.name || "";
+        selectedFamePlayer = canJoinHallOfFame(activeName) && rows.some((row) => playerNameKey(row.player.name) === playerNameKey(activeName)) ? activeName : rows[0]?.player.name || "";
       }
 
       ranking.innerHTML = "";
@@ -2600,6 +2608,10 @@
 
     $("#selfTrainingForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!canJoinHallOfFame()) {
+        window.alert("Nur Spieler koennen eigenes Training einreichen.");
+        return;
+      }
       const form = event.currentTarget;
       const values = formValues(form);
       const file = form.elements.proofFile.files[0];
