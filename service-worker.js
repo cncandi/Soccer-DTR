@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v39";
+const CACHE_NAME = "soccer-dtr-v40";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -9,9 +9,9 @@ const APP_SHELL = [
   "js/app.js",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
-  "icon-192.png",
-  "icon-512.png",
-  "apple-touch-icon.png"
+  "kadrivo-icon-192.png",
+  "kadrivo-icon-512.png",
+  "kadrivo-apple-touch-icon.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -99,8 +99,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Kadrivo";
   const options = {
     body: payload.body || "Neue Mitteilung",
-    icon: "icon-192.png",
-    badge: "icon-192.png",
+    icon: "kadrivo-icon-192.png",
+    badge: "kadrivo-icon-192.png",
     data: {
       url: payload.url || "./index.html#messages"
     }

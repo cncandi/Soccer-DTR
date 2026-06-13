@@ -11,6 +11,7 @@
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
+    const CLUB_URL_PARAM = "club";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
@@ -141,6 +142,7 @@
     };
 
     let clubs = loadClubs();
+    let requestedClubId = new URLSearchParams(location.search).get(CLUB_URL_PARAM) || "";
     let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
@@ -254,6 +256,7 @@
     }
 
     function loadCurrentClubId() {
+      if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) return requestedClubId;
       const stored = localStorage.getItem(CURRENT_CLUB_KEY);
       return clubs.some((club) => club.id === stored) ? stored : clubs[0].id;
     }
@@ -798,6 +801,9 @@
         } else if (!clubs.some((club) => club.id === currentClubId)) {
           currentClubId = clubs[0].id;
         }
+        if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) {
+          currentClubId = requestedClubId;
+        }
         saveClubs({ sync: false });
       }
 
@@ -875,7 +881,7 @@
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
       if (standalone) return "";
       const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      return isiOS ? "Teilen und Zum Home-Bildschirm waehlen." : "Als App auf dem Home-Bildschirm speichern.";
+      return isiOS ? "Auf dem iPhone: Teilen antippen und Zum Home-Bildschirm waehlen." : "Als App auf dem Home-Bildschirm speichern.";
     }
 
     function renderInstallPanel() {
@@ -886,6 +892,26 @@
       panel.hidden = standalone || !hint;
       $("#installHint").textContent = hint;
       $("#installAppBtn").hidden = !deferredInstallPrompt;
+      $("#installAppBtn").parentElement.hidden = !deferredInstallPrompt;
+      renderClubShare();
+    }
+
+    function clubInstallUrl(clubId = currentClubId) {
+      const url = new URL(location.href);
+      url.hash = "";
+      url.searchParams.delete("v");
+      url.searchParams.set(CLUB_URL_PARAM, clubId);
+      return url.toString();
+    }
+
+    function renderClubShare() {
+      const link = $("#clubInstallLink");
+      const qr = $("#clubQrCode");
+      if (!link || !qr) return;
+      const url = clubInstallUrl();
+      link.href = url;
+      link.textContent = url;
+      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=172x172&margin=8&data=${encodeURIComponent(url)}`;
     }
 
     function seenKey(type) {
@@ -3212,6 +3238,7 @@
     });
     function changeClub(clubId) {
       currentClubId = clubId;
+      requestedClubId = clubId;
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       state = loadState();
       render();
@@ -3221,9 +3248,11 @@
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
     $("#loginClubSelect").addEventListener("change", () => {
       currentClubId = $("#loginClubSelect").value;
+      requestedClubId = currentClubId;
       state = loadState();
       renderClubSelect();
       renderLoginUsers();
+      renderInstallPanel();
     });
     $("#loginUser").addEventListener("change", fillSavedLoginPassword);
     $("#loginForm").addEventListener("submit", (event) => {
@@ -3304,6 +3333,12 @@
       await deferredInstallPrompt.userChoice.catch(() => {});
       deferredInstallPrompt = null;
       renderInstallPanel();
+    });
+
+    $("#copyClubLinkBtn")?.addEventListener("click", async () => {
+      const url = clubInstallUrl();
+      await navigator.clipboard?.writeText(url).catch(() => {});
+      setStatus("Vereinslink kopiert.");
     });
 
     $("#enablePushBtn")?.addEventListener("click", enablePushNotifications);

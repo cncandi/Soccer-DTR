@@ -10,17 +10,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="application-name" content="Kadrivo">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon-192.png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" href="kadrivo-icon-192.png">
+  <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
+    <a class="login-promo-link" href="https://kadrivo.com/" target="_blank" rel="noopener" aria-label="Kadrivo.com oeffnen"></a>
     <form class="login-panel" id="loginForm">
       <div class="brand">
-        <div class="brand-mark app-logo"><img src="icon-192.png" alt="Kadrivo Logo"></div>
+        <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
           <h1>Kadrivo</h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
@@ -48,6 +49,14 @@
         <div>
           <h3>Kadrivo installieren</h3>
           <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
+          <div class="club-share">
+            <img id="clubQrCode" alt="QR-Code fuer diesen Verein">
+            <div>
+              <span>Link fuer diesen Verein</span>
+              <a id="clubInstallLink" href="#" target="_blank" rel="noopener"></a>
+              <button class="btn-secondary" id="copyClubLinkBtn" type="button">Link kopieren</button>
+            </div>
+          </div>
         </div>
         <div class="row-actions">
           <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>

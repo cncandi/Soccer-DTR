@@ -77,7 +77,20 @@
       display: none;
     }
 
+    .login-promo-link {
+      position: fixed;
+      left: max(24px, 8vw);
+      top: 50%;
+      width: min(620px, 46vw);
+      aspect-ratio: 1;
+      transform: translateY(-50%);
+      z-index: 101;
+      border-radius: 18px;
+    }
+
     .login-panel {
+      position: relative;
+      z-index: 102;
       width: min(420px, 100%);
       background: rgba(255,255,255,.96);
       border-radius: 8px;
@@ -105,6 +118,43 @@
       background: #f3f8f5;
       border: 1px solid var(--line);
       border-radius: 8px;
+    }
+
+    .club-share {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .club-share img {
+      width: 86px;
+      height: 86px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 5px;
+    }
+
+    .club-share span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+
+    .club-share a {
+      display: block;
+      max-width: 210px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--green);
+      font-size: .82rem;
+      font-weight: 800;
+      margin-bottom: 8px;
     }
 
     .sidebar {
@@ -1175,6 +1225,13 @@
         padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
         background-position: center center, center 10%, center center, center center, center center, center center, center center;
         background-size: 100% 100%, min(480px, 88vw) auto, 100% 100%, 100% 100%, 100% 64px, 64px 100%, 100% 100%;
+      }
+
+      .login-promo-link {
+        left: 50%;
+        top: 10%;
+        width: min(480px, 88vw);
+        transform: translateX(-50%);
       }
 
       .app-shell {
