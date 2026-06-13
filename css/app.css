@@ -140,6 +140,11 @@
       padding: 3px;
     }
 
+    .brand-mark.app-logo img {
+      object-fit: cover;
+      padding: 0;
+    }
+
     .brand h1 {
       font-size: 1.1rem;
       line-height: 1.15;

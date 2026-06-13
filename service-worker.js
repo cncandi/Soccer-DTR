@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v35";
+const CACHE_NAME = "soccer-dtr-v36";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -8,7 +8,6 @@ const APP_SHELL = [
   "css/app.css",
   "js/app.js",
   "manifest.webmanifest",
-  "icon.svg",
   "icon-192.png",
   "icon-512.png",
   "apple-touch-icon.png"
