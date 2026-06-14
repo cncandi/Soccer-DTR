@@ -196,6 +196,9 @@
               <div class="field"><label>Wiederholung</label><select name="repeat"><option value="">Einmalig</option><option value="weekly">Woechentlich</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Monatlich</option></select></div>
               <div class="field"><label>Wiederholen bis</label><input type="date" name="repeatUntil"></div>
               <div class="field full"><label>Ort</label><input name="location"></div>
+              <div class="field"><label>Spielort</label><select name="gameVenue"><option value="">Nicht relevant</option><option value="home">Heimspiel</option><option value="away">Auswaertsspiel</option></select></div>
+              <div class="field"><label>Treffpunkt</label><input name="meetingPoint" placeholder="z.B. Sportplatz, Parkplatz"></div>
+              <div class="field"><label>Uhrzeit am Treffpunkt</label><input type="time" name="meetingTime"></div>
               <div class="field"><label>Verantwortlicher Trainer</label><select name="coach" id="eventCoach"></select></div>
               <div class="field"><label>Schwerpunkt</label><input name="trainingFocus" placeholder="z.B. Pressing, Standards"></div>
               <div class="field full"><label>Details</label><textarea name="details"></textarea></div>
@@ -302,6 +305,7 @@
                   <th>Punkte Training</th>
                   <th>Punkte Spiele</th>
                   <th>Sonderpunkte</th>
+                  <th>Fahrten</th>
                   <th>Gesamt</th>
                 </tr>
               </thead>

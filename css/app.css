@@ -836,6 +836,20 @@
       border: 1px solid var(--line);
     }
 
+    .transport-panel {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f8fbf9;
+      border: 1px solid var(--line);
+    }
+
+    .transport-panel strong {
+      font-size: .9rem;
+    }
+
     .attendee-list {
       display: flex;
       flex-wrap: wrap;

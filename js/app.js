@@ -440,6 +440,9 @@
         date: event.date || new Date().toISOString().slice(0, 10),
         time: event.time || "18:00",
         location: event.location || "",
+        gameVenue: event.gameVenue || "",
+        meetingPoint: event.meetingPoint || "",
+        meetingTime: event.meetingTime || "",
         details: event.details || "",
         coach: event.coach || "",
         focus: event.focus || "",
@@ -1570,7 +1573,8 @@
           explicit: Boolean(record),
           noShow: Boolean(record?.noShow),
           noShowBy: record?.noShowBy || "",
-          fine: Number(record?.fine || 0)
+          fine: Number(record?.fine || 0),
+          transport: record?.transport || ""
         };
         if (entry.noShow) absent.push(entry);
         else if (status === "no") no.push(entry);
@@ -1581,7 +1585,7 @@
 
     function renderRsvpDetails(event) {
       const details = rsvpDetails(event);
-      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
       const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${entry.fine ? ` - ${formatCurrency(entry.fine)} EUR` : ""}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
       return `
@@ -1686,10 +1690,44 @@
 
     function eventInfoLine(event) {
       const items = [];
+      if (event.type === "Spiel" && event.gameVenue) items.push(event.gameVenue === "away" ? "Auswaertsspiel" : "Heimspiel");
+      if (event.type === "Spiel" && event.meetingPoint) items.push(`Treffpunkt: ${event.meetingPoint}`);
+      if (event.type === "Spiel" && event.meetingTime) items.push(`Treffpunkt-Uhrzeit: ${event.meetingTime}`);
       if (event.coach) items.push(`Trainer: ${event.coach}`);
       if (event.focus) items.push(`Schwerpunkt: ${event.focus}`);
       if (event.remark) items.push(`Bemerkung: ${event.remark}`);
       return items.length ? `<div class="meta">${items.map((text) => `<span>${escapeHtml(text)}</span>`).join("")}</div>` : "";
+    }
+
+    function isAwayGame(event) {
+      return event.type === "Spiel" && event.gameVenue === "away";
+    }
+
+    function transportLabel(value) {
+      return {
+        self: "Selbstfahrer",
+        offer: "Biete Mitfahrgelegenheit",
+        passenger: "Mitfahrer"
+      }[value] || "";
+    }
+
+    function renderTransportControls(event, player, record) {
+      if (!isAwayGame(event) || !player || !hasMemberRole(player, "Spieler")) return "";
+      const current = record?.transport || "";
+      const options = [
+        ["self", "Selbstfahrer"],
+        ["offer", "Biete Mitfahrgelegenheit"],
+        ["passenger", "Mitfahrer"]
+      ];
+      return `
+        <div class="transport-panel">
+          <strong>Fahrt zum Auswaertsspiel</strong>
+          <div class="row-actions">
+            ${options.map(([value, label]) => `<button class="mini ${current === value ? "yes" : ""}" type="button" data-transport="${escapeAttr(event.id)}" data-transport-value="${value}">${label}</button>`).join("")}
+          </div>
+          ${current ? `<p class="meta">Aktuell: ${escapeHtml(transportLabel(current))}</p>` : `<p class="meta">Bitte Fahrstatus auswaehlen.</p>`}
+        </div>
+      `;
     }
 
     function renderEvents() {
@@ -1730,6 +1768,7 @@
               ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
               ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
             </div>
+            ${myStatus === "yes" ? renderTransportControls(event, player, myRecord) : ""}
             ${expanded ? renderRsvpDetails(event) : ""}
           `));
         });
@@ -1821,6 +1860,7 @@
       return rosterPlayers()
         .map((player) => {
           const entries = fameEntriesForPlayer(player);
+          const transportStats = transportStatsForPlayer(player);
           const trainingPoints = entries
             .filter((entry) => entry.type === "training" || entry.type === "self")
             .reduce((sum, entry) => sum + Number(entry.points || 0), 0);
@@ -1836,10 +1876,27 @@
             trainingPoints,
             gamePoints,
             bonusPoints,
+            transportStats,
             total: trainingPoints + gamePoints + bonusPoints
           };
         })
         .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name, "de"));
+    }
+
+    function transportStatsForPlayer(player) {
+      const now = new Date();
+      return state.events.reduce((stats, event) => {
+        if (!isAwayGame(event) || eventDateTime(event) > now) return stats;
+        const record = rsvpRecord(event, player.name);
+        if (record?.transport === "self") stats.self += 1;
+        if (record?.transport === "offer") stats.offer += 1;
+        if (record?.transport === "passenger") stats.passenger += 1;
+        return stats;
+      }, { self: 0, offer: 0, passenger: 0 });
+    }
+
+    function transportStatsText(stats) {
+      return `S:${stats.self} B:${stats.offer} M:${stats.passenger}`;
     }
 
     function renderFameForm() {
@@ -1897,7 +1954,7 @@
 
       ranking.innerHTML = "";
       if (!rows.length) {
-        ranking.innerHTML = `<tr><td colspan="6">Noch keine Spieler vorhanden.</td></tr>`;
+        ranking.innerHTML = `<tr><td colspan="7">Noch keine Spieler vorhanden.</td></tr>`;
       }
       rows.forEach((row, index) => {
         const selected = playerNameKey(row.player.name) === playerNameKey(selectedFamePlayer);
@@ -1910,6 +1967,7 @@
           <td>${row.trainingPoints}</td>
           <td>${row.gamePoints}</td>
           <td>${row.bonusPoints}</td>
+          <td><span title="Selbstfahrer / bietet Plaetze / Mitfahrer">${transportStatsText(row.transportStats)}</span></td>
           <td><strong>${row.total}</strong></td>
         `;
         ranking.appendChild(tr);
@@ -1924,6 +1982,19 @@
         return empty(details, "Details sind nur fuer den eigenen Namen sichtbar.");
       }
       const pendingOwn = pendingSelfTrainingsForPlayer(selectedRow.player.name);
+      details.appendChild(item(`
+        <div class="item-head">
+          <div>
+            <p class="item-title">Auswaertsfahrten</p>
+            <div class="meta">
+              <span>Selbstfahrer: ${selectedRow.transportStats.self}</span>
+              <span>Bietet Mitfahrgelegenheit: ${selectedRow.transportStats.offer}</span>
+              <span>Mitfahrer: ${selectedRow.transportStats.passenger}</span>
+            </div>
+          </div>
+          <span class="chip">${transportStatsText(selectedRow.transportStats)}</span>
+        </div>
+      `));
       if (!selectedRow.entries.length && !pendingOwn.length) return empty(details, "Noch keine Punkte vorhanden.");
       pendingOwn.forEach((entry) => {
         details.appendChild(item(`
@@ -2694,6 +2765,9 @@
         date,
         time: values.time,
         location: values.location,
+        gameVenue: values.gameVenue,
+        meetingPoint: values.meetingPoint,
+        meetingTime: values.meetingTime,
         details: values.details,
         coach: values.coach,
         focus: values.trainingFocus,
@@ -2737,6 +2811,9 @@
       form.elements.repeat.value = "";
       form.elements.repeatUntil.value = "";
       form.elements.location.value = eventItem.location || "";
+      form.elements.gameVenue.value = eventItem.gameVenue || "";
+      form.elements.meetingPoint.value = eventItem.meetingPoint || "";
+      form.elements.meetingTime.value = eventItem.meetingTime || "";
       form.elements.coach.value = eventItem.coach || "";
       form.elements.namedItem("trainingFocus").value = eventItem.focus || "";
       form.elements.details.value = eventItem.details || "";
@@ -2751,7 +2828,7 @@
 
     function exportEventsCsv() {
       const rows = [
-        ["Typ", "Titel", "Datum", "Uhrzeit", "Ort", "Trainer", "Schwerpunkt", "Bemerkung", "Details", "Zusagen", "Absagen"],
+        ["Typ", "Titel", "Datum", "Uhrzeit", "Ort", "Spielort", "Treffpunkt", "Treffpunkt-Uhrzeit", "Trainer", "Schwerpunkt", "Bemerkung", "Details", "Zusagen", "Absagen"],
         ...state.events
           .slice()
           .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
@@ -2761,6 +2838,9 @@
             event.date,
             event.time,
             event.location,
+            event.gameVenue === "away" ? "Auswaertsspiel" : event.gameVenue === "home" ? "Heimspiel" : "",
+            event.meetingPoint,
+            event.meetingTime,
             event.coach,
             event.focus,
             event.remark,
@@ -2846,6 +2926,9 @@
           date: values.date,
           time: values.time,
           location: values.location,
+          gameVenue: values.gameVenue,
+          meetingPoint: values.meetingPoint,
+          meetingTime: values.meetingTime,
           details: values.details,
           coach: values.coach,
           focus: values.trainingFocus,
@@ -3228,8 +3311,25 @@
       const markNoShowId = target.dataset.markNoshow;
       const clearNoShowId = target.dataset.clearNoshow;
       const attendancePlayer = target.dataset.player;
+      const transportEventId = target.dataset.transport;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
+
+      if (transportEventId) {
+        const item = state.events.find((eventItem) => eventItem.id === transportEventId);
+        const player = playerByName(activeUser());
+        if (!item || !player || !isAwayGame(item)) return;
+        item.rsvps = item.rsvps || {};
+        const oldRecord = rsvpRecord(item, player.name) || { status: "yes" };
+        item.rsvps[player.name] = {
+          ...oldRecord,
+          status: oldRecord.status === "no" ? "yes" : oldRecord.status || "yes",
+          updatedAt: new Date().toISOString(),
+          transport: target.dataset.transportValue || ""
+        };
+        saveState();
+        return;
+      }
 
       if (markNoShowId && attendancePlayer && canManage()) {
         markNoShow(markNoShowId, attendancePlayer);
@@ -3347,7 +3447,8 @@
           noShowAt: "",
           noShowBy: "",
           paid: false,
-          paidAt: ""
+          paidAt: "",
+          transport: status === "yes" ? oldRecord?.transport || "" : ""
         };
         if (item.rsvps[player.name].fine) {
           setStatus(`Spaete Absage: 10 EUR Strafe fuer ${player.name}.`);
