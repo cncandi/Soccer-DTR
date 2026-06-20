@@ -142,6 +142,7 @@
       fineCatalog: defaultFineCatalog(),
       polls: [],
       messages: [],
+      removedDefaultPlayers: [],
       hallOfFame: { selfTrainings: [], bonusPoints: [] }
     };
 
@@ -317,16 +318,45 @@
       return [...map.values()];
     }
 
+    function normalizeRemovedDefaultPlayers(players = []) {
+      return [...new Set([
+        ...REMOVED_DEFAULT_PLAYERS,
+        ...(Array.isArray(players) ? players : [])
+      ].map(playerNameKey).filter(Boolean))];
+    }
+
     function hasPlayerName(name, exceptId = "") {
       const key = playerNameKey(name);
       return Boolean(key) && state.players.some((player) => player.id !== exceptId && playerNameKey(player.name) === key);
     }
 
+    function deletePlayer(playerId) {
+      if (!canManage()) return;
+      const player = state.players.find((item) => item.id === playerId);
+      if (!player) return;
+      if (!window.confirm(`${player.name} wirklich entfernen?`)) return;
+      const key = playerNameKey(player.name);
+      if (DEFAULT_PLAYER_NAMES.some((name) => playerNameKey(name) === key)) {
+        state.removedDefaultPlayers = normalizeRemovedDefaultPlayers([...(state.removedDefaultPlayers || []), key]);
+      }
+      state.players = state.players.filter((item) => item.id !== playerId);
+      state.events = (state.events || []).map((eventItem) => {
+        if (!eventItem.rsvps?.[player.name]) return eventItem;
+        const rsvps = { ...eventItem.rsvps };
+        delete rsvps[player.name];
+        return { ...eventItem, rsvps };
+      });
+      if ($("#playerEditForm")?.elements.id?.value === playerId) closePlayerModal();
+      saveState();
+    }
+
     function ensureDefaultPlayers(loadedState) {
-      const normalizedPlayers = mergePlayersByName(loadedState.players || []);
+      const removedDefaultPlayers = normalizeRemovedDefaultPlayers(loadedState.removedDefaultPlayers);
+      const normalizedPlayers = mergePlayersByName(loadedState.players || [])
+        .filter((player) => !removedDefaultPlayers.includes(playerNameKey(player.name)));
       const existingNames = new Set(normalizedPlayers.map((player) => playerNameKey(player.name)));
       const missingPlayers = DEFAULT_PLAYER_NAMES
-        .filter((name) => !existingNames.has(name.toLowerCase()))
+        .filter((name) => !existingNames.has(name.toLowerCase()) && !removedDefaultPlayers.includes(name.toLowerCase()))
         .map((name) => ({
           id: crypto.randomUUID(),
           name,
@@ -351,6 +381,7 @@
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
         messages: loadedState.messages || [],
+        removedDefaultPlayers,
         hallOfFame: normalizeHallOfFame(loadedState.hallOfFame)
       };
     }
@@ -1595,6 +1626,7 @@
             <strong>Zusagen (${details.yes.length})</strong>
             <div class="attendee-list">${yesItems || "<span class=\"meta\">Keine Zusagen.</span>"}</div>
           </div>
+          ${renderTransportDetails(event, details)}
           <div>
             <strong>Absagen (${details.no.length})</strong>
             <div class="attendee-list">${noItems || "<span class=\"meta\">Keine Absagen.</span>"}</div>
@@ -1707,9 +1739,43 @@
     function transportLabel(value) {
       return {
         self: "Selbstfahrer",
-        offer: "Biete Mitfahrgelegenheit",
+        offer: "Fahrer",
         passenger: "Mitfahrer"
       }[value] || "";
+    }
+
+    function transportGroups(entries) {
+      return entries.reduce((groups, entry) => {
+        if (entry.transport === "self") groups.self.push(entry.name);
+        else if (entry.transport === "offer") groups.offer.push(entry.name);
+        else if (entry.transport === "passenger") groups.passenger.push(entry.name);
+        else groups.open.push(entry.name);
+        return groups;
+      }, { self: [], offer: [], passenger: [], open: [] });
+    }
+
+    function renderTransportGroup(label, names, className = "") {
+      const items = names.map((name) => `<span class="attendee ${className}">${escapeHtml(name)}</span>`).join("");
+      return `
+        <div>
+          <strong>${escapeHtml(label)} (${names.length})</strong>
+          <div class="attendee-list">${items || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
+        </div>
+      `;
+    }
+
+    function renderTransportDetails(event, details) {
+      if (!isAwayGame(event)) return "";
+      const groups = transportGroups(details.yes);
+      return `
+        <div class="transport-details">
+          <strong>Fahrten</strong>
+          ${renderTransportGroup("Selbstfahrer", groups.self, "transport-self")}
+          ${renderTransportGroup("Fahrer / bietet Mitfahrgelegenheit", groups.offer, "transport-offer")}
+          ${renderTransportGroup("Mitfahrer", groups.passenger, "transport-passenger")}
+          ${renderTransportGroup("Noch offen", groups.open, "transport-open")}
+        </div>
+      `;
     }
 
     function renderTransportControls(event, player, record) {
@@ -2723,6 +2789,7 @@
           </div>
         </details>` : ""}
         <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
+        ${fullAccess ? `<div class="field"><button class="btn-danger" id="deletePlayerFromModalBtn" type="button">Spieler entfernen</button></div>` : ""}
         <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
       `;
       $("#playerModal").classList.add("open");
@@ -3223,6 +3290,9 @@
         setStatus(`Temp-Passwort fuer ${player.name}: ${password}`);
         window.alert(`Temp-Passwort fuer ${player.name}: ${password}`);
       }
+      if (target.id === "deletePlayerFromModalBtn") {
+        deletePlayer(player.id);
+      }
     });
 
     $("#playerEditForm").addEventListener("submit", async (event) => {
@@ -3316,6 +3386,11 @@
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
+      if (playerId) {
+        deletePlayer(playerId);
+        return;
+      }
+
       if (transportEventId) {
         const item = state.events.find((eventItem) => eventItem.id === transportEventId);
         const player = playerByName(activeUser());
@@ -3375,7 +3450,6 @@
         }
         return;
       }
-      if (playerId && canManage()) state.players = state.players.filter((player) => player.id !== playerId);
       if (eventId && canManage()) {
         state.events = state.events.filter((item) => item.id !== eventId);
         if ($("#eventForm")?.elements.namedItem("eventId").value === eventId) resetEventForm();
@@ -3460,7 +3534,7 @@
         poll.votes = poll.votes || {};
         poll.votes[activeUser()] = target.dataset.option;
       }
-      if ((canManage() && (playerId || eventId || pollId || toggleFineId || deleteCatalogFineId || approveSelfTrainingId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
+      if ((canManage() && (eventId || pollId || toggleFineId || deleteCatalogFineId || approveSelfTrainingId || deleteSelfTrainingId || deleteBonusPointId)) || rsvpId || voteId) saveState();
     });
 
     $("#playerSearch").addEventListener("input", renderPlayers);
