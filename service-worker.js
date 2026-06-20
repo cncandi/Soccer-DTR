@@ -1,12 +1,12 @@
-const CACHE_NAME = "soccer-dtr-v57";
+const CACHE_NAME = "soccer-dtr-v58";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
 const APP_SHELL = [
   "./",
   "index.html",
-  "css/app.css",
-  "js/app.js",
+  "css/app.css?v=58",
+  "js/app.js?v=58",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
   "kadrivo-icon-192.png",
@@ -23,11 +23,14 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-    ))
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+      await self.clients.claim();
+      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      await Promise.all(clientList.map((client) => client.navigate(client.url).catch(() => {})));
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
