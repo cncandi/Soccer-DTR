@@ -472,6 +472,7 @@
         time: event.time || "18:00",
         location: event.location || "",
         gameVenue: event.gameVenue || "",
+        gameCategory: event.gameCategory || "",
         meetingPoint: event.meetingPoint || "",
         meetingTime: event.meetingTime || "",
         details: event.details || "",
@@ -1468,6 +1469,65 @@
         .sort((a, b) => a.localeCompare(b, "de"));
       coachSelect.innerHTML = `<option value="">Nicht zugewiesen</option>${coaches.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}`;
       coachSelect.value = coaches.includes(current) ? current : "";
+      updateEventFormState();
+    }
+
+    function visibleEventFields(type) {
+      const fields = {
+        Spiel: ["title", "time", "location", "gameVenue", "gameCategory", "meetingPoint", "meetingTime", "remark"],
+        Training: ["time", "repeat", "repeatUntil", "location", "coach", "trainingFocus", "details", "remark"],
+        Sonstiges: ["time", "location", "remark"]
+      };
+      return new Set(fields[type] || fields.Training);
+    }
+
+    function eventTypeForForm(type) {
+      return ["Training", "Spiel", "Sonstiges"].includes(type) ? type : "Sonstiges";
+    }
+
+    function updateEventTypeFields() {
+      const form = $("#eventForm");
+      if (!form) return;
+      const type = eventTypeForForm(form.elements.type.value || "Training");
+      const visibleFields = visibleEventFields(type);
+      form.querySelectorAll("[data-event-field]").forEach((field) => {
+        const name = field.dataset.eventField;
+        const visible = visibleFields.has(name);
+        field.hidden = !visible;
+        field.querySelectorAll("input, select, textarea").forEach((input) => {
+          input.disabled = !visible;
+        });
+      });
+      const title = form.elements.title;
+      const location = form.elements.location;
+      if (title) {
+        title.required = type === "Spiel";
+        title.placeholder = type === "Spiel" ? "Gegner eintragen" : "";
+      }
+      if (location) {
+        location.closest("[data-event-field]")?.querySelector("label")?.replaceChildren(type === "Spiel" ? "Adresse Sportplatz" : "Ort");
+      }
+    }
+
+    function eventValuesForSave(values) {
+      const type = eventTypeForForm(values.type || "Training");
+      return {
+        type,
+        title: type === "Spiel" ? (values.title || "Spiel") : type,
+        date: values.date,
+        time: values.time,
+        location: values.location || "",
+        gameVenue: type === "Spiel" ? (values.gameVenue || "home") : "",
+        gameCategory: type === "Spiel" ? (values.gameCategory || "Punktspiel") : "",
+        meetingPoint: type === "Spiel" ? (values.meetingPoint || "") : "",
+        meetingTime: type === "Spiel" ? (values.meetingTime || "") : "",
+        details: type === "Training" ? (values.details || "") : "",
+        coach: type === "Training" ? (values.coach || "") : "",
+        trainingFocus: type === "Training" ? (values.trainingFocus || "") : "",
+        remark: values.remark || "",
+        repeat: type === "Training" ? (values.repeat || "") : "",
+        repeatUntil: type === "Training" ? (values.repeatUntil || "") : ""
+      };
     }
 
     function rosterPlayers() {
@@ -1724,10 +1784,11 @@
     function eventInfoLine(event) {
       const items = [];
       if (event.type === "Spiel" && event.gameVenue) items.push(event.gameVenue === "away" ? "Auswaertsspiel" : "Heimspiel");
-      if (event.type === "Spiel" && event.meetingPoint) items.push(`Treffpunkt: ${event.meetingPoint}`);
-      if (event.type === "Spiel" && event.meetingTime) items.push(`Treffpunkt-Uhrzeit: ${event.meetingTime}`);
-      if (event.coach) items.push(`Trainer: ${event.coach}`);
-      if (event.focus) items.push(`Schwerpunkt: ${event.focus}`);
+      if (event.type === "Spiel" && event.gameCategory) items.push(event.gameCategory);
+      if (event.type === "Spiel" && event.meetingPoint) items.push(`Treffpunkt Ort: ${event.meetingPoint}`);
+      if (event.type === "Spiel" && event.meetingTime) items.push(`Treffpunkt vor Ort: ${event.meetingTime}`);
+      if (event.type === "Training" && event.coach) items.push(`Trainer: ${event.coach}`);
+      if (event.type === "Training" && event.focus) items.push(`Schwerpunkt: ${event.focus}`);
       if (event.remark) items.push(`Bemerkung: ${event.remark}`);
       return items.length ? `<div class="meta">${items.map((text) => `<span>${escapeHtml(text)}</span>`).join("")}</div>` : "";
     }
@@ -2797,12 +2858,13 @@
     }
 
     function createEventsFromForm(values) {
-      const repeat = values.repeat || "";
-      const repeatUntil = values.repeatUntil || values.date;
+      const cleanValues = eventValuesForSave(values);
+      const repeat = cleanValues.repeat || "";
+      const repeatUntil = cleanValues.repeatUntil || cleanValues.date;
       const repeatGroup = repeat ? crypto.randomUUID() : "";
       const createdAt = new Date().toISOString();
       const dates = [];
-      let cursor = new Date(`${values.date}T00:00`);
+      let cursor = new Date(`${cleanValues.date}T00:00`);
       const end = new Date(`${repeatUntil}T00:00`) < cursor ? new Date(cursor) : new Date(`${repeatUntil}T00:00`);
       while (cursor <= end && dates.length < 80) {
         dates.push(isoDate(cursor));
@@ -2813,18 +2875,19 @@
       }
       return dates.map((date) => normalizeEvent({
         id: crypto.randomUUID(),
-        type: values.type,
-        title: values.title,
+        type: cleanValues.type,
+        title: cleanValues.title,
         date,
-        time: values.time,
-        location: values.location,
-        gameVenue: values.gameVenue,
-        meetingPoint: values.meetingPoint,
-        meetingTime: values.meetingTime,
-        details: values.details,
-        coach: values.coach,
-        focus: values.trainingFocus,
-        remark: values.remark,
+        time: cleanValues.time,
+        location: cleanValues.location,
+        gameVenue: cleanValues.gameVenue,
+        gameCategory: cleanValues.gameCategory,
+        meetingPoint: cleanValues.meetingPoint,
+        meetingTime: cleanValues.meetingTime,
+        details: cleanValues.details,
+        coach: cleanValues.coach,
+        focus: cleanValues.trainingFocus,
+        remark: cleanValues.remark,
         repeat,
         repeatGroup,
         createdAt,
@@ -2838,8 +2901,11 @@
       const editing = Boolean(form.elements.namedItem("eventId").value);
       $("#eventSubmitBtn").textContent = editing ? "Termin aktualisieren" : "Termin speichern";
       $("#cancelEventEditBtn").hidden = !editing;
-      form.elements.repeat.disabled = editing;
-      form.elements.repeatUntil.disabled = editing;
+      updateEventTypeFields();
+      if (editing) {
+        form.elements.repeat.disabled = true;
+        form.elements.repeatUntil.disabled = true;
+      }
     }
 
     function resetEventForm() {
@@ -2857,7 +2923,7 @@
       if (!eventItem || !form || !canManage()) return;
       renderEventForm();
       form.elements.namedItem("eventId").value = eventItem.id;
-      form.elements.type.value = eventItem.type;
+      form.elements.type.value = eventTypeForForm(eventItem.type);
       form.elements.title.value = eventItem.title;
       form.elements.date.value = eventItem.date;
       form.elements.time.value = eventItem.time;
@@ -2865,6 +2931,7 @@
       form.elements.repeatUntil.value = "";
       form.elements.location.value = eventItem.location || "";
       form.elements.gameVenue.value = eventItem.gameVenue || "";
+      form.elements.gameCategory.value = eventItem.gameCategory || "Punktspiel";
       form.elements.meetingPoint.value = eventItem.meetingPoint || "";
       form.elements.meetingTime.value = eventItem.meetingTime || "";
       form.elements.coach.value = eventItem.coach || "";
@@ -2881,7 +2948,7 @@
 
     function exportEventsCsv() {
       const rows = [
-        ["Typ", "Titel", "Datum", "Uhrzeit", "Ort", "Spielort", "Treffpunkt", "Treffpunkt-Uhrzeit", "Trainer", "Schwerpunkt", "Bemerkung", "Details", "Zusagen", "Absagen"],
+        ["Typ", "Titel", "Datum", "Treffpunkt-Uhrzeit", "Ort", "Spielort", "Spielart", "Treffpunkt-Ort", "Treffpunkt vor Ort", "Trainer", "Schwerpunkt", "Bemerkung", "Details", "Zusagen", "Absagen"],
         ...state.events
           .slice()
           .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
@@ -2892,6 +2959,7 @@
             event.time,
             event.location,
             event.gameVenue === "away" ? "Auswaertsspiel" : event.gameVenue === "home" ? "Heimspiel" : "",
+            event.gameCategory,
             event.meetingPoint,
             event.meetingTime,
             event.coach,
@@ -2933,6 +3001,8 @@
       button.addEventListener("click", () => switchView(button.dataset.view));
     });
 
+    $("#eventForm").elements.type.addEventListener("change", updateEventFormState);
+
     $("#playerForm").addEventListener("submit", (event) => {
       event.preventDefault();
       if (!canManage()) return;
@@ -2969,23 +3039,25 @@
       event.preventDefault();
       if (!canManage()) return;
       const values = formValues(event.currentTarget);
+      const cleanValues = eventValuesForSave(values);
       if (values.eventId) {
         const existing = state.events.find((item) => item.id === values.eventId);
         if (!existing) return;
         Object.assign(existing, normalizeEvent({
           ...existing,
-          type: values.type,
-          title: values.title,
-          date: values.date,
-          time: values.time,
-          location: values.location,
-          gameVenue: values.gameVenue,
-          meetingPoint: values.meetingPoint,
-          meetingTime: values.meetingTime,
-          details: values.details,
-          coach: values.coach,
-          focus: values.trainingFocus,
-          remark: values.remark
+          type: cleanValues.type,
+          title: cleanValues.title,
+          date: cleanValues.date,
+          time: cleanValues.time,
+          location: cleanValues.location,
+          gameVenue: cleanValues.gameVenue,
+          gameCategory: cleanValues.gameCategory,
+          meetingPoint: cleanValues.meetingPoint,
+          meetingTime: cleanValues.meetingTime,
+          details: cleanValues.details,
+          coach: cleanValues.coach,
+          focus: cleanValues.trainingFocus,
+          remark: cleanValues.remark
         }));
       } else {
         state.events.push(...createEventsFromForm(values));
