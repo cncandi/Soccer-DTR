@@ -1070,11 +1070,6 @@
       color: var(--club);
     }
 
-    .event-kind-button.active {
-      background: var(--primary);
-      color: #fff;
-    }
-
     .mini {
       min-height: 32px;
       padding: 0 10px;

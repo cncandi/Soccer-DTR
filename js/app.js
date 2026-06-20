@@ -1520,9 +1520,6 @@
         location.closest("[data-event-field]")?.querySelector("label")?.replaceChildren(type === "Spiel" ? "Adresse Sportplatz" : "Ort");
       }
       $("#eventFormTitle").textContent = editing ? `${type} bearbeiten` : `Neues ${type}`;
-      $$("[data-new-event-type]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.newEventType === type);
-      });
     }
 
     function eventValuesForSave(values) {
