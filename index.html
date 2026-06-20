@@ -4,188 +4,89 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#155e3b">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Kadrivo">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="Kadrivo">
+  <title>Kadrivo</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="kadrivo-icon-192.png">
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
-  <title>Kadrivo Vereinsmanager</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <section class="login-screen" id="loginScreen">
-    <a class="login-promo-link" href="https://kadrivo.com/" target="_blank" rel="noopener" aria-label="Kadrivo.com oeffnen"></a>
-    <form class="login-panel" id="loginForm">
-      <div class="brand">
-        <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
-        <div>
-          <h1>Kadrivo</h1>
-          <p>Mit Namen anmelden und Verein auswaehlen.</p>
-        </div>
-      </div>
-      <div class="field">
-        <label for="loginUser">Name</label>
-        <select id="loginUser"></select>
-      </div>
-      <div class="field">
-        <label for="loginClubSelect">Verein</label>
-        <select id="loginClubSelect"></select>
-      </div>
-      <div class="field">
-        <label for="loginPassword">Passwort</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" required>
-      </div>
-      <label class="check-row">
-        <input id="rememberLogin" type="checkbox">
-        Lokal angemeldet bleiben
-      </label>
-      <p class="meta" id="loginError" aria-live="polite"></p>
-      <button class="btn-primary" type="submit">Anmelden</button>
-      <section class="install-panel login-install" id="installPanel" hidden>
-        <div>
-          <h3>Kadrivo installieren</h3>
-          <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
-          <div class="club-share">
-            <img id="clubQrCode" alt="QR-Code fuer diesen Verein">
-            <div>
-              <span>Link fuer diesen Verein</span>
-              <a id="clubInstallLink" href="#" target="_blank" rel="noopener"></a>
-              <button class="btn-secondary" id="copyClubLinkBtn" type="button">Link kopieren</button>
-            </div>
-          </div>
-        </div>
-        <div class="row-actions">
-          <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>
-        </div>
-      </section>
-    </form>
-  </section>
+  <div class="login-screen" id="loginScreen">
+    <div class="login-hero" aria-hidden="true"></div>
+    <div class="login-card">
+      <div class="login-brand"><img src="kadrivo-icon-192.png" alt=""><span>Kadrivo</span></div>
+      <h1>Kadrivo</h1>
+      <p>Mit Namen anmelden und Verein auswaehlen.</p>
+      <form id="loginForm" class="login-form">
+        <label>Name<select id="loginUser" required></select></label>
+        <label>Verein<select id="loginClubSelect" required></select></label>
+        <label>Passwort<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+        <label class="check-row"><input id="rememberLogin" type="checkbox" checked> Lokal angemeldet bleiben</label>
+        <button class="btn-primary" type="submit">Anmelden</button>
+        <p class="error" id="loginError"></p>
+      </form>
+      <section class="login-install-panel" id="loginInstallPanel"></section>
+    </div>
+  </div>
 
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
-        <div>
-          <h1>Kadrivo</h1>
-          <span id="clubBrandName">Vereinsmanager</span>
-        </div>
+      <div class="brand"><img id="brandLogo" src="kadrivo-icon-192.png" alt=""><div><strong id="brandName">Kadrivo</strong><span>Vereinsmanager</span></div></div>
+      <div class="user-switch">
+        <label>Angemeldeter Name</label>
+        <select id="currentUser"></select>
+        <input type="hidden" id="currentRole" value="Spieler">
+        <button class="btn-secondary" id="logoutBtn" type="button">Abmelden</button>
       </div>
-
-      <section class="profile-card">
-        <label for="currentUser">Angemeldeter Name</label>
-        <input id="currentUser" autocomplete="name" readonly>
-        <div class="profile-role superadmin-only">
-          <label for="currentRole">Rolle</label>
-          <select id="currentRole" disabled>
-            <option>Superadmin</option>
-            <option>Admin</option>
-            <option>Spieler</option>
-          </select>
-        </div>
-        <button class="logout-btn" id="logoutBtn" type="button">Abmelden</button>
-      </section>
-
-      <section class="tenant-card superadmin-only">
-        <label for="clubSelect">Verein</label>
+      <div class="club-switch" id="clubSwitchPanel">
+        <label>Verein</label>
         <select id="clubSelect"></select>
-        <div class="tenant-actions">
-          <input id="newClubName" placeholder="Neuer Verein">
-          <button id="addClubBtn" type="button">+</button>
-        </div>
-      </section>
-
-      <nav class="nav" aria-label="Hauptnavigation">
-        <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
-        <button data-view="players" data-min-role="admin">Spieler</button>
-        <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
-        <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
-        <button data-view="polls" data-min-role="player">Abstimmungen</button>
-        <button data-view="cash" data-min-role="player">Kasse</button>
-        <button data-view="fame" data-min-role="player">Hall of Fame</button>
-        <button data-view="settings" data-min-role="superadmin">Einstellungen</button>
-      </nav>
-
+        <div class="row-actions"><input id="newClubName" placeholder="Neuer Verein"><button class="mini" id="addClubBtn">+</button></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
     </aside>
 
-    <main>
-      <section class="topbar">
-        <div>
-          <h2 id="viewTitle">Uebersicht</h2>
-          <p id="viewSubtitle">Alles Wichtige fuer Mannschaft, Training, Spiele und Gruppen.</p>
+    <main class="content">
+      <header class="topbar"><div><h1 id="viewTitle">Uebersicht</h1><p id="viewSubtitle"></p></div><div class="top-actions"><button class="btn-secondary" id="exportBtn">Export</button><button class="btn-primary" id="syncBtn">Synchronisieren</button></div></header>
+
+      <section class="view active" id="dashboardView">
+        <div class="stats-grid">
+          <article class="stat"><span>Verein</span><strong id="statClub">-</strong></article>
+          <article class="stat"><span>Verfuegbare Spieler</span><strong id="statPlayers">0</strong></article>
+          <article class="stat"><span>Verletzte Spieler</span><strong id="statInjured">0</strong></article>
+          <article class="stat"><span>Nicht verfuegbar</span><strong id="statUnavailable">0</strong></article>
+          <article class="stat"><span>Urlaub</span><strong id="statVacation">0</strong></article>
         </div>
-        <div class="actions">
-          <button class="btn-secondary" id="exportBtn">Export</button>
+        <div class="grid two">
+          <section class="panel"><h3>Naechste Termine</h3><div id="upcomingList" class="list"></div></section>
+          <section class="panel"><h3>Neue Mitteilungen</h3><div id="messagePreview" class="list"></div></section>
         </div>
       </section>
 
-      <section class="view active" id="dashboard">
-        <div class="grid stats">
-          <div class="stat"><strong id="statPlayers">0</strong><span>Verf&uuml;gbare Spieler</span></div>
-          <div class="stat"><strong id="statInjured">0</strong><span>Verletzte Spieler</span></div>
-          <div class="stat"><strong id="statUnavailable">0</strong><span>Nicht verf&uuml;gbar</span></div>
-          <div class="stat"><strong id="statVacation">0</strong><span>Urlaub</span></div>
-        </div>
-
+      <section class="view" id="playersView">
         <div class="grid two">
           <section class="panel">
-            <h3>Naechste Termine</h3>
-            <div class="list" id="nextEvents"></div>
-          </section>
-          <section class="panel">
-            <h3>Neue Mitteilungen</h3>
-            <div class="list" id="latestMessages"></div>
-          </section>
-        </div>
-      </section>
-
-      <section class="view" id="players">
-        <div class="grid two">
-          <section class="panel admin-only">
             <h3>Person anlegen</h3>
             <form id="playerForm" class="form-grid">
               <div class="field"><label>Name</label><input name="name" required></div>
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option><option>Trainer</option><option>Betreuer</option></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
               <div class="field"><label>Berechtigung</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
-              <div class="field full"><label>Gruppen</label><div class="inline-checks">
-                <label class="check-row"><input type="checkbox" name="groupMannschaft" checked>Mannschaft</label>
-                <label class="check-row"><input type="checkbox" name="groupMannschaftsrat">Mannschaftsrat</label>
-                <label class="check-row"><input type="checkbox" name="groupKasse">Kasse</label>
-                <label class="check-row"><input type="checkbox" name="groupTrainer">Trainer</label>
-                <label class="check-row"><input type="checkbox" name="groupBetreuer">Betreuer</label>
-              </div></div>
-              <div class="field full"><label>Funktion</label><div class="inline-checks">
-                <label class="check-row"><input type="checkbox" name="memberRoleSpieler" checked>Spieler</label>
-                <label class="check-row"><input type="checkbox" name="memberRoleTrainer">Trainer</label>
-                <label class="check-row"><input type="checkbox" name="memberRoleBetreuer">Betreuer</label>
-              </div></div>
+              <div class="field full"><label>Gruppen</label><div class="inline-checks" id="newPlayerGroups"></div></div>
+              <div class="field full"><label>Funktion</label><div class="inline-checks" id="newPlayerRoles"></div></div>
               <div class="field full"><label>Notizen</label><textarea name="notes"></textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Person speichern</button></div>
             </form>
-            <div class="staff-inline">
-              <h3>Staff</h3>
-              <div class="list" id="staffList"></div>
-            </div>
           </section>
-          <section class="panel">
-            <h3>Kader</h3>
-            <div class="player-filter">
-              <label for="playerSearch">Spieler suchen</label>
-              <input id="playerSearch" type="search" placeholder="Name, Position, Gruppe oder Status">
-            </div>
-            <div class="list" id="playerList"></div>
-          </section>
+          <section class="panel"><h3>Staff</h3><div id="staffList" class="list"></div></section>
         </div>
+        <section class="panel"><h3>Kader</h3><input id="playerSearch" class="search-input" placeholder="Spieler suchen"><div id="playerList" class="list"></div></section>
       </section>
 
-      <section class="view" id="events">
+      <section class="view" id="eventsView">
         <div class="grid two">
-          <section class="panel admin-only">
+          <section class="panel">
             <h3>Termin erstellen</h3>
             <form id="eventForm" class="form-grid">
               <input type="hidden" name="eventId">
@@ -208,357 +109,46 @@
           </section>
           <section class="panel">
             <div class="calendar-head">
-              <button class="icon-btn" id="prevCalendarBtn" type="button" aria-label="Vorherige Woche">&lt;</button>
-              <h3 id="calendarWeekLabel">Woche</h3>
-              <button class="icon-btn" id="nextCalendarBtn" type="button" aria-label="Naechste Woche">&gt;</button>
+              <button class="mini" id="prevCalendarBtn" type="button">&lt;</button>
+              <h3 id="calendarWeekLabel">Kalender</h3>
+              <button class="mini" id="nextCalendarBtn" type="button">&gt;</button>
+              <div class="row-actions calendar-mode"><button class="mini active" data-calendar-mode="week" type="button">Woche</button><button class="mini" data-calendar-mode="month" type="button">Monat</button></div>
             </div>
-            <div class="calendar-mode admin-only" aria-label="Kalenderansicht">
-              <button class="mini active" type="button" data-calendar-mode="week">Woche</button>
-              <button class="mini" type="button" data-calendar-mode="month">Monat</button>
-            </div>
-            <div class="calendar-grid" id="calendarGrid"></div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+            <p class="meta">Training: Absage bis 6 Stunden vorher frei. Spiel: Absage bis 48 Stunden vorher frei. Spaetere Absage: 10 EUR Strafe.</p>
           </section>
         </div>
-        <section class="panel staff-panel">
-          <h3>Termine und Zu-/Absagen</h3>
-          <div class="meta" style="margin-bottom: 10px;"><span>Training: Absage bis 6 Stunden vorher frei.</span><span>Spiel: Absage bis 48 Stunden vorher frei.</span><span>Spaetere Absage: 10 EUR Strafe.</span></div>
-          <div class="list" id="eventList"></div>
-        </section>
-        <section class="panel staff-panel admin-only">
-          <h3>Strafen</h3>
-          <div class="list" id="fineList"></div>
-        </section>
-        <section class="panel staff-panel admin-only">
-          <div class="item-head">
-            <h3>Alle Termine</h3>
-            <button class="mini" type="button" id="exportEventsBtn">Termine exportieren</button>
-          </div>
-          <div class="list" id="allEventsList"></div>
-        </section>
+        <section class="panel"><div class="section-head"><h3>Termine und Zu-/Absagen</h3><button class="btn-secondary" id="exportEventsBtn" type="button">Export</button></div><div id="eventList" class="list"></div></section>
+        <section class="panel admin-only"><h3>Alle Termine</h3><div id="allEventsList" class="list"></div></section>
       </section>
 
-      <section class="view" id="cash">
-        <div class="grid stats cash-summary">
-          <div class="stat"><strong id="cashTotal">0,00</strong><span>Kassenstand EUR</span></div>
-          <div class="stat"><strong id="cashPaid">0,00</strong><span>Bezahlt EUR</span></div>
-          <div class="stat"><strong id="cashOpen">0,00</strong><span>Offen EUR</span></div>
-        </div>
-        <div class="grid two">
-          <section class="panel">
-            <h3>Spende</h3>
-            <form id="donationForm" class="form-grid">
-              <div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0.5" step="0.5" required></div>
-              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-              <div class="field full"><label>Notiz</label><textarea name="note" placeholder="Optional"></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Spende speichern</button></div>
-            </form>
-          </section>
-          <section class="panel cash-manage">
-            <h3>Strafe festlegen</h3>
-            <form id="cashFineForm" class="form-grid">
-              <div class="field"><label>Person</label><select name="player" id="cashFinePlayer"></select></div>
-              <div class="field"><label>Strafenkatalog</label><select name="catalog" id="cashFineCatalog"></select></div>
-              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-              <div class="field"><label>Betrag EUR</label><input name="amount" id="cashFineAmount" type="number" min="0" step="0.5" required></div>
-              <div class="field full"><label>Notiz</label><textarea name="note" placeholder="Grund oder Ergaenzung"></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Strafe speichern</button></div>
-            </form>
-          </section>
-          <section class="panel">
-            <h3>Noch nicht bezahlt</h3>
-            <div class="list" id="cashOpenList"></div>
-          </section>
-        </div>
-        <section class="panel staff-panel">
-          <h3>Alle Kassenbewegungen</h3>
-          <div class="list" id="cashFineList"></div>
-        </section>
-        <section class="panel staff-panel admin-only">
-          <div class="item-head">
-            <h3>Strafenkatalog</h3>
-            <button class="mini" id="toggleFineCatalogBtn" type="button">Anzeigen</button>
-          </div>
-          <div id="fineCatalogPanel" hidden>
-          <form id="fineCatalogForm" class="form-grid">
-            <input type="hidden" name="id">
-            <div class="field"><label>Name</label><input name="label" required></div>
-            <div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div>
-            <div class="field full"><label>Beschreibung</label><input name="description"></div>
-            <div class="field full"><label>Sachstrafe</label><input name="penalty" placeholder="z.B. Kiste Cola"></div>
-            <div class="field"><button class="btn-secondary" id="newCatalogFineBtn" type="button">Neu</button></div>
-            <div class="field"><button class="btn-primary" type="submit">Katalog speichern</button></div>
-          </form>
-          <div class="list" id="fineCatalogList" style="margin-top: 12px;"></div>
-          </div>
-        </section>
+      <section class="view" id="cashView">
+        <div class="stats-grid"><article class="stat"><span>Kassenstand</span><strong id="cashTotal">0,00</strong></article><article class="stat"><span>Bezahlt</span><strong id="cashPaid">0,00</strong></article><article class="stat"><span>Offen</span><strong id="cashOpen">0,00</strong></article></div>
+        <section class="panel"><h3>Spende</h3><form id="donationForm" class="form-grid"><div class="field"><label>Spieler</label><select name="player" id="donationPlayer"></select></div><div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div><div class="field full"><label>Notiz</label><textarea name="note"></textarea></div><div class="field full"><button class="btn-primary" type="submit">Spende speichern</button></div></form></section>
+        <section class="panel admin-only"><h3>Strafe festlegen</h3><form id="fineForm" class="form-grid"><div class="field"><label>Spieler</label><select name="player" id="finePlayer"></select></div><div class="field"><label>Strafenkatalog</label><select name="catalog" id="fineCatalogSelect"></select></div><div class="field"><label>Datum</label><input type="date" name="date" required></div><div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div><div class="field full"><label>Notiz</label><textarea name="note"></textarea></div><div class="field full"><button class="btn-primary" type="submit">Strafe speichern</button></div></form></section>
+        <section class="panel"><h3>Noch nicht bezahlt</h3><div id="fineOpenList" class="list"></div></section>
+        <section class="panel"><h3>Alle Kassenbewegungen</h3><div id="fineList" class="list"></div></section>
+        <section class="panel admin-only"><div class="section-head"><h3>Strafenkatalog</h3><button class="btn-secondary" id="toggleFineCatalogBtn" type="button">Anzeigen</button></div><div id="fineCatalogPanel" hidden><form id="fineCatalogForm" class="form-grid"><input type="hidden" name="id"><div class="field"><label>Name</label><input name="label" required></div><div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div><div class="field full"><label>Beschreibung</label><input name="description"></div><div class="field full"><label>Sachstrafe</label><input name="penalty" placeholder="z.B. Kiste Cola"></div><div class="field"><button class="btn-secondary" id="newCatalogFineBtn" type="button">Neu</button></div><div class="field"><button class="btn-primary" type="submit">Katalog speichern</button></div></form><div id="fineCatalogList" class="list"></div></div></section>
       </section>
 
-      <section class="view" id="fame">
-        <section class="panel">
-          <h3>Rangliste</h3>
-          <div class="table-wrap">
-            <table class="fame-table">
-              <thead>
-                <tr>
-                  <th>Platz</th>
-                  <th>Spieler</th>
-                  <th>Punkte Training</th>
-                  <th>Punkte Spiele</th>
-                  <th>Sonderpunkte</th>
-                  <th>Fahrten</th>
-                  <th>Gesamt</th>
-                </tr>
-              </thead>
-              <tbody id="fameRanking"></tbody>
-            </table>
-          </div>
-        </section>
-        <div class="grid two">
-          <section class="panel fame-player-only">
-            <h3>Eigenes Training</h3>
-            <form id="selfTrainingForm" class="form-grid">
-              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-              <div class="field"><label>Bildnachweis</label><input type="file" name="proofFile" accept="image/*" required></div>
-              <div class="field full"><label>Bemerkung</label><textarea name="note" placeholder="Was hast du trainiert?"></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Eigenes Training einreichen</button></div>
-            </form>
-          </section>
-          <section class="panel">
-            <h3 id="fameDetailTitle">Details meiner Punkte</h3>
-            <div class="list" id="fameDetails"></div>
-          </section>
-          <section class="panel fame-award">
-            <h3>Sonderpunkte / Abzug</h3>
-            <form id="bonusPointForm" class="form-grid">
-              <div class="field"><label>Spieler</label><select name="player" id="bonusPointPlayer"></select></div>
-              <div class="field"><label>Punkte</label><input type="number" name="points" step="1" placeholder="z.B. 5 oder -5" required></div>
-              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-              <div class="field full"><label>Grund</label><textarea name="reason" required></textarea></div>
-              <div class="field full"><button class="btn-primary" type="submit">Punkte speichern</button></div>
-            </form>
-            <h3>Eigentraining bestaetigen</h3>
-            <div class="list" id="selfTrainingApprovalList"></div>
-          </section>
-        </div>
+      <section class="view" id="fameView">
+        <section class="panel"><h3>Rangliste</h3><div class="table-wrap"><table class="fame-table"><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte Training</th><th>Punkte Spiele</th><th>Sonderpunkte</th><th>Fahrten</th><th>Gesamt</th></tr></thead><tbody id="fameRanking"></tbody></table></div></section>
+        <section class="panel player-only"><h3>Eigenes Training einreichen</h3><form id="selfTrainingForm" class="form-grid"><div class="field"><label>Datum</label><input type="date" name="date" required></div><div class="field full"><label>Bildnachweis</label><input type="file" name="proofFile" accept="image/*" required></div><div class="field full"><label>Bemerkung</label><textarea name="note" placeholder="Was hast du trainiert?"></textarea></div><div class="field full"><button class="btn-primary" type="submit">Eigenes Training einreichen</button></div></form></section>
+        <section class="panel admin-only"><h3>Sonderpunkte durch Trainer</h3><form id="bonusPointForm" class="form-grid"><div class="field"><label>Spieler</label><select name="player" id="bonusPlayer"></select></div><div class="field"><label>Punkte</label><input name="points" type="number" step="1" required></div><div class="field"><label>Datum</label><input type="date" name="date" required></div><div class="field full"><label>Begruendung</label><textarea name="reason" required></textarea></div><div class="field full"><button class="btn-primary" type="submit">Punkte speichern</button></div></form></section>
+        <section class="panel"><h3>Details meiner Punkte</h3><div id="fameDetails" class="list"></div></section>
       </section>
 
-      <section class="view" id="polls">
-        <div class="grid two">
-          <section class="panel admin-only">
-            <h3>Abstimmung erstellen</h3>
-            <form id="pollForm" class="form-grid">
-              <div class="field full"><label>Frage</label><input name="question" required></div>
-              <div class="field full"><label>Optionen, eine pro Zeile</label><textarea name="options" required>Ja
-Nein</textarea></div>
-              <div class="field"><label>Gruppe</label><select name="group"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option><option>Trainer</option><option>Betreuer</option></select></div>
-              <div class="field"><label>Ende</label><input type="date" name="endsAt"></div>
-              <div class="field full"><button class="btn-primary" type="submit">Abstimmung speichern</button></div>
-            </form>
-          </section>
-          <section class="panel">
-            <h3>Aktuelle Abstimmungen</h3>
-            <div class="list" id="pollList"></div>
-          </section>
-        </div>
-      </section>
+      <section class="view" id="pollsView"><section class="panel admin-only"><h3>Abstimmung erstellen</h3><form id="pollForm" class="form-grid"><div class="field full"><label>Frage</label><input name="question" required></div><div class="field full"><label>Optionen, eine pro Zeile</label><textarea name="options" required>Ja\nNein</textarea></div><div class="field"><label>Gruppe</label><select name="group"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option><option>Trainer</option><option>Betreuer</option></select></div><div class="field"><label>Ende</label><input type="date" name="ends"></div><div class="field full"><button class="btn-primary" type="submit">Abstimmung speichern</button></div></form></section><section class="panel"><h3>Aktuelle Abstimmungen</h3><div id="pollList" class="list"></div></section></section>
 
-      <section class="view" id="messages">
-        <div class="grid">
-          <section class="panel message-panel">
-            <h3>Gruppen</h3>
-            <div class="field">
-              <label for="messageGroup">Gruppe</label>
-              <select id="messageGroup">
-                <option>Mannschaft</option>
-                <option>Mannschaftsrat</option>
-                <option>Kasse</option>
-                <option>Trainer</option>
-                <option>Betreuer</option>
-              </select>
-            </div>
-            <div class="message-feed" id="messageFeed"></div>
-            <form id="messageForm" class="form-grid" style="margin-top: 10px;">
-              <div class="field full"><label>Mitteilung</label><textarea name="body" required></textarea></div>
-              <div class="emoji-row field full" aria-label="Smileys">
-                <button type="button" data-emoji="👍">👍</button>
-                <button type="button" data-emoji="👏">👏</button>
-                <button type="button" data-emoji="💪">💪</button>
-                <button type="button" data-emoji="⚽">⚽</button>
-                <button type="button" data-emoji="🔥">🔥</button>
-                <button type="button" data-emoji="😊">😊</button>
-                <button type="button" data-emoji="🙏">🙏</button>
-                <button type="button" data-emoji="✅">✅</button>
-              </div>
-              <div class="field full"><button class="btn-primary" type="submit">Senden</button></div>
-            </form>
-          </section>
-        </div>
-      </section>
+      <section class="view" id="messagesView"><section class="panel messages-panel"><div class="section-head"><h3>Gruppen</h3><select id="messageGroup"><option>Mannschaft</option><option>Mannschaftsrat</option><option>Kasse</option><option>Trainer</option><option>Betreuer</option></select></div><div id="messageList" class="chat-list"></div><form id="messageForm" class="form-grid chat-form"><div class="field full"><label>Mitteilung</label><textarea name="text" required></textarea><div class="emoji-row" id="emojiRow"></div></div><div class="field full"><button class="btn-primary" type="submit">Senden</button></div></form></section></section>
 
-      <section class="view" id="settings">
-        <div class="grid two">
-          <section class="panel superadmin-only">
-            <h3>Vereinsdesign</h3>
-            <form id="clubDesignForm" class="form-grid">
-              <div class="field full"><label>Vereinsname</label><input name="name" required></div>
-              <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
-              <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
-              <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
-              <div class="field"><button class="btn-secondary" id="clearClubLogoBtn" type="button">Logo entfernen</button></div>
-              <div class="field full"><button class="btn-primary" type="submit">Design speichern</button></div>
-            </form>
-          </section>
-          <section class="panel config superadmin-only">
-            <h3>Supabase verbinden</h3>
-            <form id="settingsForm" class="form-grid">
-              <div class="field full"><label>Supabase URL</label><input name="url" placeholder="https://...supabase.co"></div>
-              <div class="field full"><label>Anon Public Key</label><input name="key" placeholder="eyJ..."></div>
-              <div class="field full"><label>Tabellenname</label><input name="table" value="club_documents"></div>
-              <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
-            </form>
-          </section>
-          <section class="panel superadmin-only">
-            <h3>PayPal-Zahlungen</h3>
-            <form id="paypalSettingsForm" class="form-grid">
-              <div class="field full"><label class="check-row"><input type="checkbox" name="paypal_enabled"> PayPal aktivieren</label></div>
-              <div class="field"><label>Modus</label><select name="paypal_mode"><option value="sandbox">Sandbox</option><option value="live">Live</option></select></div>
-              <div class="field full"><label>Client ID</label><input name="paypal_client_id" autocomplete="off"></div>
-              <div class="field full"><label>Client Secret</label><input name="paypal_client_secret" type="password" autocomplete="new-password" placeholder="Leer lassen, um Secret beizubehalten"></div>
-              <div class="field full"><label>PayPal Empfaenger-E-Mail optional</label><input name="paypal_receiver_email" type="email" placeholder="verein@example.de"></div>
-              <div class="field full"><label>Webhook ID optional</label><input name="paypal_webhook_id" autocomplete="off"></div>
-              <div class="field full"><button class="btn-primary" type="submit">PayPal speichern</button></div>
-              <div class="field full"><button class="btn-secondary" id="paypalTestBtn" type="button">Testzahlung vorbereiten</button></div>
-            </form>
-            <p class="meta" id="paypalStatus">PayPal ist nicht verbunden.</p>
-          </section>
-          <section class="panel">
-            <h3>Empfohlene Supabase-Tabelle</h3>
-            <textarea readonly style="min-height: 230px;">create table club_documents (
-  id text primary key,
-  document jsonb not null,
-  updated_at timestamptz default now()
-);
-
-alter table club_documents enable row level security;
-
-create policy "club read" on club_documents
-for select using (true);
-
-create policy "club write" on club_documents
-for insert with check (true);
-
-create policy "club update" on club_documents
-for update using (true);</textarea>
-          </section>
-          <section class="panel superadmin-only">
-            <h3>Push-Tabelle</h3>
-            <textarea readonly style="min-height: 230px;">create table if not exists public.push_subscriptions (
-  endpoint text primary key,
-  club_id text not null,
-  user_name text not null,
-  groups text[] not null default '{}',
-  subscription jsonb not null,
-  updated_at timestamptz default now()
-);
-
-alter table public.push_subscriptions enable row level security;
-
-create policy "push read" on public.push_subscriptions
-for select using (true);
-
-create policy "push write" on public.push_subscriptions
-for insert with check (true);
-
-create policy "push update" on public.push_subscriptions
-for update using (true);</textarea>
-          </section>
-          <section class="panel superadmin-only">
-            <h3>PayPal-Tabellen</h3>
-            <textarea readonly style="min-height: 300px;">create table if not exists public.club_paypal_settings (
-  club_id text primary key,
-  paypal_enabled boolean not null default false,
-  paypal_mode text not null default 'sandbox' check (paypal_mode in ('sandbox', 'live')),
-  paypal_client_id text not null default '',
-  paypal_client_secret_encrypted text not null default '',
-  paypal_receiver_email text not null default '',
-  paypal_webhook_id text not null default '',
-  updated_at timestamptz default now()
-);
-
-create table if not exists public.penalty_payments (
-  id uuid primary key default gen_random_uuid(),
-  club_id text not null,
-  player_id text not null default '',
-  penalty_id text not null,
-  amount numeric(10,2) not null,
-  currency text not null default 'EUR',
-  status text not null default 'open' check (status in ('open', 'pending', 'paid', 'failed', 'cancelled')),
-  paypal_order_id text,
-  paypal_capture_id text,
-  paid_at timestamptz,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique (club_id, penalty_id)
-);
-
-alter table public.club_paypal_settings enable row level security;
-alter table public.penalty_payments enable row level security;
-
-create policy "paypal settings read" on public.club_paypal_settings
-for select using (false);
-
-create policy "paypal settings write" on public.club_paypal_settings
-for insert with check (false);
-
-create policy "paypal settings update" on public.club_paypal_settings
-for update using (false);
-
-create policy "penalty payments read" on public.penalty_payments
-for select using (true);
-
-create policy "penalty payments write" on public.penalty_payments
-for insert with check (true);
-
-create policy "penalty payments update" on public.penalty_payments
-for update using (true);</textarea>
-          </section>
-        </div>
-      </section>
+      <section class="view" id="settingsView"><section class="panel"><h3>Vereinsdesign</h3><form id="clubSettingsForm" class="form-grid"><div class="field"><label>Vereinsname</label><input name="clubName" required></div><div class="field"><label>Vereinsfarbe</label><input type="color" name="clubColor"></div><div class="field full"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div><div class="field full"><label>Logo als URL</label><input name="clubLogo" placeholder="https://..."></div><div class="field"><button class="btn-secondary" id="clearClubLogoBtn" type="button">Logo entfernen</button></div><div class="field full"><button class="btn-primary" type="submit">Design speichern</button></div></form></section><section class="panel"><h3>Supabase verbinden</h3><form id="settingsForm" class="form-grid"><div class="field full"><label>Supabase URL</label><input name="url" required></div><div class="field full"><label>Anon Public Key</label><input name="key" required></div><div class="field"><label>Tabellenname</label><input name="table" required></div><div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div></form></section><section class="panel"><h3>PayPal-Zahlungen</h3><form id="paypalSettingsForm" class="form-grid"><div class="field full"><label class="check-row"><input type="checkbox" name="paypal_enabled"> PayPal aktivieren</label></div><div class="field"><label>Modus</label><select name="paypal_mode"><option value="sandbox">Sandbox</option><option value="live">Live</option></select></div><div class="field full"><label>Client ID</label><input name="paypal_client_id"></div><div class="field full"><label>Client Secret</label><input name="paypal_client_secret" type="password" autocomplete="off" placeholder="Leer lassen, wenn unveraendert"></div><div class="field"><label>Empfaenger E-Mail</label><input name="paypal_receiver_email" type="email"></div><div class="field"><label>Webhook ID</label><input name="paypal_webhook_id"></div><div class="field full"><button class="btn-primary" type="submit">PayPal speichern</button></div><div class="field full"><button class="btn-secondary" id="paypalTestBtn" type="button">Testzahlung vorbereiten</button></div></form><p class="meta" id="paypalStatus">PayPal nicht verbunden.</p></section></section>
     </main>
   </div>
 
-  <div class="modal-backdrop" id="playerModal" aria-hidden="true">
-    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="playerModalTitle">
-      <div class="modal-head">
-        <h3 id="playerModalTitle">Spieler bearbeiten</h3>
-        <button class="mini" id="closePlayerModalBtn" type="button">Schliessen</button>
-      </div>
-      <form id="playerEditForm" class="form-grid"></form>
-    </section>
-  </div>
+  <div class="modal-backdrop" id="playerModal" aria-hidden="true"><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="playerModalTitle"><div class="modal-head"><h3 id="playerModalTitle">Spieler bearbeiten</h3><button class="icon-btn" id="closePlayerModalBtn" type="button">×</button></div><form id="playerEditForm" class="form-grid"></form></section></div>
+  <div class="modal-backdrop" id="cashFineModal" aria-hidden="true"><section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="cashFineModalTitle"><div class="modal-head"><h3 id="cashFineModalTitle">Strafe bearbeiten</h3><button class="icon-btn" id="closeCashFineModalBtn" type="button">×</button></div><form id="cashFineEditForm" class="form-grid"><input type="hidden" name="id"><div class="field"><label>Person</label><select name="player" id="cashFineEditPlayer"></select></div><div class="field"><label>Name</label><input name="label" required></div><div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div><div class="field"><label>Datum</label><input type="date" name="date" required></div><div class="field full"><label>Notiz</label><textarea name="note"></textarea></div><div class="field full"><label class="check-row"><input type="checkbox" name="paid"> Bezahlt</label></div><div class="field full row-actions"><button class="btn-primary" type="submit">Speichern</button><button class="btn-secondary" id="deleteCashFineBtn" type="button">Entfernen</button></div></form></section></div>
 
-  <div class="modal-backdrop" id="cashFineModal" aria-hidden="true">
-    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="cashFineModalTitle">
-      <div class="modal-head">
-        <h3 id="cashFineModalTitle">Strafe bearbeiten</h3>
-        <button class="mini" id="closeCashFineModalBtn" type="button">Schliessen</button>
-      </div>
-      <form id="cashFineEditForm" class="form-grid">
-        <input type="hidden" name="id">
-        <div class="field"><label>Person</label><select name="player" id="cashFineEditPlayer"></select></div>
-        <div class="field"><label>Name</label><input name="label" required></div>
-        <div class="field"><label>Betrag EUR</label><input name="amount" type="number" min="0" step="0.5" required></div>
-        <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-        <div class="field full"><label>Notiz</label><textarea name="note"></textarea></div>
-        <div class="field full"><label class="check-row"><input type="checkbox" name="paid"> Bezahlt</label></div>
-        <div class="field full row-actions">
-          <button class="btn-primary" type="submit">Speichern</button>
-          <button class="btn-secondary" id="deleteCashFineBtn" type="button">Entfernen</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <script src="js/app.js" defer></script>
+  <script src="js/app-loader.js" defer></script>
 </body>
 </html>
