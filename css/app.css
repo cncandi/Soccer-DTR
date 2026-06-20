@@ -1037,16 +1037,21 @@
     }
 
     .event-form-head {
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 12px;
+      display: grid;
+      gap: 14px;
     }
 
     .event-kind-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-      justify-content: flex-end;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .event-kind-actions .mini {
+      min-height: 44px;
+      width: 100%;
+      justify-content: center;
+      font-size: .95rem;
     }
 
     .mini {
@@ -1548,6 +1553,10 @@
 
       .actions button, .row-actions button {
         flex: 1 1 auto;
+      }
+
+      .event-kind-actions {
+        grid-template-columns: 1fr;
       }
 
       .item-head {
