@@ -475,6 +475,10 @@
       min-width: 0;
     }
 
+    .field[hidden] {
+      display: none !important;
+    }
+
     .check-row {
       display: flex;
       align-items: center;

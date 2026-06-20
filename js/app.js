@@ -1474,11 +1474,18 @@
 
     function visibleEventFields(type) {
       const fields = {
-        Spiel: ["title", "time", "location", "gameVenue", "gameCategory", "meetingPoint", "meetingTime", "remark"],
-        Training: ["time", "repeat", "repeatUntil", "location", "coach", "trainingFocus", "details", "remark"],
-        Event: ["time", "location", "remark"]
+        Spiel: ["title", "date", "gameVenue", "location", "gameCategory", "meetingPoint", "time", "meetingTime", "remark"],
+        Training: ["date", "time", "repeat", "repeatUntil", "location", "coach", "trainingFocus", "details", "remark"],
+        Event: ["date", "time", "location", "remark"]
       };
       return new Set(fields[type] || fields.Training);
+    }
+
+    function eventFieldOrder(type) {
+      return [...visibleEventFields(type)].reduce((order, field, index) => {
+        order[field] = index + 1;
+        return order;
+      }, {});
     }
 
     function eventTypeForForm(type) {
@@ -1491,15 +1498,18 @@
       if (!form) return;
       const type = eventTypeForForm(form.elements.type.value || "Training");
       const visibleFields = visibleEventFields(type);
+      const fieldOrder = eventFieldOrder(type);
       const editing = Boolean(form.elements.namedItem("eventId").value);
       form.querySelectorAll("[data-event-field]").forEach((field) => {
         const name = field.dataset.eventField;
         const visible = visibleFields.has(name);
         field.hidden = !visible;
+        field.style.order = visible ? fieldOrder[name] : "";
         field.querySelectorAll("input, select, textarea").forEach((input) => {
           input.disabled = !visible;
         });
       });
+      form.querySelector(".row-actions").style.order = "99";
       const title = form.elements.title;
       const location = form.elements.location;
       if (title) {
