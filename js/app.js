@@ -1474,7 +1474,7 @@
     function rsvpRecord(event, playerName) {
       const raw = (event.rsvps || {})[playerName];
       if (!raw) return null;
-      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "" };
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", transport: "" };
       return {
         status: raw.status || "yes",
         updatedAt: raw.updatedAt || "",
@@ -1484,7 +1484,8 @@
         noShowAt: raw.noShowAt || "",
         noShowBy: raw.noShowBy || "",
         paid: Boolean(raw.paid),
-        paidAt: raw.paidAt || ""
+        paidAt: raw.paidAt || "",
+        transport: raw.transport || ""
       };
     }
 
