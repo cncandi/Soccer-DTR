@@ -1617,7 +1617,7 @@
 
     function renderRsvpDetails(event) {
       const details = rsvpDetails(event);
-      const yesItems = details.yes.map((entry) => `<span class="attendee yes">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
       const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${entry.fine ? ` - ${formatCurrency(entry.fine)} EUR` : ""}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
       return `
@@ -1625,8 +1625,8 @@
           <div>
             <strong>Zusagen (${details.yes.length})</strong>
             <div class="attendee-list">${yesItems || "<span class=\"meta\">Keine Zusagen.</span>"}</div>
+            ${renderTransportLegend(event)}
           </div>
-          ${renderTransportDetails(event, details)}
           <div>
             <strong>Absagen (${details.no.length})</strong>
             <div class="attendee-list">${noItems || "<span class=\"meta\">Keine Absagen.</span>"}</div>
@@ -1744,36 +1744,21 @@
       }[value] || "";
     }
 
-    function transportGroups(entries) {
-      return entries.reduce((groups, entry) => {
-        if (entry.transport === "self") groups.self.push(entry.name);
-        else if (entry.transport === "offer") groups.offer.push(entry.name);
-        else if (entry.transport === "passenger") groups.passenger.push(entry.name);
-        else groups.open.push(entry.name);
-        return groups;
-      }, { self: [], offer: [], passenger: [], open: [] });
+    function transportClass(value) {
+      return {
+        self: "transport-self",
+        offer: "transport-offer",
+        passenger: "transport-passenger"
+      }[value] || "";
     }
 
-    function renderTransportGroup(label, names, className = "") {
-      const items = names.map((name) => `<span class="attendee ${className}">${escapeHtml(name)}</span>`).join("");
-      return `
-        <div>
-          <strong>${escapeHtml(label)} (${names.length})</strong>
-          <div class="attendee-list">${items || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
-        </div>
-      `;
-    }
-
-    function renderTransportDetails(event, details) {
+    function renderTransportLegend(event) {
       if (!isAwayGame(event)) return "";
-      const groups = transportGroups(details.yes);
       return `
-        <div class="transport-details">
-          <strong>Fahrten</strong>
-          ${renderTransportGroup("Selbstfahrer", groups.self, "transport-self")}
-          ${renderTransportGroup("Fahrer / bietet Mitfahrgelegenheit", groups.offer, "transport-offer")}
-          ${renderTransportGroup("Mitfahrer", groups.passenger, "transport-passenger")}
-          ${renderTransportGroup("Noch offen", groups.open, "transport-open")}
+        <div class="transport-legend" aria-label="Fahrten-Legende">
+          <span><i class="legend-dot transport-self"></i>Selbstfahrer</span>
+          <span><i class="legend-dot transport-offer"></i>Fahrer</span>
+          <span><i class="legend-dot transport-passenger"></i>Mitfahrer</span>
         </div>
       `;
     }
