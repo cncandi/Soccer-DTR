@@ -1490,6 +1490,7 @@
       if (!form) return;
       const type = eventTypeForForm(form.elements.type.value || "Training");
       const visibleFields = visibleEventFields(type);
+      const editing = Boolean(form.elements.namedItem("eventId").value);
       form.querySelectorAll("[data-event-field]").forEach((field) => {
         const name = field.dataset.eventField;
         const visible = visibleFields.has(name);
@@ -1507,6 +1508,10 @@
       if (location) {
         location.closest("[data-event-field]")?.querySelector("label")?.replaceChildren(type === "Spiel" ? "Adresse Sportplatz" : "Ort");
       }
+      $("#eventFormTitle").textContent = editing ? `${type} bearbeiten` : `Neues ${type}`;
+      $$("[data-new-event-type]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.newEventType === type);
+      });
     }
 
     function eventValuesForSave(values) {
@@ -3002,6 +3007,16 @@
     });
 
     $("#eventForm").elements.type.addEventListener("change", updateEventFormState);
+    $$("[data-new-event-type]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const form = $("#eventForm");
+        if (!form) return;
+        form.reset();
+        form.elements.namedItem("eventId").value = "";
+        form.elements.type.value = eventTypeForForm(button.dataset.newEventType);
+        updateEventFormState();
+      });
+    });
 
     $("#playerForm").addEventListener("submit", (event) => {
       event.preventDefault();

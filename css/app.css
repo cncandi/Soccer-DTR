@@ -1036,6 +1036,19 @@
       gap: 7px;
     }
 
+    .event-form-head {
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .event-kind-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: flex-end;
+    }
+
     .mini {
       min-height: 32px;
       padding: 0 10px;
@@ -1044,6 +1057,11 @@
       color: var(--text);
       font-weight: 750;
       font-size: .86rem;
+    }
+
+    .mini.active {
+      background: var(--primary);
+      color: #fff;
     }
 
     .mini.yes { background: #dcfce7; color: #166534; }

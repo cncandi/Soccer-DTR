@@ -186,10 +186,17 @@
       <section class="view" id="events">
         <div class="grid two">
           <section class="panel admin-only">
-            <h3>Termin erstellen</h3>
+            <div class="item-head event-form-head">
+              <h3 id="eventFormTitle">Neues Training</h3>
+              <div class="event-kind-actions" aria-label="Terminart waehlen">
+                <button class="mini" type="button" data-new-event-type="Spiel">Neues Spiel</button>
+                <button class="mini" type="button" data-new-event-type="Training">Neues Training</button>
+                <button class="mini" type="button" data-new-event-type="Sonstiges">Sonstiges</button>
+              </div>
+            </div>
             <form id="eventForm" class="form-grid">
               <input type="hidden" name="eventId">
-              <div class="field"><label>Typ</label><select name="type"><option>Training</option><option>Spiel</option><option>Sonstiges</option></select></div>
+              <select name="type" hidden><option>Training</option><option>Spiel</option><option>Sonstiges</option></select>
               <div class="field" data-event-field="title"><label>Gegner</label><input name="title"></div>
               <div class="field"><label>Datum</label><input type="date" name="date" required></div>
               <div class="field" data-event-field="time"><label>Treffpunkt Uhrzeit</label><input type="time" name="time" required></div>
