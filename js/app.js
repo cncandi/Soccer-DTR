@@ -1695,7 +1695,7 @@
       const details = rsvpDetails(event);
       const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
-      const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${entry.fine ? ` - ${formatCurrency(entry.fine)} EUR` : ""}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
+      const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
       return `
         <div class="attendance-panel">
           <div>
@@ -1874,7 +1874,6 @@
           const myStatus = player && hasMemberRole(player, "Spieler") ? effectiveRsvp(event, player) : "none";
           const myRecord = player ? rsvpRecord(event, player.name) : null;
           const deadline = eventSupportsRsvp(event) ? eventDeadline(event).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
-          const lateText = eventSupportsRsvp(event) && isLateAbsence(event) ? "Spaete Absage kostet 10 EUR." : "";
           const expanded = expandedEventId === event.id;
           const statusChip = myStatus === "no" ? `<span class="chip red">Abgesagt${myRecord?.reason ? `: ${escapeHtml(myRecord.reason)}` : ""}</span>` : `<span class="chip blue">Zugesagt</span>`;
           list.appendChild(item(`
@@ -1887,7 +1886,7 @@
             </div>
             ${event.details ? `<p class="meta">${escapeHtml(event.details)}</p>` : ""}
             ${eventInfoLine(event)}
-            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span>${absent ? `<span>${absent} nicht da</span>` : ""}<span>Absagefrist: ${deadline}</span>${lateText ? `<span>${lateText}</span>` : ""}</div>` : ""}
+            ${eventSupportsRsvp(event) ? `<div class="meta"><span>${yes} Zusagen</span><span>${no} Absagen</span>${absent ? `<span>${absent} nicht da</span>` : ""}<span>Absagefrist: ${deadline}</span></div>` : ""}
             <div class="row-actions">
               ${eventSupportsRsvp(event) && player && hasMemberRole(player, "Spieler") ? `
                 <button class="mini yes" data-rsvp="${event.id}" data-status="yes" ${myStatus === "yes" ? "disabled" : ""}>Zusage</button>
@@ -3628,9 +3627,7 @@
           paidAt: "",
           transport: status === "yes" ? oldRecord?.transport || "" : ""
         };
-        if (item.rsvps[player.name].fine) {
-          setStatus(`Spaete Absage: 10 EUR Strafe fuer ${player.name}.`);
-        }
+        if (item.rsvps[player.name].fine) setStatus(`Absage fuer ${player.name} erfasst.`);
       }
       if (voteId) {
         const poll = state.polls.find((pollItem) => pollItem.id === voteId);
