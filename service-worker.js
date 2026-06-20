@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v44";
+const CACHE_NAME = "soccer-dtr-v45";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -32,6 +32,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  if (isAppScriptRequest(event.request)) {
+    event.respondWith(fetchPatchedAppScript(event.request));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
@@ -43,6 +47,48 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match("index.html")))
   );
 });
+
+function isAppScriptRequest(request) {
+  return new URL(request.url).pathname.endsWith("/js/app.js");
+}
+
+function patchAppScript(source) {
+  return source
+    .replace(
+      'if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "" };',
+      'if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", transport: "" };'
+    )
+    .replace(
+      'paidAt: raw.paidAt || ""\n      };',
+      'paidAt: raw.paidAt || "",\n        transport: raw.transport || ""\n      };'
+    );
+}
+
+async function fetchPatchedAppScript(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    const headers = new Headers(response.headers);
+    headers.set("content-type", "text/javascript; charset=utf-8");
+    const patched = new Response(patchAppScript(await response.text()), {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+    await cache.put(request, patched.clone());
+    return patched;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (!cached) throw error;
+    const headers = new Headers(cached.headers);
+    headers.set("content-type", "text/javascript; charset=utf-8");
+    return new Response(patchAppScript(await cached.text()), {
+      status: cached.status,
+      statusText: cached.statusText,
+      headers
+    });
+  }
+}
 
 function openBadgeDb() {
   return new Promise((resolve, reject) => {
