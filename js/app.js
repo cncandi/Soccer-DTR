@@ -1476,13 +1476,14 @@
       const fields = {
         Spiel: ["title", "time", "location", "gameVenue", "gameCategory", "meetingPoint", "meetingTime", "remark"],
         Training: ["time", "repeat", "repeatUntil", "location", "coach", "trainingFocus", "details", "remark"],
-        Sonstiges: ["time", "location", "remark"]
+        Event: ["time", "location", "remark"]
       };
       return new Set(fields[type] || fields.Training);
     }
 
     function eventTypeForForm(type) {
-      return ["Training", "Spiel", "Sonstiges"].includes(type) ? type : "Sonstiges";
+      if (type === "Sonstiges") return "Event";
+      return ["Training", "Spiel", "Event"].includes(type) ? type : "Event";
     }
 
     function updateEventTypeFields() {
@@ -2905,12 +2906,30 @@
       if (!form) return;
       const editing = Boolean(form.elements.namedItem("eventId").value);
       $("#eventSubmitBtn").textContent = editing ? "Termin aktualisieren" : "Termin speichern";
-      $("#cancelEventEditBtn").hidden = !editing;
       updateEventTypeFields();
       if (editing) {
         form.elements.repeat.disabled = true;
         form.elements.repeatUntil.disabled = true;
       }
+    }
+
+    function openEventModal(type = "Training") {
+      const form = $("#eventForm");
+      if (!form) return;
+      renderEventForm();
+      form.reset();
+      form.elements.namedItem("eventId").value = "";
+      form.elements.type.value = eventTypeForForm(type);
+      updateEventFormState();
+      $("#eventModal").classList.add("open");
+      $("#eventModal").setAttribute("aria-hidden", "false");
+      const firstInput = form.querySelector("[data-event-field]:not([hidden]) input, [data-event-field]:not([hidden]) select, [data-event-field]:not([hidden]) textarea");
+      (firstInput || form.elements.date)?.focus();
+    }
+
+    function closeEventModal() {
+      $("#eventModal").classList.remove("open");
+      $("#eventModal").setAttribute("aria-hidden", "true");
     }
 
     function resetEventForm() {
@@ -2920,12 +2939,15 @@
       form.elements.namedItem("eventId").value = "";
       updateEventFormState();
       renderEventForm();
+      closeEventModal();
     }
 
     function editEvent(eventId) {
       const eventItem = state.events.find((item) => item.id === eventId);
       const form = $("#eventForm");
       if (!eventItem || !form || !canManage()) return;
+      $("#eventModal").classList.add("open");
+      $("#eventModal").setAttribute("aria-hidden", "false");
       renderEventForm();
       form.elements.namedItem("eventId").value = eventItem.id;
       form.elements.type.value = eventTypeForForm(eventItem.type);
@@ -2944,7 +2966,7 @@
       form.elements.details.value = eventItem.details || "";
       form.elements.remark.value = eventItem.remark || "";
       updateEventFormState();
-      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      (form.querySelector("[data-event-field]:not([hidden]) input, [data-event-field]:not([hidden]) select, [data-event-field]:not([hidden]) textarea") || form.elements.date)?.focus();
     }
 
     function csvValue(value) {
@@ -3009,12 +3031,7 @@
     $("#eventForm").elements.type.addEventListener("change", updateEventFormState);
     $$("[data-new-event-type]").forEach((button) => {
       button.addEventListener("click", () => {
-        const form = $("#eventForm");
-        if (!form) return;
-        form.reset();
-        form.elements.namedItem("eventId").value = "";
-        form.elements.type.value = eventTypeForForm(button.dataset.newEventType);
-        updateEventFormState();
+        openEventModal(button.dataset.newEventType);
       });
     });
 
@@ -3336,6 +3353,10 @@
       render();
     });
 
+    $("#closeEventModalBtn").addEventListener("click", closeEventModal);
+    $("#eventModal").addEventListener("click", (event) => {
+      if (event.target === $("#eventModal")) closeEventModal();
+    });
     $("#closePlayerModalBtn").addEventListener("click", closePlayerModal);
     $("#playerModal").addEventListener("click", (event) => {
       if (event.target === $("#playerModal")) closePlayerModal();
@@ -3646,9 +3667,10 @@
       if (!canManage()) return;
       const day = event.target.closest("[data-calendar-date]");
       if (!day) return;
+      openEventModal("Training");
       const form = $("#eventForm");
       form.elements.date.value = day.dataset.calendarDate;
-      form.elements.title.focus();
+      form.elements.time.focus();
     });
     $("#calendarGrid").addEventListener("dragstart", (event) => {
       if (!canManage()) return event.preventDefault();

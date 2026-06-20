@@ -187,32 +187,13 @@
         <div class="grid two">
           <section class="panel admin-only">
             <div class="item-head event-form-head">
-              <h3 id="eventFormTitle">Neues Training</h3>
+              <h3>Termin erstellen</h3>
               <div class="event-kind-actions" aria-label="Terminart waehlen">
                 <button class="mini" type="button" data-new-event-type="Spiel">Neues Spiel</button>
                 <button class="mini" type="button" data-new-event-type="Training">Neues Training</button>
-                <button class="mini" type="button" data-new-event-type="Sonstiges">Sonstiges</button>
+                <button class="mini" type="button" data-new-event-type="Event">Neues Event</button>
               </div>
             </div>
-            <form id="eventForm" class="form-grid">
-              <input type="hidden" name="eventId">
-              <select name="type" hidden><option>Training</option><option>Spiel</option><option>Sonstiges</option></select>
-              <div class="field" data-event-field="title"><label>Gegner</label><input name="title"></div>
-              <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-              <div class="field" data-event-field="time"><label>Treffpunkt Uhrzeit</label><input type="time" name="time" required></div>
-              <div class="field" data-event-field="repeat"><label>Wiederholung</label><select name="repeat"><option value="">Einmalig</option><option value="weekly">Woechentlich</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Monatlich</option></select></div>
-              <div class="field" data-event-field="repeatUntil"><label>Wiederholen bis</label><input type="date" name="repeatUntil"></div>
-              <div class="field full" data-event-field="location"><label>Ort</label><input name="location"></div>
-              <div class="field" data-event-field="gameVenue"><label>Heim-Auswaerts</label><select name="gameVenue"><option value="home">Heimspiel</option><option value="away">Auswaertsspiel</option></select></div>
-              <div class="field" data-event-field="gameCategory"><label>Spielart</label><select name="gameCategory"><option>Punktspiel</option><option>Turnier</option><option>Freundschaftsspiel</option><option>Pokal</option><option>Sonstiges</option></select></div>
-              <div class="field" data-event-field="meetingPoint"><label>Treffpunkt Ort</label><input name="meetingPoint" placeholder="z.B. Sportplatz, Parkplatz"></div>
-              <div class="field" data-event-field="meetingTime"><label>Treffpunkt vor Ort Uhrzeit</label><input type="time" name="meetingTime"></div>
-              <div class="field" data-event-field="coach"><label>Verantwortlicher Trainer</label><select name="coach" id="eventCoach"></select></div>
-              <div class="field" data-event-field="trainingFocus"><label>Schwerpunkt</label><input name="trainingFocus" placeholder="z.B. Pressing, Standards"></div>
-              <div class="field full" data-event-field="details"><label>Details</label><textarea name="details"></textarea></div>
-              <div class="field full" data-event-field="remark"><label>Bemerkungen</label><textarea name="remark"></textarea></div>
-              <div class="field full row-actions"><button class="btn-primary" type="submit" id="eventSubmitBtn">Termin speichern</button><button class="btn-secondary" type="button" id="cancelEventEditBtn" hidden>Abbrechen</button></div>
-            </form>
           </section>
           <section class="panel">
             <div class="calendar-head">
@@ -533,6 +514,34 @@ for update using (true);</textarea>
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop" id="eventModal" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="eventFormTitle">
+      <div class="modal-head">
+        <h3 id="eventFormTitle">Neues Training</h3>
+        <button class="mini" id="closeEventModalBtn" type="button">Schliessen</button>
+      </div>
+      <form id="eventForm" class="form-grid">
+        <input type="hidden" name="eventId">
+        <select name="type" hidden><option>Training</option><option>Spiel</option><option>Event</option></select>
+        <div class="field" data-event-field="title"><label>Gegner</label><input name="title"></div>
+        <div class="field"><label>Datum</label><input type="date" name="date" required></div>
+        <div class="field" data-event-field="time"><label>Treffpunkt Uhrzeit</label><input type="time" name="time" required></div>
+        <div class="field" data-event-field="repeat"><label>Wiederholung</label><select name="repeat"><option value="">Einmalig</option><option value="weekly">Woechentlich</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Monatlich</option></select></div>
+        <div class="field" data-event-field="repeatUntil"><label>Wiederholen bis</label><input type="date" name="repeatUntil"></div>
+        <div class="field full" data-event-field="location"><label>Ort</label><input name="location"></div>
+        <div class="field" data-event-field="gameVenue"><label>Heim-Auswaerts</label><select name="gameVenue"><option value="home">Heimspiel</option><option value="away">Auswaertsspiel</option></select></div>
+        <div class="field" data-event-field="gameCategory"><label>Spielart</label><select name="gameCategory"><option>Punktspiel</option><option>Turnier</option><option>Freundschaftsspiel</option><option>Pokal</option><option>Sonstiges</option></select></div>
+        <div class="field" data-event-field="meetingPoint"><label>Treffpunkt Ort</label><input name="meetingPoint" placeholder="z.B. Sportplatz, Parkplatz"></div>
+        <div class="field" data-event-field="meetingTime"><label>Treffpunkt vor Ort Uhrzeit</label><input type="time" name="meetingTime"></div>
+        <div class="field" data-event-field="coach"><label>Verantwortlicher Trainer</label><select name="coach" id="eventCoach"></select></div>
+        <div class="field" data-event-field="trainingFocus"><label>Schwerpunkt</label><input name="trainingFocus" placeholder="z.B. Pressing, Standards"></div>
+        <div class="field full" data-event-field="details"><label>Details</label><textarea name="details"></textarea></div>
+        <div class="field full" data-event-field="remark"><label>Bemerkungen</label><textarea name="remark"></textarea></div>
+        <div class="field full row-actions"><button class="btn-primary" type="submit" id="eventSubmitBtn">Termin speichern</button><button class="btn-secondary" type="button" id="cancelEventEditBtn">Abbrechen</button></div>
+      </form>
+    </section>
   </div>
 
   <div class="modal-backdrop" id="playerModal" aria-hidden="true">
