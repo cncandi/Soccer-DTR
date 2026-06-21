@@ -587,6 +587,7 @@
         createdAt: fine.createdAt || new Date().toISOString(),
         paid: Boolean(fine.paid),
         paidAt: fine.paidAt || "",
+        paidComment: fine.paidComment || "",
         paymentStatus: fine.paymentStatus || (fine.paid ? "paid" : "open"),
         paypalOrderId: fine.paypalOrderId || "",
         paypalCaptureId: fine.paypalCaptureId || ""
@@ -2512,7 +2513,7 @@
     function rsvpRecord(event, playerName) {
       const raw = (event.rsvps || {})[playerName];
       if (!raw) return null;
-      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", transport: "" };
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", paidComment: "", transport: "" };
       return {
         status: raw.status || "yes",
         updatedAt: raw.updatedAt || "",
@@ -2523,6 +2524,7 @@
         noShowBy: raw.noShowBy || "",
         paid: Boolean(raw.paid),
         paidAt: raw.paidAt || "",
+        paidComment: raw.paidComment || "",
         transport: raw.transport || ""
       };
     }
@@ -3121,6 +3123,7 @@
         createdBy: fine.createdBy || "",
         paid: Boolean(fine.paid),
         paidAt: fine.paidAt || "",
+        paidComment: fine.paidComment || "",
         paymentStatus: fine.paymentStatus || (fine.paid ? "paid" : "open"),
         paypalOrderId: fine.paypalOrderId || "",
         paypalCaptureId: fine.paypalCaptureId || ""
@@ -3142,6 +3145,7 @@
             createdBy: record.noShowBy || "Kalender",
             paid: Boolean(record.paid),
             paidAt: record.paidAt || "",
+            paidComment: record.paidComment || "",
             paymentStatus: record.paymentStatus || (record.paid ? "paid" : "open"),
             paypalOrderId: record.paypalOrderId || "",
             paypalCaptureId: record.paypalCaptureId || ""
@@ -3153,17 +3157,26 @@
 
     function renderCash() {
       if (!$("#cashTotal")) return;
-      const rows = allFineRows();
+      const allRows = allFineRows();
+      const personalView = !canManageCash();
+      const rows = personalView
+        ? allRows.filter((fine) => playerNameKey(fine.player) === playerNameKey(activeUser()))
+        : allRows;
       const total = rows.reduce((sum, fine) => sum + fine.amount, 0);
       const paid = rows.filter((fine) => fine.paid).reduce((sum, fine) => sum + fine.amount, 0);
       const open = total - paid;
       $("#cashTotal").textContent = formatCurrency(total);
       $("#cashPaid").textContent = formatCurrency(paid);
       $("#cashOpen").textContent = formatCurrency(open);
+      $("#cashTotalLabel").textContent = personalView ? "Meine Betraege EUR" : "Kassenstand EUR";
+      $("#cashPaidLabel").textContent = personalView ? "Von mir bezahlt EUR" : "Bezahlt EUR";
+      $("#cashOpenLabel").textContent = personalView ? "Von mir offen EUR" : "Offen EUR";
+      $("#cashOpenTitle").textContent = personalView ? "Meine offenen Betraege" : "Noch nicht bezahlt";
+      $("#cashFineTitle").textContent = personalView ? "Meine bezahlten Betraege" : "Alle Kassenbewegungen";
       renderCashForm();
       renderDonationForm();
       renderFineRows($("#cashOpenList"), rows.filter((fine) => !fine.paid), "Keine offenen Betraege.");
-      renderFineRows($("#cashFineList"), rows, "Noch keine Kassenbewegungen.");
+      renderFineRows($("#cashFineList"), personalView ? rows.filter((fine) => fine.paid) : rows, personalView ? "Noch keine bezahlten Betraege." : "Noch keine Kassenbewegungen.");
       renderFineCatalog();
       renderPaypalButtons();
     }
@@ -3199,7 +3212,7 @@
       if (!rows.length) return empty(container, emptyText);
       rows.forEach((fine) => {
         const paidInfo = fine.paid
-          ? `<div class="meta"><span>Bezahlt am ${fine.paidAt ? new Date(fine.paidAt).toLocaleString("de-DE") : "unbekannt"}</span>${fine.paypalCaptureId ? `<span>PayPal: ${escapeHtml(fine.paypalCaptureId)}</span>` : ""}</div>`
+          ? `<div class="meta"><span>Bezahlt am ${fine.paidAt ? new Date(fine.paidAt).toLocaleString("de-DE") : "unbekannt"}</span>${fine.paidComment ? `<span>Kommentar: ${escapeHtml(fine.paidComment)}</span>` : ""}${fine.paypalCaptureId ? `<span>PayPal: ${escapeHtml(fine.paypalCaptureId)}</span>` : ""}</div>`
           : "";
         const paypalBox = !fine.paid && !fine.penalty && Number(fine.amount || 0) > 0 && paypalConfigured()
           ? `<div class="paypal-box" data-penalty-id="${escapeAttr(fine.id)}">
@@ -3254,16 +3267,19 @@
     }
 
     function toggleFinePaid(id) {
+      let paidComment = "";
       if (id.includes("::")) {
         const [eventId, name] = id.split("::");
         const event = state.events.find((item) => item.id === eventId);
         const record = event ? rsvpRecord(event, name) : null;
         if (!event || !record) return;
         const paid = !record.paid;
+        if (paid) paidComment = window.prompt("Kommentar zur Zahlung (optional):", record.paidComment || "") || "";
         event.rsvps[name] = {
           ...record,
           paid,
           paidAt: paid ? new Date().toISOString() : "",
+          paidComment: paid ? paidComment : "",
           paymentStatus: paid ? "paid" : "open",
           paypalOrderId: paid ? record.paypalOrderId || "" : "",
           paypalCaptureId: paid ? record.paypalCaptureId || "" : ""
@@ -3272,8 +3288,11 @@
       }
       const fine = (state.cashFines || []).find((item) => item.id === id);
       if (!fine) return;
-      fine.paid = !fine.paid;
+      const paid = !fine.paid;
+      if (paid) paidComment = window.prompt("Kommentar zur Zahlung (optional):", fine.paidComment || "") || "";
+      fine.paid = paid;
       fine.paidAt = fine.paid ? new Date().toISOString() : "";
+      fine.paidComment = fine.paid ? paidComment : "";
       fine.paymentStatus = fine.paid ? "paid" : "open";
       if (!fine.paid) {
         fine.paypalOrderId = "";
@@ -4187,7 +4206,12 @@
       fine.amount = Number(values.amount || 0);
       fine.date = values.date;
       fine.note = values.note;
-      fine.paid = values.paid === "on";
+      const nextPaid = values.paid === "on";
+      if (nextPaid && !fine.paid) {
+        fine.paidComment = window.prompt("Kommentar zur Zahlung (optional):", fine.paidComment || "") || "";
+      }
+      if (!nextPaid) fine.paidComment = "";
+      fine.paid = nextPaid;
       fine.paidAt = fine.paid ? fine.paidAt || new Date().toISOString() : "";
       closeCashFineModal();
       saveState();
