@@ -38,6 +38,7 @@ alter table public.clubs enable row level security;
 drop policy if exists "clubs read" on public.clubs;
 drop policy if exists "clubs write" on public.clubs;
 drop policy if exists "clubs update" on public.clubs;
+drop policy if exists "clubs delete" on public.clubs;
 
 create policy "clubs read" on public.clubs
 for select using (true);
@@ -47,6 +48,9 @@ for insert with check (true);
 
 create policy "clubs update" on public.clubs
 for update using (true);
+
+create policy "clubs delete" on public.clubs
+for delete using (true);
 
 create table if not exists public.players (
   id text primary key default gen_random_uuid()::text,

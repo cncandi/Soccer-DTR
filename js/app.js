@@ -518,6 +518,11 @@
       return "tmp-" + Math.random().toString(36).slice(2, 8);
     }
 
+    function sanitizeRole(role) {
+      if (role === "Superadmin") return isSuperadmin() ? "Superadmin" : "Admin";
+      return role === "Admin" ? "Admin" : "Spieler";
+    }
+
     function updateRoleFromUser() {
       $("#currentRole").value = roleForUser(activeUser());
     }
@@ -1051,6 +1056,129 @@
         if (result.error) throw result.error;
       }
       await deleteMissingRows(client, "hall_of_fame_entries", fameRows.map((row) => row.id));
+    }
+
+    function openClubSignupModal() {
+      const modal = $("#clubSignupModal");
+      if (!modal) return;
+      $("#clubSignupForm").reset();
+      $("#clubSignupStatus").textContent = "";
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      $("#clubSignupForm").elements.clubName.focus();
+    }
+
+    function closeClubSignupModal() {
+      const modal = $("#clubSignupModal");
+      if (!modal) return;
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    function slugifyClubName(name) {
+      return String(name || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 48);
+    }
+
+    function newClubState() {
+      return normalizeState(structuredClone(defaultState));
+    }
+
+    async function registerClub(values) {
+      const client = getSupabaseClient();
+      if (!client) throw new Error(supabaseMissingReason());
+      const clubName = values.clubName.trim();
+      const adminName = values.adminName.trim();
+      const password = values.adminPassword;
+      if (!clubName || !adminName || !password) throw new Error("Bitte Vereinsname, Ansprechpartner und Passwort ausfuellen.");
+      if (password !== values.adminPasswordRepeat) throw new Error("Die Passwoerter stimmen nicht ueberein.");
+
+      const now = new Date().toISOString();
+      const club = touchClub({
+        id: crypto.randomUUID(),
+        name: clubName,
+        color: "#155e3b",
+        logo: "",
+        licenseKey: generateLicenseKey(),
+        licenseStatus: "trial"
+      });
+      const player = normalizePlayer({
+        id: crypto.randomUUID(),
+        name: adminName,
+        password,
+        role: "Admin",
+        memberRoles: ["Trainer"],
+        groups: ["Trainer", "Mannschaft"],
+        group: "Trainer",
+        position: "",
+        phone: "",
+        notes: values.adminEmail
+          ? `E-Mail: ${values.adminEmail.trim()}${values.note.trim() ? `\n${values.note.trim()}` : ""}`
+          : values.note.trim(),
+        photo: "",
+        alternatePositions: [],
+        availability: defaultAvailability(),
+        performance: defaultPerformance()
+      });
+
+      const clubInsert = await client.from("clubs").insert({
+        id: club.id,
+        name: club.name,
+        slug: `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
+        color: club.color,
+        logo: club.logo,
+        license_key: club.licenseKey,
+        license_status: club.licenseStatus,
+        updated_at: now
+      });
+      if (clubInsert.error) throw clubInsert.error;
+
+      const playerInsert = await client.from("players").insert({
+        id: player.id,
+        club_id: club.id,
+        name: player.name,
+        password: player.password,
+        role: "Admin",
+        member_roles: player.memberRoles,
+        groups: player.groups,
+        position: "",
+        phone: "",
+        notes: player.notes,
+        photo: "",
+        alternate_positions: [],
+        availability: player.availability,
+        performance: player.performance,
+        active: true,
+        data: player,
+        updated_at: now
+      });
+      if (playerInsert.error) throw playerInsert.error;
+
+      const createdState = normalizeState({ ...newClubState(), players: [player] });
+      await client.from(settings.table).upsert({ id: `${DOC_ID}:${club.id}`, document: createdState, updated_at: now });
+
+      clubs = mergeClubs([...clubs, club], []);
+      const clubsDocument = await client.from(settings.table).upsert({
+        id: clubsDocumentId(),
+        document: { clubs },
+        updated_at: now
+      });
+      if (clubsDocument.error) throw clubsDocument.error;
+      currentClubId = club.id;
+      requestedClubId = club.id;
+      state = createdState;
+      saveClubs({ sync: false });
+      localStorage.setItem(stateKey(), JSON.stringify(state));
+      renderClubSelect();
+      renderLoginUsers();
+      renderInstallPanel();
+      return { club, player };
     }
 
     async function waitForSupabaseLibrary(timeoutMs = 5000) {
@@ -2976,7 +3104,8 @@
     }
 
     function roleOptions(selected) {
-      return optionList(["Spieler", "Admin", "Superadmin"], selected);
+      const roles = isSuperadmin() ? ["Spieler", "Admin", "Superadmin"] : ["Spieler", "Admin"];
+      return optionList(roles, sanitizeRole(selected));
     }
 
     function memberRoleEditor(player) {
@@ -3362,7 +3491,7 @@
         name: values.name,
         position: isPlayer ? values.position : "",
         phone: values.phone,
-        role: values.role,
+        role: sanitizeRole(values.role),
         group: groups[0],
         groups,
         notes: values.notes,
@@ -3664,6 +3793,35 @@
       render();
     });
 
+    $("#showClubSignupBtn")?.addEventListener("click", openClubSignupModal);
+    $("#closeClubSignupBtn")?.addEventListener("click", closeClubSignupModal);
+    $("#cancelClubSignupBtn")?.addEventListener("click", closeClubSignupModal);
+    $("#clubSignupModal")?.addEventListener("click", (event) => {
+      if (event.target.id === "clubSignupModal") closeClubSignupModal();
+    });
+    $("#clubSignupForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const status = $("#clubSignupStatus");
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      status.textContent = "Verein wird angelegt ...";
+      try {
+        const { club, player } = await registerClub(formValues(form));
+        status.textContent = `Verein angelegt. Lizenz: ${club.licenseKey}`;
+        $("#loginClubSelect").value = club.id;
+        $("#loginUser").value = player.name;
+        $("#loginPassword").value = player.password;
+        saveLoginPrefill(club.id, player.name, player.password);
+        closeClubSignupModal();
+        $("#loginError").textContent = "Verein angelegt. Du kannst dich jetzt als Vereins-Admin anmelden.";
+      } catch (error) {
+        status.textContent = error.message || String(error);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
     $("#closeEventModalBtn").addEventListener("click", closeEventModal);
     $("#eventModal").addEventListener("click", (event) => {
       if (event.target === $("#eventModal")) closeEventModal();
@@ -3718,7 +3876,7 @@
       player.group = player.groups[0];
       // Berechtigungsrolle und Mitgliedsrollen darf nur Admin/Superadmin aendern
       if (canManage()) {
-        player.role = values.role;
+        player.role = sanitizeRole(values.role);
         player.memberRoles = memberRolesFromValues(values);
       }
       // Position nur fuer Spieler; bei reinen Trainern/Betreuern leeren

@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=66">
+  <link rel="stylesheet" href="css/app.css?v=68">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v66</span></h1>
+          <h1>Kadrivo <span class="app-version">v68</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -45,6 +45,7 @@
       </label>
       <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary" type="submit">Anmelden</button>
+      <button class="btn-secondary" id="showClubSignupBtn" type="button">Neuen Verein registrieren</button>
       <section class="install-panel login-install" id="installPanel" hidden>
         <div>
           <h3>Kadrivo installieren</h3>
@@ -70,7 +71,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v66</span></h1>
+          <h1>Kadrivo <span class="app-version">v68</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -151,7 +152,7 @@
               <div class="field"><label>Name</label><input name="name" required></div>
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option><option>Trainer</option><option>Betreuer</option></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
-              <div class="field"><label>Berechtigung</label><select name="role"><option>Spieler</option><option>Admin</option><option>Superadmin</option></select></div>
+              <div class="field"><label>Berechtigung</label><select name="role"><option>Spieler</option><option>Admin</option></select></div>
               <div class="field full"><label>Gruppen</label><div class="inline-checks">
                 <label class="check-row"><input type="checkbox" name="groupMannschaft" checked>Mannschaft</label>
                 <label class="check-row"><input type="checkbox" name="groupMannschaftsrat">Mannschaftsrat</label>
@@ -537,6 +538,28 @@ for update using (true);</textarea>
     </section>
   </div>
 
+  <div class="modal-backdrop" id="clubSignupModal" aria-hidden="true">
+    <section class="modal-panel compact-modal" role="dialog" aria-modal="true" aria-labelledby="clubSignupTitle">
+      <div class="modal-head">
+        <h3 id="clubSignupTitle">Neuen Verein registrieren</h3>
+        <button class="mini" id="closeClubSignupBtn" type="button">Schliessen</button>
+      </div>
+      <form id="clubSignupForm" class="form-grid">
+        <div class="field full"><label>Vereinsname</label><input name="clubName" required autocomplete="organization"></div>
+        <div class="field"><label>Ansprechpartner</label><input name="adminName" required autocomplete="name"></div>
+        <div class="field"><label>E-Mail optional</label><input name="adminEmail" type="email" autocomplete="email"></div>
+        <div class="field"><label>Passwort</label><input name="adminPassword" type="password" required minlength="4" autocomplete="new-password"></div>
+        <div class="field"><label>Passwort wiederholen</label><input name="adminPasswordRepeat" type="password" required minlength="4" autocomplete="new-password"></div>
+        <div class="field full"><label>Notiz optional</label><textarea name="note" placeholder="z.B. Ansprechpartner, Telefonnummer, Wunschname"></textarea></div>
+        <p class="meta full" id="clubSignupStatus" aria-live="polite"></p>
+        <div class="field full row-actions">
+          <button class="btn-primary" type="submit">Verein anlegen</button>
+          <button class="btn-secondary" id="cancelClubSignupBtn" type="button">Abbrechen</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div class="modal-backdrop" id="playerModal" aria-hidden="true">
     <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="playerModalTitle">
       <div class="modal-head">
@@ -569,6 +592,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=66" defer></script>
+  <script src="js/app.js?v=68" defer></script>
 </body>
 </html>

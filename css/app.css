@@ -101,6 +101,10 @@
       backdrop-filter: blur(8px);
     }
 
+    .login-panel > .btn-secondary {
+      width: 100%;
+    }
+
     .login-panel h1 {
       margin: 0;
       font-size: 1.45rem;
@@ -1285,6 +1289,10 @@
       border-radius: 8px;
       box-shadow: 0 24px 70px rgba(0,0,0,.32);
       padding: 18px;
+    }
+
+    .compact-modal {
+      width: min(680px, 100%);
     }
 
     .modal-head {
