@@ -1523,7 +1523,7 @@
     }
 
     function currentCalendarRange() {
-      return calendarMode === "month" && canManage() ? currentMonthRange() : currentWeekRange();
+      return calendarMode === "month" ? currentMonthRange() : currentWeekRange();
     }
 
     function weekLabel() {
@@ -1537,7 +1537,7 @@
     }
 
     function calendarLabel() {
-      return calendarMode === "month" && canManage() ? monthLabel() : weekLabel();
+      return calendarMode === "month" ? monthLabel() : weekLabel();
     }
 
     function visibleCalendarEvents() {
@@ -1627,10 +1627,9 @@
       const grid = $("#calendarGrid");
       const weekLabelEl = $("#calendarWeekLabel");
       if (!grid || !weekLabelEl) return;
-      if (!canManage()) calendarMode = "week";
       weekLabelEl.textContent = calendarLabel();
       grid.innerHTML = "";
-      grid.classList.toggle("month-mode", calendarMode === "month" && canManage());
+      grid.classList.toggle("month-mode", calendarMode === "month");
       $$(".calendar-mode [data-calendar-mode]").forEach((button) => {
         button.classList.toggle("active", button.dataset.calendarMode === calendarMode);
       });
@@ -1642,8 +1641,8 @@
       });
 
       const monthRange = currentMonthRange();
-      const start = calendarMode === "month" && canManage() ? weekStart(monthRange.start) : weekStart(calendarDate);
-      const dayCount = calendarMode === "month" && canManage()
+      const start = calendarMode === "month" ? weekStart(monthRange.start) : weekStart(calendarDate);
+      const dayCount = calendarMode === "month"
         ? Math.ceil(((weekStart(monthRange.end).getTime() - start.getTime()) / 86400000) + 7)
         : 7;
 
@@ -1658,7 +1657,7 @@
         const cell = document.createElement("div");
         cell.className = [
           "calendar-day",
-          calendarMode === "month" && canManage() && !dateInPeriod(dateStr, monthRange.start, monthRange.end) ? "outside" : "",
+          calendarMode === "month" && !dateInPeriod(dateStr, monthRange.start, monthRange.end) ? "outside" : "",
           date.getDay() === 0 ? "sunday" : "",
           holiday ? "holiday" : ""
         ].filter(Boolean).join(" ");
@@ -1744,7 +1743,7 @@
       const list = $("#eventList");
       list.innerHTML = "";
       const events = visibleCalendarEvents();
-      if (!events.length) return empty(list, calendarMode === "month" && canManage() ? "Keine Termine in diesem Monat." : "Keine Termine in dieser Woche.");
+      if (!events.length) return empty(list, calendarMode === "month" ? "Keine Termine in diesem Monat." : "Keine Termine in dieser Woche.");
       events
         .forEach((event) => {
           const attendance = rsvpDetails(event);
@@ -3521,7 +3520,6 @@
     $("#playerSearch").addEventListener("input", renderPlayers);
     $$(".calendar-mode [data-calendar-mode]").forEach((button) => {
       button.addEventListener("click", () => {
-        if (!canManage()) return;
         calendarMode = button.dataset.calendarMode || "week";
         renderCalendar();
         renderEvents();
@@ -3533,7 +3531,7 @@
     });
     $("#prevCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      if (calendarMode === "month" && canManage()) date.setMonth(date.getMonth() - 1);
+      if (calendarMode === "month") date.setMonth(date.getMonth() - 1);
       else date.setDate(date.getDate() - 7);
       calendarDate = isoDate(date);
       renderCalendar();
@@ -3543,7 +3541,7 @@
     });
     $("#nextCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
-      if (calendarMode === "month" && canManage()) date.setMonth(date.getMonth() + 1);
+      if (calendarMode === "month") date.setMonth(date.getMonth() + 1);
       else date.setDate(date.getDate() + 7);
       calendarDate = isoDate(date);
       renderCalendar();
