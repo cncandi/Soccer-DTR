@@ -109,6 +109,8 @@
     let syncTimer = null;
     let syncInProgress = false;
     let pendingCloudSync = false;
+    let loginDirectory = [];
+    let loginDirectoryLoaded = false;
 
     const titles = {
       dashboard: ["Uebersicht", "Alles Wichtige fuer Mannschaft, Training, Spiele und Gruppen."],
@@ -350,7 +352,11 @@
         groups: normalizeGroups(player),
         group: normalizeGroups(player)[0],
         photo: player.photo || "",
+        jerseyNumber: player.jerseyNumber || "",
         memberSince: player.memberSince || "",
+        captainRole: player.captainRole || "",
+        trainingFocusShort: player.trainingFocusShort || "",
+        trainingFocusLong: player.trainingFocusLong || "",
         // Reine Trainer/Betreuer ohne Spieler-Rolle haben keine Position
         position: isPlayerMember ? (player.position || "") : "",
         alternatePositions: isPlayerMember && Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
@@ -448,6 +454,10 @@
         phone: player.phone || "",
         notes: "",
         photo: player.photo || "",
+        jerseyNumber: player.jerseyNumber || "",
+        captainRole: "",
+        trainingFocusShort: "",
+        trainingFocusLong: "",
         memberSince: player.memberSince || "",
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: defaultAvailability(),
@@ -959,6 +969,35 @@
         || message.includes("schema cache")
         || message.includes("relation ")
         || message.includes("does not exist");
+    }
+
+    async function refreshLoginDirectory() {
+      const client = getSupabaseClient();
+      if (!client) return;
+      const { data, error } = await client
+        .from("players")
+        .select("id,club_id,name,password,role,data");
+      if (error) {
+        if (!normalizedSchemaUnavailable(error)) throw error;
+        return;
+      }
+      loginDirectory = (data || []).filter((row) => row.club_id && row.name);
+      loginDirectoryLoaded = true;
+      renderClubSelect();
+      renderLoginUsers();
+    }
+
+    function loginDirectoryRowsForUser(name) {
+      const key = playerNameKey(name);
+      if (!key) return [];
+      return loginDirectory.filter((row) => playerNameKey(row.name) === key);
+    }
+
+    function loginUserIsSuperadmin(name) {
+      const key = playerNameKey(name);
+      if (!key) return false;
+      if (loginDirectory.some((row) => playerNameKey(row.name) === key && row.role === "Superadmin")) return true;
+      return state.players.some((player) => playerNameKey(player.name) === key && player.role === "Superadmin");
     }
 
     function clubFromRow(row) {
@@ -1741,6 +1780,7 @@
         setStatus(supabaseErrorMessage(error));
       } finally {
         syncInProgress = false;
+        refreshLoginDirectory().catch(() => {});
         if (pendingCloudSync) {
           pendingCloudSync = false;
           queueCloudSync();
@@ -2277,11 +2317,34 @@
       const options = visibleClubs
         .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
         .join("");
-      [$("#clubSelect"), $("#loginClubSelect")].forEach((select) => {
-        if (!select) return;
-        select.innerHTML = options;
-        select.value = currentClubId;
-      });
+      const clubSelect = $("#clubSelect");
+      if (clubSelect) {
+        clubSelect.innerHTML = options;
+        clubSelect.value = currentClubId;
+      }
+      renderLoginClubOptionsForUser();
+    }
+
+    function renderLoginClubOptionsForUser() {
+      const select = $("#loginClubSelect");
+      if (!select) return;
+      const visibleClubs = selectableClubs();
+      const selectedUser = $("#loginUser")?.value || loginPrefillFor().user;
+      let allowedClubIds = new Set(visibleClubs.map((club) => club.id));
+      if (loginDirectoryLoaded && selectedUser && !loginUserIsSuperadmin(selectedUser)) {
+        allowedClubIds = new Set(loginDirectoryRowsForUser(selectedUser).map((row) => row.club_id));
+      }
+      const options = visibleClubs.filter((club) => allowedClubIds.has(club.id));
+      const fallback = options.length ? options : visibleClubs.filter((club) => club.id === currentClubId);
+      const loginClubs = fallback.length ? fallback : visibleClubs;
+      select.innerHTML = loginClubs
+        .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
+        .join("");
+      if (!loginClubs.some((club) => club.id === currentClubId)) {
+        currentClubId = loginClubs[0]?.id || currentClubId;
+        localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      }
+      select.value = currentClubId;
     }
 
     function renderClubDesignForm() {
@@ -2302,12 +2365,16 @@
 
     function renderLoginUsers() {
       const selected = loginPrefillFor().user;
-      const names = [...new Set(state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name))]
+      const sourceNames = loginDirectoryLoaded && loginDirectory.length
+        ? loginDirectory.map((row) => row.name)
+        : state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name);
+      const names = [...new Set(sourceNames)]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
         .map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
         .join("");
       $("#loginUser").value = names.includes(selected) ? selected : names[0] || "";
+      renderLoginClubOptionsForUser();
       fillSavedLoginPassword();
     }
 
@@ -2339,16 +2406,17 @@
                 <div class="player-photo">${player.photo ? `<img src="${escapeAttr(player.photo)}" alt="${escapeAttr(player.name)}">` : escapeHtml(initials(player.name))}</div>
                 <div>
                   <div class="player-title-row">
-                    <p class="item-title">${escapeHtml(player.name)}</p>
+                    <p class="item-title">${player.jerseyNumber ? `<span class="chip">#${escapeHtml(player.jerseyNumber)}</span> ` : ""}${escapeHtml(player.name)}</p>
                     ${renderAvailabilityBadges(player)}
                   </div>
-                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span>${captainRoleLabel(player.captainRole) ? `<span>${escapeHtml(captainRoleLabel(player.captainRole))}</span>` : ""}<span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
               <span class="chip">${isTemporaryGuest ? "Temporaer" : escapeHtml(groupLabels(player))}</span>
             </div>
             ${isTemporaryGuest ? `<p class="meta transfer-note">Temporaer von ${escapeHtml(player.transfer.originClubName || "anderem Verein")} bis ${escapeHtml(formatShortDate(player.transfer.untilDate))}. Kann sich normal einloggen, aber hier nicht bearbeitet oder geloescht werden.</p>` : ""}
             ${renderAvailabilityLine(player)}
+            ${(player.trainingFocusShort || player.trainingFocusLong) ? `<div class="meta"><span>Kurzfristig: ${escapeHtml(player.trainingFocusShort || "-")}</span><span>Langfristig: ${escapeHtml(player.trainingFocusLong || "-")}</span></div>` : ""}
             ${renderPlayerCalendarStats(player)}
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
             ${canManage() && !isTemporaryGuest ? renderPerformanceSummary(player) : ""}
@@ -3584,6 +3652,32 @@
         .join("");
     }
 
+    function captainRoleOptions(selected) {
+      return [
+        ["", "Keine"],
+        ["captain", "Kapitän"],
+        ["deputy1", "Stellv. Kapitän 1"],
+        ["deputy2", "Stellv. Kapitän 2"],
+        ["deputy3", "Stellv. Kapitän 3"]
+      ].map(([value, label]) => `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+    }
+
+    function captainRoleLabel(value) {
+      return {
+        captain: "Kapitän",
+        deputy1: "Stellv. Kapitän 1",
+        deputy2: "Stellv. Kapitän 2",
+        deputy3: "Stellv. Kapitän 3"
+      }[value] || "";
+    }
+
+    function enforceCaptainRole(playerId, role) {
+      if (!role) return;
+      state.players.forEach((player) => {
+        if (player.id !== playerId && player.captainRole === role) player.captainRole = "";
+      });
+    }
+
     function optionListWithEmpty(options, selected) {
       return optionList(["", ...options], selected || "");
     }
@@ -3702,7 +3796,11 @@
         memberRoleLabels(player),
         groupLabels(player),
         player.phone,
+        player.jerseyNumber,
         player.memberSince,
+        captainRoleLabel(player.captainRole),
+        player.trainingFocusShort,
+        player.trainingFocusLong,
         player.notes,
         availability
       ].join(" ").toLowerCase();
@@ -3823,8 +3921,10 @@
         <input type="hidden" name="id" value="${escapeAttr(player.id)}">
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
         ${isRosterPlayer ? `<div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>` : ""}
+        ${isRosterPlayer ? `<div class="field"><label>Rueckennummer</label><input name="jerseyNumber" type="number" min="0" max="999" value="${escapeAttr(player.jerseyNumber || "")}" inputmode="numeric"></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
         <div class="field"><label>Im Verein seit</label><input name="memberSince" type="date" value="${escapeAttr(player.memberSince || "")}"></div>
+        ${isRosterPlayer && fullAccess ? `<div class="field"><label>Kapitänsrolle</label><select name="captainRole">${captainRoleOptions(player.captainRole || "")}</select></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>` : ""}
         <div class="field full"><label>Gruppen</label><div class="inline-checks">${groupEditor(player)}</div></div>
         ${fullAccess ? `<div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>` : ""}
@@ -3833,6 +3933,8 @@
         ${isRosterPlayer && fullAccess ? renderTransferControls(player) : ""}
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
         <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
+        ${isRosterPlayer && fullAccess ? `<div class="field full"><label>Trainingsschwerpunkt kurzfristig</label><input name="trainingFocusShort" value="${escapeAttr(player.trainingFocusShort || "")}"></div>
+        <div class="field full"><label>Trainingsschwerpunkt langfristig</label><input name="trainingFocusLong" value="${escapeAttr(player.trainingFocusLong || "")}"></div>` : ""}
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
         <div class="field full">
           <label>Status</label>
@@ -4016,6 +4118,83 @@
       URL.revokeObjectURL(url);
     }
 
+    function trainerReportRows(events) {
+      return events
+        .slice()
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+        .map((eventItem) => `
+          <tr>
+            <td>${escapeHtml(formatShortDate(eventItem.date))}</td>
+            <td>${escapeHtml(eventItem.time || "")}</td>
+            <td>${escapeHtml(eventItem.type)}</td>
+            <td>${escapeHtml(eventItem.title || "")}</td>
+            <td>${escapeHtml(eventItem.location || "")}</td>
+            <td>${escapeHtml(eventItem.coach || "")}</td>
+            <td>${escapeHtml(eventItem.focus || "")}</td>
+            <td>${countRsvp(eventItem, "yes")}</td>
+            <td>${countRsvp(eventItem, "no")}</td>
+          </tr>
+        `).join("");
+    }
+
+    function printTrainerReport() {
+      const today = new Date().toISOString().slice(0, 10);
+      const events = state.events || [];
+      const trainings = events.filter((eventItem) => eventItem.type === "Training");
+      const upcomingGames = events.filter((eventItem) => eventItem.type === "Spiel" && eventItem.date >= today);
+      const upcomingTrainings = trainings.filter((eventItem) => eventItem.date >= today);
+      const fame = normalizeHallOfFame(state.hallOfFame);
+      const fameRows = rosterPlayers()
+        .map((player) => {
+          const approvedTrainings = fame.selfTrainings.filter((entry) => entry.player === player.name && entry.approved).length;
+          const bonus = fame.bonusPoints.filter((entry) => entry.player === player.name).reduce((sum, entry) => sum + Number(entry.points || 0), 0);
+          return { player, approvedTrainings, bonus, total: approvedTrainings + bonus };
+        })
+        .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name, "de"))
+        .slice(0, 20);
+      const focusRows = rosterPlayers()
+        .filter((player) => player.trainingFocusShort || player.trainingFocusLong)
+        .map((player) => `<tr><td>${escapeHtml(player.name)}</td><td>${escapeHtml(player.trainingFocusShort || "")}</td><td>${escapeHtml(player.trainingFocusLong || "")}</td></tr>`)
+        .join("");
+      const html = `<!doctype html>
+        <html lang="de"><head><meta charset="utf-8"><title>Trainerdruck ${escapeHtml(currentClub().name)}</title>
+        <style>
+          body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#102119;margin:28px;line-height:1.35}
+          h1{font-size:28px;margin:0 0 4px} h2{font-size:18px;margin:24px 0 8px}.meta{color:#647267;margin-bottom:18px}
+          .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{border:1px solid #d9e5dd;border-radius:10px;padding:12px}.stat strong{display:block;font-size:24px}
+          table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px}th,td{border:1px solid #d9e5dd;padding:7px;text-align:left;vertical-align:top}th{background:#edf4ef}
+          @media print{body{margin:12mm}.no-print{display:none}.stat{break-inside:avoid}table{break-inside:auto}tr{break-inside:avoid}}
+        </style></head><body>
+          <button class="no-print" onclick="window.print()">Drucken</button>
+          <h1>Trainerbericht ${escapeHtml(currentClub().name)}</h1>
+          <div class="meta">Stand: ${escapeHtml(new Date().toLocaleDateString("de-DE"))}</div>
+          <div class="stats">
+            <div class="stat"><strong>${trainings.length}</strong>Trainingseinheiten gesamt</div>
+            <div class="stat"><strong>${upcomingTrainings.length}</strong>Kommende Trainings</div>
+            <div class="stat"><strong>${upcomingGames.length}</strong>Kommende Spiele</div>
+          </div>
+          <h2>Alle Termine</h2>
+          <table><thead><tr><th>Datum</th><th>Zeit</th><th>Typ</th><th>Titel</th><th>Ort</th><th>Trainer</th><th>Schwerpunkt</th><th>Zu</th><th>Ab</th></tr></thead><tbody>${trainerReportRows(events) || `<tr><td colspan="9">Keine Termine.</td></tr>`}</tbody></table>
+          <h2>Kommende Spiele</h2>
+          <table><thead><tr><th>Datum</th><th>Zeit</th><th>Typ</th><th>Gegner</th><th>Ort</th><th>Trainer</th><th>Schwerpunkt</th><th>Zu</th><th>Ab</th></tr></thead><tbody>${trainerReportRows(upcomingGames) || `<tr><td colspan="9">Keine kommenden Spiele.</td></tr>`}</tbody></table>
+          <h2>Kommende Trainings mit Schwerpunkten</h2>
+          <table><thead><tr><th>Datum</th><th>Zeit</th><th>Typ</th><th>Titel</th><th>Ort</th><th>Trainer</th><th>Schwerpunkt</th><th>Zu</th><th>Ab</th></tr></thead><tbody>${trainerReportRows(upcomingTrainings) || `<tr><td colspan="9">Keine kommenden Trainings.</td></tr>`}</tbody></table>
+          <h2>Spieler-Schwerpunkte</h2>
+          <table><thead><tr><th>Spieler</th><th>Kurzfristig</th><th>Langfristig</th></tr></thead><tbody>${focusRows || `<tr><td colspan="3">Keine Spieler-Schwerpunkte hinterlegt.</td></tr>`}</tbody></table>
+          <h2>Hall of Fame</h2>
+          <table><thead><tr><th>Spieler</th><th>Eigen-Training</th><th>Bonus</th><th>Gesamt</th></tr></thead><tbody>${fameRows.map((row) => `<tr><td>${escapeHtml(row.player.name)}</td><td>${row.approvedTrainings}</td><td>${row.bonus}</td><td>${row.total}</td></tr>`).join("") || `<tr><td colspan="4">Keine Hall-of-Fame-Daten.</td></tr>`}</tbody></table>
+        </body></html>`;
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        window.alert("Druckfenster konnte nicht geoeffnet werden. Bitte Pop-up-Blocker pruefen.");
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+    }
+
     function switchView(viewName) {
       const button = $(`.nav button[data-view="${viewName}"]`);
       if (!button || button.hidden || !canAccess(button.dataset.minRole)) return;
@@ -4064,13 +4243,17 @@
       const memberRoles = memberRolesFromValues(values);
       // Reine Trainer/Betreuer haben keine Position
       const isPlayer = memberRoles.includes("Spieler");
-      state.players.push({
+      const player = {
         id: crypto.randomUUID(),
         name: values.name,
         position: isPlayer ? values.position : "",
+        jerseyNumber: isPlayer ? (values.jerseyNumber || "") : "",
         phone: values.phone,
         memberSince: values.memberSince || "",
         role: sanitizeRole(values.role),
+        captainRole: isPlayer ? (values.captainRole || "") : "",
+        trainingFocusShort: isPlayer ? (values.trainingFocusShort || "").trim() : "",
+        trainingFocusLong: isPlayer ? (values.trainingFocusLong || "").trim() : "",
         group: groups[0],
         groups,
         notes: values.notes,
@@ -4080,7 +4263,9 @@
         alternatePositions: [],
         availability: defaultAvailability(),
         performance: defaultPerformance()
-      });
+      };
+      enforceCaptainRole(player.id, player.captainRole);
+      state.players.push(player);
       event.currentTarget.reset();
       saveState();
     });
@@ -4516,6 +4701,13 @@
       // Position nur fuer Spieler; bei reinen Trainern/Betreuern leeren
       // (nach memberRoles-Update, damit Rollenwechsel sofort greift)
       player.position = hasMemberRole(player, "Spieler") ? values.position : "";
+      player.jerseyNumber = hasMemberRole(player, "Spieler") ? (values.jerseyNumber || "") : "";
+      if (canManage()) {
+        player.captainRole = hasMemberRole(player, "Spieler") ? (values.captainRole || "") : "";
+        player.trainingFocusShort = hasMemberRole(player, "Spieler") ? (values.trainingFocusShort || "").trim() : "";
+        player.trainingFocusLong = hasMemberRole(player, "Spieler") ? (values.trainingFocusLong || "").trim() : "";
+        enforceCaptainRole(player.id, player.captainRole);
+      }
       player.notes = values.notes.trim();
       // Passwort darf nur Admin/Superadmin aendern
       if (canManage()) {
@@ -4752,6 +4944,9 @@
     $("#exportEventsBtn").addEventListener("click", () => {
       if (canManage()) exportEventsCsv();
     });
+    $("#printTrainerReportBtn")?.addEventListener("click", () => {
+      if (canManage()) printTrainerReport();
+    });
     $("#prevCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);
       if (calendarMode === "month") date.setMonth(date.getMonth() - 1);
@@ -4832,7 +5027,10 @@
       renderInstallPanel();
       loadPaypalSettings();
     });
-    $("#loginUser").addEventListener("change", fillSavedLoginPassword);
+    $("#loginUser").addEventListener("change", () => {
+      renderLoginClubOptionsForUser();
+      fillSavedLoginPassword();
+    });
     $("#loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       currentClubId = $("#loginClubSelect").value;
@@ -4842,9 +5040,16 @@
         return;
       }
       const userName = $("#loginUser").value;
-      const player = playerByName(userName);
+      const directoryRow = loginDirectoryRowsForUser(userName).find((row) => row.club_id === currentClubId);
+      let player = playerByName(userName);
+      if (!player && directoryRow) {
+        await syncWithSupabase({ silent: true });
+        player = playerByName(userName);
+      }
       const password = $("#loginPassword").value;
-      if (!player || (player.password || DEFAULT_PASSWORD) !== password) {
+      const directoryPassword = directoryRow ? (directoryRow.password || rowData(directoryRow).password || DEFAULT_PASSWORD) : "";
+      const expectedPassword = player ? (player.password || DEFAULT_PASSWORD) : directoryPassword;
+      if ((!player && !directoryRow) || expectedPassword !== password) {
         $("#loginError").textContent = "Name oder Passwort ist falsch.";
         return;
       }
@@ -4958,6 +5163,7 @@
       switchView("messages");
     }
     syncWithSupabase({ silent: true });
+    refreshLoginDirectory().catch(() => {});
     loadPaypalSettings();
 
     if ("serviceWorker" in navigator) {
