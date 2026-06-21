@@ -27,6 +27,39 @@
     const EXPIRED_LICENSE_VIEWS = new Set(["players", "events", "fame", "settings"]);
     const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
+    const NATIONALITIES = [
+      ["DE", "🇩🇪", "Deutschland"],
+      ["TR", "🇹🇷", "Tuerkei"],
+      ["SY", "🇸🇾", "Syrien"],
+      ["AF", "🇦🇫", "Afghanistan"],
+      ["UA", "🇺🇦", "Ukraine"],
+      ["PL", "🇵🇱", "Polen"],
+      ["IT", "🇮🇹", "Italien"],
+      ["ES", "🇪🇸", "Spanien"],
+      ["FR", "🇫🇷", "Frankreich"],
+      ["NL", "🇳🇱", "Niederlande"],
+      ["BE", "🇧🇪", "Belgien"],
+      ["AT", "🇦🇹", "Oesterreich"],
+      ["CH", "🇨🇭", "Schweiz"],
+      ["PT", "🇵🇹", "Portugal"],
+      ["GR", "🇬🇷", "Griechenland"],
+      ["HR", "🇭🇷", "Kroatien"],
+      ["RS", "🇷🇸", "Serbien"],
+      ["BA", "🇧🇦", "Bosnien und Herzegowina"],
+      ["XK", "🇽🇰", "Kosovo"],
+      ["AL", "🇦🇱", "Albanien"],
+      ["MA", "🇲🇦", "Marokko"],
+      ["TN", "🇹🇳", "Tunesien"],
+      ["DZ", "🇩🇿", "Algerien"],
+      ["EG", "🇪🇬", "Aegypten"],
+      ["NG", "🇳🇬", "Nigeria"],
+      ["GH", "🇬🇭", "Ghana"],
+      ["GM", "🇬🇲", "Gambia"],
+      ["US", "🇺🇸", "USA"],
+      ["BR", "🇧🇷", "Brasilien"],
+      ["AR", "🇦🇷", "Argentinien"],
+      ["OTHER", "🏳️", "Sonstiges"]
+    ];
     const MESSAGE_GROUP_CLASSES = {
       Mannschaft: "group-mannschaft",
       Mannschaftsrat: "group-mannschaftsrat",
@@ -353,6 +386,8 @@
         group: normalizeGroups(player)[0],
         photo: player.photo || "",
         jerseyNumber: player.jerseyNumber || "",
+        birthDate: player.birthDate || "",
+        nationality: player.nationality || "",
         memberSince: player.memberSince || "",
         captainRole: player.captainRole || "",
         trainingFocusShort: player.trainingFocusShort || "",
@@ -455,6 +490,8 @@
         notes: "",
         photo: player.photo || "",
         jerseyNumber: player.jerseyNumber || "",
+        birthDate: player.birthDate || "",
+        nationality: player.nationality || "",
         captainRole: "",
         trainingFocusShort: "",
         trainingFocusLong: "",
@@ -2250,6 +2287,7 @@
       renderClubSelect();
       renderLoginUsers();
       renderClubDesignForm();
+      renderPlayerCreateFormOptions();
       renderInstallPanel();
       renderStatus();
       renderStats();
@@ -2363,6 +2401,13 @@
       if (form.elements.licenseAutoRenew) form.elements.licenseAutoRenew.checked = Boolean(club.licenseAutoRenew);
     }
 
+    function renderPlayerCreateFormOptions() {
+      const form = $("#playerForm");
+      if (!form?.elements.nationality) return;
+      const selected = form.elements.nationality.value || "";
+      form.elements.nationality.innerHTML = nationalityOptions(selected);
+    }
+
     function renderLoginUsers() {
       const selected = loginPrefillFor().user;
       const sourceNames = loginDirectoryLoaded && loginDirectory.length
@@ -2409,7 +2454,7 @@
                     <p class="item-title">${player.jerseyNumber ? `<span class="chip">#${escapeHtml(player.jerseyNumber)}</span> ` : ""}${escapeHtml(player.name)}</p>
                     ${renderAvailabilityBadges(player)}
                   </div>
-                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span>${captainRoleLabel(player.captainRole) ? `<span>${escapeHtml(captainRoleLabel(player.captainRole))}</span>` : ""}<span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span>${captainRoleLabel(player.captainRole) ? `<span>${escapeHtml(captainRoleLabel(player.captainRole))}</span>` : ""}${player.birthDate ? `<span>Geb. ${escapeHtml(formatShortDate(player.birthDate))}</span>` : ""}${nationalityLabel(player.nationality) ? `<span>${escapeHtml(nationalityLabel(player.nationality))}</span>` : ""}<span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
               <span class="chip">${isTemporaryGuest ? "Temporaer" : escapeHtml(groupLabels(player))}</span>
@@ -3652,6 +3697,18 @@
         .join("");
     }
 
+    function nationalityOptions(selected) {
+      return [
+        ["", "", "Keine Angabe"],
+        ...NATIONALITIES
+      ].map(([code, flag, label]) => `<option value="${escapeAttr(code)}" ${code === selected ? "selected" : ""}>${escapeHtml(`${flag ? `${flag} ` : ""}${label}`)}</option>`).join("");
+    }
+
+    function nationalityLabel(code) {
+      const country = NATIONALITIES.find(([value]) => value === code);
+      return country ? `${country[1]} ${country[2]}` : "";
+    }
+
     function captainRoleOptions(selected) {
       return [
         ["", "Keine"],
@@ -3797,6 +3854,8 @@
         groupLabels(player),
         player.phone,
         player.jerseyNumber,
+        player.birthDate,
+        nationalityLabel(player.nationality),
         player.memberSince,
         captainRoleLabel(player.captainRole),
         player.trainingFocusShort,
@@ -3948,9 +4007,17 @@
       }
       $("#playerEditForm").innerHTML = `
         <input type="hidden" name="id" value="${escapeAttr(player.id)}">
+        <div class="player-tabs">
+          <button class="mini active" type="button" data-player-tab="general">Allgemein</button>
+          <button class="mini" type="button" data-player-tab="details">Details</button>
+          ${isRosterPlayer && fullAccess ? `<button class="mini" type="button" data-player-tab="performance">Leistungsdaten</button>` : ""}
+        </div>
+        <div class="player-tab-panel form-grid active" data-player-tab-panel="general">
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
         ${isRosterPlayer ? `<div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>` : ""}
         ${isRosterPlayer ? `<div class="field"><label>Rueckennummer</label><input name="jerseyNumber" type="number" min="0" max="999" value="${escapeAttr(player.jerseyNumber || "")}" inputmode="numeric"></div>` : ""}
+        ${isRosterPlayer ? `<div class="field"><label>Geboren am</label><input name="birthDate" type="date" value="${escapeAttr(player.birthDate || "")}"></div>` : ""}
+        ${isRosterPlayer ? `<div class="field"><label>Nationalitaet</label><select name="nationality">${nationalityOptions(player.nationality || "")}</select></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
         <div class="field"><label>Im Verein seit</label><input name="memberSince" type="date" value="${escapeAttr(player.memberSince || "")}"></div>
         ${isRosterPlayer && fullAccess ? `<div class="field"><label>Kapitänsrolle</label><select name="captainRole">${captainRoleOptions(player.captainRole || "")}</select></div>` : ""}
@@ -3962,6 +4029,8 @@
         ${isRosterPlayer && fullAccess ? renderTransferControls(player) : ""}
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
         <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
+        </div>
+        <div class="player-tab-panel form-grid" data-player-tab-panel="details">
         ${isRosterPlayer && fullAccess ? `<div class="field full"><label>Trainingsschwerpunkt kurzfristig</label><input name="trainingFocusShort" value="${escapeAttr(player.trainingFocusShort || "")}"></div>
         <div class="field full"><label>Trainingsschwerpunkt langfristig</label><input name="trainingFocusLong" value="${escapeAttr(player.trainingFocusLong || "")}"></div>` : ""}
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
@@ -3969,9 +4038,8 @@
           <label>Status</label>
           <div class="availability-grid">${availabilityEditor(player)}</div>
         </div>
-        ${isRosterPlayer && fullAccess ? `<details class="form-details field full">
-          <summary>Leistungsdaten</summary>
-          <div class="form-grid">
+        </div>
+        ${isRosterPlayer && fullAccess ? `<div class="player-tab-panel form-grid" data-player-tab-panel="performance">
             <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
             ${GRADE_FIELDS.map((field) => `
               <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select name="${field}">${gradeOptions(player.performance?.[field])}</select></div>
@@ -3979,8 +4047,7 @@
             <div class="field full"><label>Staerken</label><textarea name="strengths">${escapeHtml(player.performance?.strengths || "")}</textarea></div>
             <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
             <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
-          </div>
-        </details>` : ""}
+        </div>` : ""}
         <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
         ${fullAccess ? `<div class="field"><button class="btn-danger" id="deletePlayerFromModalBtn" type="button">Spieler entfernen</button></div>` : ""}
         <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
@@ -4186,7 +4253,7 @@
         .map((player) => `<tr><td>${escapeHtml(player.name)}</td><td>${escapeHtml(player.trainingFocusShort || "")}</td><td>${escapeHtml(player.trainingFocusLong || "")}</td></tr>`)
         .join("");
       const html = `<!doctype html>
-        <html lang="de"><head><meta charset="utf-8"><title>Trainerdruck ${escapeHtml(currentClub().name)}</title>
+        <html lang="de"><head><meta charset="utf-8"><title>Trainerbericht ${escapeHtml(currentClub().name)}</title>
         <style>
           body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#102119;margin:28px;line-height:1.35}
           h1{font-size:28px;margin:0 0 4px} h2{font-size:18px;margin:24px 0 8px}.meta{color:#647267;margin-bottom:18px}
@@ -4277,6 +4344,8 @@
         name: values.name,
         position: isPlayer ? values.position : "",
         jerseyNumber: isPlayer ? (values.jerseyNumber || "") : "",
+        birthDate: isPlayer ? (values.birthDate || "") : "",
+        nationality: isPlayer ? (values.nationality || "") : "",
         phone: values.phone,
         memberSince: values.memberSince || "",
         role: sanitizeRole(values.role),
@@ -4655,6 +4724,13 @@
     $("#playerEditForm").addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const tabButton = target.closest("[data-player-tab]");
+      if (tabButton) {
+        const tab = tabButton.dataset.playerTab;
+        $$("[data-player-tab]").forEach((button) => button.classList.toggle("active", button === tabButton));
+        $$("[data-player-tab-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.playerTabPanel === tab));
+        return;
+      }
       const player = state.players.find((item) => item.id === $("#playerEditForm").elements.id.value);
       if (!player || !canManage()) return;
       if (target.id === "clearPlayerPhotoBtn") {
@@ -4740,6 +4816,8 @@
       // (nach memberRoles-Update, damit Rollenwechsel sofort greift)
       player.position = hasMemberRole(player, "Spieler") ? values.position : "";
       player.jerseyNumber = hasMemberRole(player, "Spieler") ? (values.jerseyNumber || "") : "";
+      player.birthDate = hasMemberRole(player, "Spieler") ? (values.birthDate || "") : "";
+      player.nationality = hasMemberRole(player, "Spieler") ? (values.nationality || "") : "";
       if (canManage()) {
         player.captainRole = hasMemberRole(player, "Spieler") ? (values.captainRole || "") : "";
         player.trainingFocusShort = hasMemberRole(player, "Spieler") ? (values.trainingFocusShort || "").trim() : "";
