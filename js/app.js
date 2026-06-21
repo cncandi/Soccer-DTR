@@ -75,74 +75,13 @@
     };
     const DEFAULT_SUPABASE_URL = "https://pihgvwnoznqhautudhlx.supabase.co";
     const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaGd2d25vem5xaGF1dHVkaGx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDA0NjMsImV4cCI6MjA5NTIxNjQ2M30.7BSIzhcHNibC4Tkz0Id7AnNGxFJTtx9cxF5UFX6QiGA";
-    const DEFAULT_PLAYER_NAMES = [
-      "AhmadAli",
-      "Andreas Reitz",
-      "Arsenii",
-      "Ben Gaz deutschland",
-      "Fabi Bierau",
-      "Fynn Boehle",
-      "Gaith",
-      "Ibush Gashi",
-      "Jakob",
-      "Jan Cegledi",
-      "Johannes Damm",
-      "Jonas Schwind",
-      "Jonathan Gaz",
-      "Lenny Bergunde",
-      "Luca Becker",
-      "Luis Pollmann",
-      "Lukas Stark",
-      "Mamadou Diallo",
-      "Marvin Donges",
-      "Marvin Weber",
-      "Max Reitz",
-      "Michael Becker",
-      "Mo",
-      "Niko Arnold",
-      "Pathe",
-      "Steven Simmons",
-      "Thore Ruppersberger",
-      "Tristan Seipp"
-    ];
-    const DEFAULT_USER_ROLES = {
-      "andreas reitz": "Superadmin",
-      "max reitz": "Superadmin",
-      "steven simmons": "Admin"
-    };
-    const DEFAULT_USER_PASSWORDS = {
-      "andreas reitz": "F###mill55"
-    };
-    const DEFAULT_MEMBER_ROLES = {
-      "steven simmons": ["Spieler", "Trainer"],
-      "andreas reitz": ["Trainer"],
-      "michael becker": ["Betreuer"]
-    };
-    const REMOVED_DEFAULT_PLAYERS = ["marko rujevic", "edu klaus"];
-
     const defaultState = {
-      players: DEFAULT_PLAYER_NAMES.map((name) => ({
-        id: crypto.randomUUID(),
-        name,
-        position: "Mittelfeld",
-        phone: "",
-        group: "Mannschaft",
-        groups: ["Mannschaft"],
-        notes: "",
-        password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
-        role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
-        memberRoles: DEFAULT_MEMBER_ROLES[name.trim().toLowerCase()] || ["Spieler"],
-        photo: "",
-        alternatePositions: [],
-        availability: defaultAvailability(),
-        performance: defaultPerformance()
-      })),
+      players: [],
       events: [],
       cashFines: [],
-      fineCatalog: defaultFineCatalog(),
+      fineCatalog: [],
       polls: [],
       messages: [],
-      removedDefaultPlayers: [],
       hallOfFame: { selfTrainings: [], bonusPoints: [] }
     };
 
@@ -214,8 +153,6 @@
     }
 
     function normalizeMemberRoles(player = {}) {
-      const defaultRoles = DEFAULT_MEMBER_ROLES[String(player.name || "").trim().toLowerCase()];
-      if (defaultRoles) return defaultRoles;
       if (Array.isArray(player.memberRoles) && player.memberRoles.length) {
         const roles = MEMBER_FUNCTIONS.filter((role) => player.memberRoles.includes(role));
         return roles.length ? roles : ["Spieler"];
@@ -278,7 +215,7 @@
       const legacyStored = currentClubId === DEFAULT_CLUB_ID ? localStorage.getItem(STORE_KEY) : null;
       const source = stored || legacyStored;
       const loadedState = source ? JSON.parse(source) : structuredClone(defaultState);
-      return ensureDefaultPlayers(loadedState);
+      return normalizeState(loadedState);
     }
 
     function playerNameKey(name) {
@@ -292,8 +229,8 @@
       return {
         ...player,
         name: String(player.name || "").trim(),
-        password: player.password || DEFAULT_USER_PASSWORDS[nameKey] || DEFAULT_PASSWORD,
-        role: player.role || DEFAULT_USER_ROLES[nameKey] || "Spieler",
+        password: player.password || DEFAULT_PASSWORD,
+        role: player.role || "Spieler",
         memberRoles,
         groups: normalizeGroups(player),
         group: normalizeGroups(player)[0],
@@ -311,18 +248,11 @@
       [...a, ...b].forEach((player) => {
         const normalized = normalizePlayer(player);
         const key = playerNameKey(normalized.name);
-        if (!key || REMOVED_DEFAULT_PLAYERS.includes(key)) return;
+        if (!key) return;
         const existing = map.get(key);
         map.set(key, existing ? { ...existing, ...normalized, id: existing.id || normalized.id } : normalized);
       });
       return [...map.values()];
-    }
-
-    function normalizeRemovedDefaultPlayers(players = []) {
-      return [...new Set([
-        ...REMOVED_DEFAULT_PLAYERS,
-        ...(Array.isArray(players) ? players : [])
-      ].map(playerNameKey).filter(Boolean))];
     }
 
     function hasPlayerName(name, exceptId = "") {
@@ -335,10 +265,6 @@
       const player = state.players.find((item) => item.id === playerId);
       if (!player) return;
       if (!window.confirm(`${player.name} wirklich entfernen?`)) return;
-      const key = playerNameKey(player.name);
-      if (DEFAULT_PLAYER_NAMES.some((name) => playerNameKey(name) === key)) {
-        state.removedDefaultPlayers = normalizeRemovedDefaultPlayers([...(state.removedDefaultPlayers || []), key]);
-      }
       state.players = state.players.filter((item) => item.id !== playerId);
       state.events = (state.events || []).map((eventItem) => {
         if (!eventItem.rsvps?.[player.name]) return eventItem;
@@ -350,38 +276,14 @@
       saveState();
     }
 
-    function ensureDefaultPlayers(loadedState) {
-      const removedDefaultPlayers = normalizeRemovedDefaultPlayers(loadedState.removedDefaultPlayers);
-      const normalizedPlayers = mergePlayersByName(loadedState.players || [])
-        .filter((player) => !removedDefaultPlayers.includes(playerNameKey(player.name)));
-      const existingNames = new Set(normalizedPlayers.map((player) => playerNameKey(player.name)));
-      const missingPlayers = DEFAULT_PLAYER_NAMES
-        .filter((name) => !existingNames.has(name.toLowerCase()) && !removedDefaultPlayers.includes(name.toLowerCase()))
-        .map((name) => ({
-          id: crypto.randomUUID(),
-          name,
-          position: "Mittelfeld",
-          phone: "",
-          group: "Mannschaft",
-          groups: ["Mannschaft"],
-          notes: "",
-          password: DEFAULT_USER_PASSWORDS[name.trim().toLowerCase()] || DEFAULT_PASSWORD,
-          role: DEFAULT_USER_ROLES[name.trim().toLowerCase()] || "Spieler",
-          memberRoles: DEFAULT_MEMBER_ROLES[name.trim().toLowerCase()] || ["Spieler"],
-          photo: "",
-          alternatePositions: [],
-          availability: defaultAvailability(),
-          performance: defaultPerformance()
-        }));
-
+    function normalizeState(loadedState = {}) {
       return {
-        players: [...normalizedPlayers, ...missingPlayers],
+        players: mergePlayersByName(loadedState.players || []),
         events: (loadedState.events || []).map(normalizeEvent),
         cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
         messages: loadedState.messages || [],
-        removedDefaultPlayers,
         hallOfFame: normalizeHallOfFame(loadedState.hallOfFame)
       };
     }
@@ -405,9 +307,9 @@
     }
 
     function ensureFineCatalog(catalog) {
-      return Array.isArray(catalog) && catalog.length
+      return Array.isArray(catalog)
         ? catalog.map(normalizeFineCatalogItem)
-        : defaultFineCatalog();
+        : [];
     }
 
     function normalizeCashFine(fine) {
@@ -497,7 +399,7 @@
     }
 
     function saveState(options = {}) {
-      state = ensureDefaultPlayers(state);
+      state = normalizeState(state);
       localStorage.setItem(stateKey(), JSON.stringify(state));
       markActiveViewSeen();
       render();
@@ -533,7 +435,7 @@
     function loginPrefillFor(clubId = currentClubId) {
       const prefill = loginPrefills()[clubId] || {};
       return {
-        user: prefill.user || localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz",
+        user: prefill.user || localStorage.getItem(LOGIN_USER_KEY) || state.players[0]?.name || "",
         password: prefill.password || ""
       };
     }
@@ -796,7 +698,7 @@
       pendingCloudSync = false;
       if (!options.silent) setStatus("Synchronisiere mit Supabase ...");
       try {
-        const clubChanged = await syncClubs(client);
+        const clubChanged = await syncClubs(client, options);
         if (clubChanged) {
           state = loadState();
           updateRoleFromUser();
@@ -808,7 +710,7 @@
         }
 
         if (!options.preferLocal && data && data.document) {
-          state = mergeState(state, data.document);
+          state = normalizeState(data.document);
         }
 
         const payload = { id: clubDocumentId(), document: state, updated_at: new Date().toISOString() };
@@ -832,18 +734,15 @@
       }
     }
 
-    async function syncClubs(client) {
+    async function syncClubs(client, options = {}) {
       const previousClubId = currentClubId;
       const previousClubs = clubs.map(normalizeClub);
       const { data, error } = await client.from(settings.table).select("document,updated_at").eq("id", clubsDocumentId()).maybeSingle();
       if (error) throw new Error(error.message);
       if (data && data.document && Array.isArray(data.document.clubs)) {
         const remoteClubs = data.document.clubs.map((club) => normalizeClub({ ...club, updatedAt: club.updatedAt || data.updated_at || "" }));
-        const hadOnlyDefaultClub = previousClubs.length === 1 && isDefaultPlaceholderClub(previousClubs[0]);
-        clubs = hadOnlyDefaultClub ? remoteClubs : mergeClubs(clubs, remoteClubs);
-        if (hadOnlyDefaultClub && remoteClubs.length) {
-          currentClubId = preferredRemoteClub(remoteClubs).id;
-        } else if (!clubs.some((club) => club.id === currentClubId)) {
+        clubs = options.preferLocal ? mergeClubs(clubs, remoteClubs) : (remoteClubs.length ? remoteClubs : previousClubs);
+        if (clubs.length && !clubs.some((club) => club.id === currentClubId)) {
           currentClubId = clubs[0].id;
         }
         if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) {
@@ -871,21 +770,6 @@
 
     function preferredRemoteClub(remoteClubs) {
       return remoteClubs.find((club) => !isDefaultPlaceholderClub(club)) || remoteClubs[0];
-    }
-
-    function mergeState(localState, remoteState) {
-      return ensureDefaultPlayers({
-        players: mergePlayersByName(localState.players, remoteState.players || []),
-        events: mergeById(localState.events, remoteState.events || []),
-        cashFines: mergeById(localState.cashFines || [], remoteState.cashFines || []),
-        fineCatalog: mergeById(localState.fineCatalog || [], remoteState.fineCatalog || []),
-        polls: mergeById(localState.polls, remoteState.polls || []),
-        messages: mergeById(localState.messages, remoteState.messages || []),
-        hallOfFame: {
-          selfTrainings: mergeById(localState.hallOfFame?.selfTrainings || [], remoteState.hallOfFame?.selfTrainings || []),
-          bonusPoints: mergeById(localState.hallOfFame?.bonusPoints || [], remoteState.hallOfFame?.bonusPoints || [])
-        }
-      });
     }
 
     function mergeById(a, b) {
@@ -1370,12 +1254,12 @@
 
     function renderLoginUsers() {
       const selected = loginPrefillFor().user;
-      const names = [...new Set([...DEFAULT_PLAYER_NAMES, ...state.players.map((player) => player.name)])]
+      const names = [...new Set(state.players.map((player) => player.name))]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
         .map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
         .join("");
-      $("#loginUser").value = names.includes(selected) ? selected : "Max Reitz";
+      $("#loginUser").value = names.includes(selected) ? selected : names[0] || "";
       fillSavedLoginPassword();
     }
 
@@ -3817,7 +3701,7 @@
 
     $("#enablePushBtn")?.addEventListener("click", enablePushNotifications);
 
-    $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || "Max Reitz";
+    $("#currentUser").value = localStorage.getItem(LOGIN_USER_KEY) || state.players[0]?.name || "";
     const restoredLogin = restoreLogin();
     if (!restoredLogin) updateRoleFromUser();
     renderClubSelect();

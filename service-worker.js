@@ -1,12 +1,12 @@
-const CACHE_NAME = "soccer-dtr-v60";
+const CACHE_NAME = "soccer-dtr-v61";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
 const APP_SHELL = [
   "./",
   "index.html",
-  "css/app.css?v=60",
-  "js/app.js?v=60",
+  "css/app.css?v=61",
+  "js/app.js?v=61",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
   "kadrivo-icon-192.png",
