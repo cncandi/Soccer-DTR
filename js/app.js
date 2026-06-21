@@ -25,6 +25,8 @@
     const FULL_LICENSE_DAYS = 365;
     const LICENSE_WARNING_DAYS = 5;
     const EXPIRED_LICENSE_VIEWS = new Set(["players", "events", "fame", "settings"]);
+    const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
+    const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
     const MESSAGE_GROUP_CLASSES = {
       Mannschaft: "group-mannschaft",
       Mannschaftsrat: "group-mannschaftsrat",
@@ -205,6 +207,8 @@
         name: club.name || "Mein Verein",
         color: club.color || "#155e3b",
         logo: club.logo || "",
+        league: club.league || club.liga || "",
+        federalState: club.federalState || club.federal_state || club.bundesland || "",
         licenseKey: club.licenseKey || club.license_key || generateLicenseKey(),
         licenseStatus: status,
         licenseActivatedAt: activatedAt,
@@ -341,6 +345,7 @@
         groups: normalizeGroups(player),
         group: normalizeGroups(player)[0],
         photo: player.photo || "",
+        memberSince: player.memberSince || "",
         // Reine Trainer/Betreuer ohne Spieler-Rolle haben keine Position
         position: isPlayerMember ? (player.position || "") : "",
         alternatePositions: isPlayerMember && Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
@@ -423,6 +428,7 @@
         phone: player.phone || "",
         notes: "",
         photo: player.photo || "",
+        memberSince: player.memberSince || "",
         alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: defaultAvailability(),
         performance: defaultPerformance(),
@@ -885,6 +891,8 @@
         name: row.name,
         color: row.color,
         logo: row.logo,
+        league: row.league,
+        federalState: row.federal_state,
         licenseKey: row.license_key,
         licenseStatus: row.license_status,
         licenseActivatedAt: row.license_activated_at,
@@ -897,11 +905,13 @@
     async function loadRemoteClubsFromTable(client) {
       const withLicense = await client
         .from("clubs")
-        .select("id,name,color,logo,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+        .select("id,name,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
       if (!withLicense.error) return (withLicense.data || []).map(clubFromRow);
 
       const message = withLicense.error.message || "";
-      if (!message.includes("license_activated_at") && !message.includes("license_expires_at") && !message.includes("license_auto_renew")) {
+      const missingOptionalClubColumn = ["license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+        .some((column) => message.includes(column));
+      if (!missingOptionalClubColumn) {
         if (normalizedSchemaUnavailable(withLicense.error)) return [];
         throw withLicense.error;
       }
@@ -1178,6 +1188,8 @@
         name: club.name,
         color: normalizeHexColor(club.color || "#155e3b"),
         logo: club.logo || "",
+        league: club.league || "",
+        federal_state: club.federalState || "",
         license_key: club.licenseKey || generateLicenseKey(),
         license_status: normalizeLicenseStatus(club.licenseStatus),
         license_activated_at: club.licenseActivatedAt,
@@ -1185,7 +1197,11 @@
         license_auto_renew: Boolean(club.licenseAutoRenew),
         updated_at: club.updatedAt || now
       }));
-      const clubUpsert = await client.from("clubs").upsert(clubRows);
+      let clubUpsert = await client.from("clubs").upsert(clubRows);
+      if (clubUpsert.error && ["league", "federal_state"].some((column) => (clubUpsert.error.message || "").includes(column))) {
+        const legacyClubRows = clubRows.map(({ league, federal_state, ...row }) => row);
+        clubUpsert = await client.from("clubs").upsert(legacyClubRows);
+      }
       if (clubUpsert.error) throw clubUpsert.error;
 
       state.players.forEach(ensureEntityId);
@@ -1457,6 +1473,8 @@
         name: clubName,
         color: "#155e3b",
         logo: "",
+        league: "",
+        federalState: "",
         licenseKey: generateLicenseKey(),
         licenseStatus: "trial",
         licenseActivatedAt: now,
@@ -1488,6 +1506,8 @@
         slug: `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
         color: club.color,
         logo: club.logo,
+        league: club.league || "",
+        federal_state: club.federalState || "",
         license_key: club.licenseKey,
         license_status: club.licenseStatus,
         license_activated_at: club.licenseActivatedAt,
@@ -1498,6 +1518,10 @@
       let clubInsert = await client.from("clubs").insert(clubPayload);
       if (clubInsert.error && normalizedSchemaUnavailable(clubInsert.error)) {
         const { license_activated_at, license_expires_at, license_auto_renew, ...legacyClubPayload } = clubPayload;
+        clubInsert = await client.from("clubs").insert(legacyClubPayload);
+      }
+      if (clubInsert.error && ["league", "federal_state"].some((column) => (clubInsert.error.message || "").includes(column))) {
+        const { league, federal_state, ...legacyClubPayload } = clubPayload;
         clubInsert = await client.from("clubs").insert(legacyClubPayload);
       }
       if (clubInsert.error) throw clubInsert.error;
@@ -2180,6 +2204,8 @@
       const form = $("#clubDesignForm");
       if (!form) return;
       const club = currentClub();
+      if (form.elements.league) form.elements.league.innerHTML = optionListWithEmpty(CLUB_LEAGUES, club.league || "");
+      if (form.elements.federalState) form.elements.federalState.innerHTML = optionListWithEmpty(FEDERAL_STATES, club.federalState || "");
       form.elements.name.value = club.name;
       form.elements.color.value = normalizeHexColor(club.color || "#155e3b");
       form.elements.logoUrl.value = club.logo && !club.logo.startsWith("data:") ? club.logo : "";
@@ -2231,7 +2257,7 @@
                     <p class="item-title">${escapeHtml(player.name)}</p>
                     ${renderAvailabilityBadges(player)}
                   </div>
-                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
+                  <div class="meta"><span>${escapeHtml(displayPosition(player))}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
               <span class="chip">${escapeHtml(groupLabels(player))}</span>
@@ -3453,6 +3479,10 @@
         .join("");
     }
 
+    function optionListWithEmpty(options, selected) {
+      return optionList(["", ...options], selected || "");
+    }
+
     function positionOptions(selected) {
       return optionList(["Tor", "Abwehr", "Mittelfeld", "Sturm", "Trainer", "Betreuer"], selected);
     }
@@ -3567,6 +3597,7 @@
         memberRoleLabels(player),
         groupLabels(player),
         player.phone,
+        player.memberSince,
         player.notes,
         availability
       ].join(" ").toLowerCase();
@@ -3675,6 +3706,7 @@
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
         ${isRosterPlayer ? `<div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
+        <div class="field"><label>Im Verein seit</label><input name="memberSince" type="date" value="${escapeAttr(player.memberSince || "")}"></div>
         ${fullAccess ? `<div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>` : ""}
         <div class="field full"><label>Gruppen</label><div class="inline-checks">${groupEditor(player)}</div></div>
         ${fullAccess ? `<div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>` : ""}
@@ -3919,6 +3951,7 @@
         name: values.name,
         position: isPlayer ? values.position : "",
         phone: values.phone,
+        memberSince: values.memberSince || "",
         role: sanitizeRole(values.role),
         group: groups[0],
         groups,
@@ -4198,6 +4231,8 @@
       const values = formValues(event.currentTarget);
       const club = currentClub();
       club.name = values.name.trim() || club.name;
+      club.league = values.league || "";
+      club.federalState = values.federalState || "";
       club.color = normalizeHexColor(values.color);
       if (isSuperadmin() && values.licenseStatus) {
         const nextStatus = normalizeLicenseStatus(values.licenseStatus);
@@ -4336,6 +4371,7 @@
 
       player.name = nextName;
       player.phone = values.phone.trim();
+      player.memberSince = values.memberSince || "";
       player.groups = groupsFromValues(values);
       player.group = player.groups[0];
       // Berechtigungsrolle und Mitgliedsrollen darf nur Admin/Superadmin aendern
@@ -4712,6 +4748,8 @@
         name,
         color: normalizeHexColor(currentClub().color),
         logo: "",
+        league: "",
+        federalState: "",
         licenseKey: generateLicenseKey(),
         licenseStatus: "trial",
         licenseActivatedAt: now,

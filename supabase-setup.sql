@@ -27,6 +27,8 @@ create table if not exists public.clubs (
   slug text unique,
   color text not null default '#155e3b',
   logo text not null default '',
+  league text not null default '',
+  federal_state text not null default '',
   license_key text not null unique default ('KAD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))),
   license_status text not null default 'trial' check (license_status in ('trial', 'active', 'blocked')),
   license_activated_at timestamptz default now(),
@@ -39,6 +41,8 @@ create table if not exists public.clubs (
 alter table public.clubs add column if not exists license_activated_at timestamptz default now();
 alter table public.clubs add column if not exists license_expires_at timestamptz default (now() + interval '21 days');
 alter table public.clubs add column if not exists license_auto_renew boolean not null default false;
+alter table public.clubs add column if not exists league text not null default '';
+alter table public.clubs add column if not exists federal_state text not null default '';
 
 alter table public.clubs enable row level security;
 

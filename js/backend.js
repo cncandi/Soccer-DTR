@@ -3,6 +3,8 @@ const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi
 const BACKEND_SESSION_KEY = "kadrivo-backend-superadmin";
 const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
+const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
+const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -83,6 +85,12 @@ function formValues(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
 
+function optionListWithEmpty(options, selected) {
+  return ["", ...options]
+    .map((option) => `<option value="${escapeHtml(option)}" ${option === selected ? "selected" : ""}>${escapeHtml(option)}</option>`)
+    .join("");
+}
+
 async function verifySuperadmin(password) {
   const { data, error } = await client.from("players").select("name,password,role").eq("role", "Superadmin");
   if (error) throw error;
@@ -101,13 +109,15 @@ async function fetchTable(table, select = "*") {
 async function fetchClubs() {
   const withLicense = await client
     .from("clubs")
-    .select("id,name,slug,color,logo,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+    .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
   if (!withLicense.error) {
     backend.licenseColumnsReady = true;
     return withLicense.data || [];
   }
   const message = withLicense.error.message || "";
-  if (!message.includes("license_activated_at") && !message.includes("license_expires_at") && !message.includes("license_auto_renew")) {
+  const missingOptionalClubColumn = ["license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+    .some((column) => message.includes(column));
+  if (!missingOptionalClubColumn) {
     throw withLicense.error;
   }
   const fallback = await client
@@ -264,6 +274,8 @@ function renderDetails() {
         <form id="clubSettingsForm" class="form-grid">
           <input type="hidden" name="clubId" value="${escapeHtml(club.id)}">
           <div class="field full"><label>Vereinsname</label><input name="name" value="${escapeHtml(club.name || "")}" required></div>
+          <div class="field"><label>Liga</label><select name="league">${optionListWithEmpty(CLUB_LEAGUES, club.league || "")}</select></div>
+          <div class="field"><label>Bundesland</label><select name="federalState">${optionListWithEmpty(FEDERAL_STATES, club.federal_state || "")}</select></div>
           <div class="field"><label>Farbe</label><input name="color" type="color" value="${escapeHtml(club.color || "#155e3b")}"></div>
           <div class="field full"><label>Logo URL / Data URL</label><textarea name="logo">${escapeHtml(club.logo || "")}</textarea></div>
           <div class="field full"><button class="btn-primary" type="submit">Vereinsdaten speichern</button></div>
@@ -347,6 +359,8 @@ async function updateClubDocument(club) {
     name: club.name,
     color: club.color,
     logo: club.logo,
+    league: club.league || "",
+    federalState: club.federal_state || "",
     licenseKey: club.license_key,
     licenseStatus: club.license_status,
     licenseActivatedAt: club.license_activated_at,
@@ -359,6 +373,8 @@ async function updateClubDocument(club) {
       name: club.name,
       color: club.color,
       logo: club.logo,
+      league: club.league || "",
+      federalState: club.federal_state || "",
       licenseKey: club.license_key,
       licenseStatus: club.license_status,
       licenseActivatedAt: club.license_activated_at,
@@ -418,12 +434,20 @@ async function setLicense(clubId, status) {
 }
 
 async function saveClubSettings(values) {
-  const { data, error } = await client.from("clubs").update({
+  const payload = {
     name: values.name.trim(),
+    league: values.league || "",
+    federal_state: values.federalState || "",
     color: values.color || "#155e3b",
     logo: values.logo || "",
     updated_at: new Date().toISOString()
-  }).eq("id", values.clubId).select().single();
+  };
+  let result = await client.from("clubs").update(payload).eq("id", values.clubId).select().single();
+  if (result.error && ["league", "federal_state"].some((column) => (result.error.message || "").includes(column))) {
+    const { league, federal_state, ...legacyPayload } = payload;
+    result = await client.from("clubs").update(legacyPayload).eq("id", values.clubId).select().single();
+  }
+  const { data, error } = result;
   if (error) throw error;
   await updateClubDocument(data);
   await loadBackendData();
