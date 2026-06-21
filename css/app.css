@@ -1431,6 +1431,94 @@
       min-width: 0;
     }
 
+    .tactic-commandbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 12px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7faf8;
+    }
+
+    .tactic-commandbar .mini {
+      min-height: 38px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(16,33,25,.08);
+    }
+
+    .tactic-options {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbf9;
+    }
+
+    .tactic-options[hidden] {
+      display: none !important;
+    }
+
+    .tactic-options h4 {
+      margin: 0;
+      color: var(--dark);
+      font-size: 1.1rem;
+    }
+
+    .tactic-choice-row {
+      display: grid;
+      gap: 7px;
+    }
+
+    .tactic-choice,
+    .tactic-card {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: #eef3f0;
+      color: var(--dark);
+      font: inherit;
+      font-weight: 800;
+      text-align: left;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .tactic-choice {
+      padding: 10px 12px;
+    }
+
+    .tactic-choice:hover,
+    .tactic-card:hover,
+    .tactic-choice.active,
+    .tactic-card.active {
+      border-color: #c9d8cf;
+      background: #dcebd8;
+      color: var(--green);
+    }
+
+    .tactic-option-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tactic-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tactic-card {
+      display: grid;
+      place-items: center;
+      min-height: 58px;
+      padding: 10px;
+      text-align: center;
+      background: #f2f5f3;
+    }
+
     .tactic-board-wrap {
       width: 100%;
       overflow: auto;
@@ -1477,6 +1565,35 @@
     .tactic-line.selected {
       stroke: #facc15;
       stroke-width: 1.2;
+    }
+
+    .tactic-shape {
+      vector-effect: non-scaling-stroke;
+    }
+
+    .tactic-shape.selected,
+    .tactic-accessory.selected {
+      stroke: #facc15;
+      stroke-width: .9;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .tactic-player-icon circle {
+      stroke: #fff;
+      stroke-width: .45;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .tactic-player-icon text {
+      fill: #fff;
+      font-size: 2.1px;
+      font-weight: 950;
+      text-anchor: middle;
+      dominant-baseline: central;
+      paint-order: stroke;
+      stroke: rgba(0,0,0,.55);
+      stroke-width: .35;
+      vector-effect: non-scaling-stroke;
     }
 
     .tactic-player circle {

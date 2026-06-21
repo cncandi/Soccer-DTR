@@ -142,6 +142,9 @@
     let selectedTacticBoardId = "";
     let selectedTacticElementId = "";
     let tacticPointer = null;
+    let tacticUndoStack = [];
+    let tacticRedoStack = [];
+    let tacticClipboard = null;
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -4358,6 +4361,133 @@
       return state.tacticBoards.find((board) => board.id === selectedTacticBoardId);
     }
 
+    function tacticElementsSnapshot(board = currentTacticBoard()) {
+      return JSON.stringify(board.elements || []);
+    }
+
+    function restoreTacticElements(snapshot) {
+      const board = currentTacticBoard();
+      board.elements = JSON.parse(snapshot || "[]");
+      board.updatedAt = new Date().toISOString();
+      selectedTacticElementId = "";
+      saveState();
+    }
+
+    function rememberTacticBoard(board = currentTacticBoard()) {
+      tacticUndoStack.push(tacticElementsSnapshot(board));
+      if (tacticUndoStack.length > 50) tacticUndoStack.shift();
+      tacticRedoStack = [];
+    }
+
+    function undoTacticBoard() {
+      if (!tacticUndoStack.length) return;
+      tacticRedoStack.push(tacticElementsSnapshot());
+      restoreTacticElements(tacticUndoStack.pop());
+    }
+
+    function redoTacticBoard() {
+      if (!tacticRedoStack.length) return;
+      tacticUndoStack.push(tacticElementsSnapshot());
+      restoreTacticElements(tacticRedoStack.pop());
+    }
+
+    function cloneTacticElement(element, offset = 3) {
+      const clone = JSON.parse(JSON.stringify(element));
+      clone.id = crypto.randomUUID();
+      if (clone.type === "line") {
+        clone.x1 = Math.max(0, Math.min(100, Number(clone.x1 || 0) + offset));
+        clone.y1 = Math.max(0, Math.min(68, Number(clone.y1 || 0) + offset));
+        clone.x2 = Math.max(0, Math.min(100, Number(clone.x2 || 0) + offset));
+        clone.y2 = Math.max(0, Math.min(68, Number(clone.y2 || 0) + offset));
+      } else {
+        clone.x = Math.max(0, Math.min(100, Number(clone.x || 50) + offset));
+        clone.y = Math.max(0, Math.min(68, Number(clone.y || 34) + offset));
+      }
+      return clone;
+    }
+
+    function selectedTacticElement() {
+      return currentTacticBoard().elements.find((element) => element.id === selectedTacticElementId) || null;
+    }
+
+    function copySelectedTacticElement(cut = false) {
+      const board = currentTacticBoard();
+      const element = selectedTacticElement();
+      if (!element) return;
+      tacticClipboard = JSON.parse(JSON.stringify(element));
+      if (cut) {
+        rememberTacticBoard(board);
+        board.elements = board.elements.filter((item) => item.id !== element.id);
+        selectedTacticElementId = "";
+        saveState();
+      }
+    }
+
+    function pasteTacticElement() {
+      if (!tacticClipboard) return;
+      const board = currentTacticBoard();
+      rememberTacticBoard(board);
+      const clone = cloneTacticElement(tacticClipboard);
+      board.elements.push(clone);
+      selectedTacticElementId = clone.id;
+      saveState();
+    }
+
+    function resetTacticBoardView() {
+      selectedTacticElementId = "";
+      $("#tacticBoardSvg")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      $(".tactic-board-wrap")?.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+      renderTacticBoard();
+    }
+
+    function resetTacticBoardElements() {
+      if (!canManage()) return;
+      if (!window.confirm("Taktikgrafik wirklich auf ein leeres Spielfeld zuruecksetzen?")) return;
+      const board = currentTacticBoard();
+      rememberTacticBoard(board);
+      board.elements = [];
+      selectedTacticElementId = "";
+      saveState();
+    }
+
+    function exportTacticBoardImage() {
+      const svg = $("#tacticBoardSvg");
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      style.textContent = `
+        .field-bg{fill:#157a43}.field-line{fill:none;stroke:rgba(255,255,255,.95);stroke-width:.42}.field-dot{fill:rgba(255,255,255,.95)}
+        .tactic-player circle,.tactic-player-icon circle{stroke:#fff;stroke-width:.45}.tactic-player text,.tactic-text,.tactic-player-icon text{fill:#fff;font-size:2.3px;font-weight:800;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.35}
+        .tactic-cone{fill:#f97316;stroke:#fff;stroke-width:.25}.tactic-pole{fill:#facc15;stroke:#7c2d12;stroke-width:.18}
+      `;
+      clone.insertBefore(style, clone.firstChild);
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      const svgText = new XMLSerializer().serializeToString(clone);
+      const image = new Image();
+      const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1600;
+        canvas.height = 1088;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#157a43";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        const link = document.createElement("a");
+        const title = (currentTacticBoard().title || "taktikboard").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "taktikboard";
+        link.download = `${title}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        window.alert("Bild konnte nicht erzeugt werden.");
+      };
+      image.src = url;
+    }
+
     function tacticEventOptions(selected = "") {
       const options = [`<option value="">Ohne Zuordnung / Datenbank</option>`]
         .concat(state.events
@@ -4417,6 +4547,117 @@
       };
     }
 
+    function tacticChoiceValue(setting, fallback) {
+      return $(`[data-tactic-setting="${setting}"].active`)?.dataset.value || fallback;
+    }
+
+    function tacticOptions() {
+      return {
+        lineCurve: tacticChoiceValue("lineCurve", "straight"),
+        lineStyle: tacticChoiceValue("lineStyle", "solid"),
+        lineEnd: tacticChoiceValue("lineEnd", "arrow"),
+        lineColor: $("#tacticLineColor")?.value || "#ffffff",
+        lineWidth: Number($("#tacticLineWidth")?.value || 2),
+        arrowSize: Number($("#tacticArrowSize")?.value || 5),
+        textStyle: tacticChoiceValue("textStyle", "normal"),
+        textSize: Number($("#tacticTextSize")?.value || 14),
+        textColor: $("#tacticTextColor")?.value || "#ffffff",
+        fillColor: $("#tacticFillColor")?.value || "#000000",
+        strokeColor: $("#tacticStrokeColor")?.value || "#ffffff",
+        strokeWidth: Number($("#tacticStrokeWidth")?.value || 1),
+        shapeStrokeStyle: tacticChoiceValue("shapeStrokeStyle", "solid"),
+        playerIcon: tacticChoiceValue("playerIcon", "run"),
+        accessoryType: tacticChoiceValue("accessoryType", "goal")
+      };
+    }
+
+    function updateTacticOptionPanels() {
+      const tool = $("#tacticTool")?.value || "select";
+      $$("[data-tactic-options]").forEach((panel) => {
+        const key = panel.dataset.tacticOptions;
+        panel.hidden = !(
+          (key === "line" && tool === "line")
+          || (key === "text" && tool === "text")
+          || (key === "shape" && (tool === "polygon" || tool === "circle"))
+          || key === tool
+        );
+      });
+    }
+
+    function lineD(element) {
+      if (element.lineStyle === "wavy") {
+        const dx = element.x2 - element.x1;
+        const dy = element.y2 - element.y1;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const nx = -dy / length;
+        const ny = dx / length;
+        const steps = 10;
+        let d = `M ${element.x1} ${element.y1}`;
+        for (let i = 1; i <= steps; i += 1) {
+          const t = i / steps;
+          const wave = Math.sin(t * Math.PI * 6) * 1.2;
+          d += ` L ${element.x1 + dx * t + nx * wave} ${element.y1 + dy * t + ny * wave}`;
+        }
+        return d;
+      }
+      if (element.curve === "curved") {
+        const mx = (element.x1 + element.x2) / 2;
+        const my = (element.y1 + element.y2) / 2;
+        const dx = element.x2 - element.x1;
+        const dy = element.y2 - element.y1;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const offset = Math.min(12, length / 4);
+        return `M ${element.x1} ${element.y1} Q ${mx - (dy / length) * offset} ${my + (dx / length) * offset} ${element.x2} ${element.y2}`;
+      }
+      return `M ${element.x1} ${element.y1} L ${element.x2} ${element.y2}`;
+    }
+
+    function accessoryMarkup(element, selected) {
+      const x = Number(element.x || 50);
+      const y = Number(element.y || 34);
+      const id = escapeAttr(element.id);
+      const type = element.accessoryType || "goal";
+      if (type === "goal" || type === "miniGoal" || type === "hallGoal" || type === "goalTilted") {
+        const w = type === "goal" ? 9 : 6;
+        const h = type === "goal" ? 4 : 3;
+        const rotate = type === "goalTilted" ? ` transform="rotate(-8 ${x} ${y})"` : "";
+        const net = type === "hallGoal" ? "#86efac" : "#f8fafc";
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"${rotate}><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" fill="none" stroke="#f8fafc" stroke-width=".45"></rect><line x1="${x - w / 2}" y1="${y}" x2="${x + w / 2}" y2="${y}" stroke="${net}" stroke-width=".25"></line>${Array.from({ length: 5 }).map((_, i) => `<line x1="${x - w / 2 + (i + 1) * w / 6}" y1="${y - h / 2}" x2="${x - w / 2 + (i + 1) * w / 6}" y2="${y + h / 2}" stroke="${net}" stroke-width=".12"></line>`).join("")}</g>`;
+      }
+      if (type === "ball") {
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><circle cx="${x}" cy="${y}" r="2.1" fill="#fff" stroke="#111" stroke-width=".25"></circle><path d="M ${x - 1.4} ${y} H ${x + 1.4} M ${x} ${y - 1.4} V ${y + 1.4}" stroke="#111" stroke-width=".2"></path></g>`;
+      }
+      if (type === "cone" || type === "pylon") {
+        if (type === "cone") {
+          return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 1.4} L ${x - 2.3} ${y + 1.7} Q ${x} ${y + 2.4} ${x + 2.3} ${y + 1.7} Z"></path>`;
+        }
+        return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 2.8} L ${x - 2.2} ${y + 2.4} L ${x + 2.2} ${y + 2.4} Z"></path>`;
+      }
+      if (type === "dummy") {
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><circle cx="${x}" cy="${y - 2.3}" r="1.1" fill="#f97316"></circle><path d="M ${x} ${y - 1.1} C ${x - 2} ${y} ${x - 1.6} ${y + 3} ${x} ${y + 3.6} C ${x + 1.6} ${y + 3} ${x + 2} ${y} ${x} ${y - 1.1}" fill="#f97316" stroke="#9a3412" stroke-width=".2"></path></g>`;
+      }
+      if (type === "ladder") {
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><rect x="${x - 5}" y="${y - 1}" width="10" height="2" fill="none" stroke="#fb923c" stroke-width=".35"></rect>${Array.from({ length: 7 }).map((_, i) => `<line x1="${x - 4 + i * 1.35}" y1="${y - 1}" x2="${x - 4 + i * 1.35}" y2="${y + 1}" stroke="#fb923c" stroke-width=".25"></line>`).join("")}</g>`;
+      }
+      if (type === "pole") {
+        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${id}" x="${x - .35}" y="${y - 4}" width=".7" height="8" rx=".25"></rect>`;
+      }
+      if (type === "ring") {
+        return `<ellipse class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" cx="${x}" cy="${y}" rx="3.4" ry="2.1" fill="none" stroke="#f97316" stroke-width=".65"></ellipse>`;
+      }
+      if (type === "mat") {
+        return `<rect class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" x="${x - 4}" y="${y - 2.4}" width="8" height="4.8" fill="#0284c7" stroke="#075985" stroke-width=".3"></rect>`;
+      }
+      if (type === "flag" || type === "flagBase") {
+        const base = type === "flagBase" ? `<ellipse cx="${x}" cy="${y + 4.2}" rx="1.2" ry=".45" fill="#f97316" stroke="#92400e" stroke-width=".2"></ellipse>` : "";
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}" stroke="#92400e" stroke-width=".35"></line><path d="M ${x} ${y - 4} L ${x + 3} ${y - 3} L ${x} ${y - 2} Z" fill="#f97316"></path>${base}</g>`;
+      }
+      if (type === "bench") {
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><rect x="${x - 4.8}" y="${y - 1}" width="9.6" height="1.8" fill="#facc15" stroke="#92400e" stroke-width=".25"></rect><line x1="${x - 3.5}" y1="${y + .8}" x2="${x - 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line><line x1="${x + 3.5}" y1="${y + .8}" x2="${x + 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line></g>`;
+      }
+      return "";
+    }
+
     function fieldSvgMarkup() {
       return `
         <defs>
@@ -4445,10 +4686,34 @@
     function tacticElementMarkup(element, board) {
       const selected = element.id === selectedTacticElementId ? " selected" : "";
       if (element.type === "line") {
-        return `<line class="tactic-el tactic-line${selected}" data-tactic-id="${escapeAttr(element.id)}" x1="${element.x1}" y1="${element.y1}" x2="${element.x2}" y2="${element.y2}" ${element.dashed ? 'stroke-dasharray="2.4 1.8"' : ""} marker-end="url(#tacticArrow)"></line>`;
+        const color = element.color || "#ffffff";
+        const width = Number(element.width || 2) * .35;
+        const markerId = `arrow-${element.id}`;
+        const marker = element.end === "none" ? "" : `<defs><marker id="${escapeAttr(markerId)}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="${Number(element.arrowSize || 5)}" markerHeight="${Number(element.arrowSize || 5)}" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${escapeAttr(color)}"></path></marker></defs>`;
+        const dash = element.lineStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : "";
+        return `${marker}<path class="tactic-el tactic-line${selected}" data-tactic-id="${escapeAttr(element.id)}" d="${lineD(element)}" stroke="${escapeAttr(color)}" stroke-width="${width}" fill="none" ${dash} ${element.end === "none" ? "" : `marker-end="url(#${escapeAttr(markerId)})"`}></path>`;
       }
       if (element.type === "text") {
-        return `<text class="tactic-el tactic-text${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x}" y="${element.y}">${escapeHtml(element.text || "Text")}</text>`;
+        const style = element.textStyle === "italic" ? "font-style:italic;" : element.textStyle === "bold" ? "font-weight:950;" : "";
+        return `<text class="tactic-el tactic-text${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x}" y="${element.y}" fill="${escapeAttr(element.color || "#ffffff")}" style="font-size:${Number(element.size || 14) / 5}px;${style}">${escapeHtml(element.text || "Text")}</text>`;
+      }
+      if (element.type === "polygon") {
+        const points = [
+          [element.x, element.y - 4],
+          [element.x - 4.5, element.y + 3],
+          [element.x + 4.5, element.y + 3]
+        ].map((point) => point.join(",")).join(" ");
+        return `<polygon class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" points="${points}" fill="${escapeAttr(element.fillColor || "#000000")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Number(element.strokeWidth || 1) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></polygon>`;
+      }
+      if (element.type === "circle") {
+        return `<circle class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" cx="${element.x}" cy="${element.y}" r="${Number(element.radius || 4)}" fill="${escapeAttr(element.fillColor || "transparent")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Number(element.strokeWidth || 1) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></circle>`;
+      }
+      if (element.type === "playerIcon") {
+        const label = { run: "🏃", pass: "↗", stand: "●", jump: "↟", keeper: "🧤" }[element.icon] || "●";
+        return `<g class="tactic-el tactic-player-icon${selected}" data-tactic-id="${escapeAttr(element.id)}"><circle cx="${element.x}" cy="${element.y}" r="3.1" fill="${escapeAttr(element.color || board.teamColor || "#155e3b")}"></circle><text x="${element.x}" y="${element.y + 1.1}">${escapeHtml(label)}</text></g>`;
+      }
+      if (element.type === "accessory") {
+        return accessoryMarkup(element, selected);
       }
       if (element.type === "cone") {
         return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${escapeAttr(element.id)}" d="M ${element.x} ${element.y - 1.7} L ${element.x - 1.7} ${element.y + 1.6} L ${element.x + 1.7} ${element.y + 1.6} Z"></path>`;
@@ -4474,6 +4739,7 @@
       if (!root) return;
       const board = currentTacticBoard();
       ensureTacticPlayers(board);
+      updateTacticOptionPanels();
       $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
       $("#tacticBoardHint").textContent = $("#tacticTool")?.selectedOptions?.[0]?.textContent || "Auswaehlen / Verschieben";
       $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title)}</option>`).join("");
@@ -4497,13 +4763,34 @@
 
     function addTacticElement(type, point) {
       const board = currentTacticBoard();
+      const options = tacticOptions();
+      rememberTacticBoard(board);
       const element = {
         id: crypto.randomUUID(),
         type,
         x: point.x,
         y: point.y
       };
-      if (type === "text") element.text = window.prompt("Text auf dem Feld")?.trim() || "Text";
+      if (type === "text") {
+        element.text = window.prompt("Text auf dem Feld")?.trim() || "Text";
+        element.textStyle = options.textStyle;
+        element.size = options.textSize;
+        element.color = options.textColor;
+      }
+      if (type === "polygon" || type === "circle") {
+        element.fillColor = options.fillColor;
+        element.strokeColor = options.strokeColor;
+        element.strokeWidth = options.strokeWidth;
+        element.strokeStyle = options.shapeStrokeStyle;
+        if (type === "circle") element.radius = 4;
+      }
+      if (type === "playerIcon") {
+        element.icon = options.playerIcon;
+        element.color = board.teamColor || currentClub().color || "#155e3b";
+      }
+      if (type === "accessory") {
+        element.accessoryType = options.accessoryType;
+      }
       board.elements.push(element);
       selectedTacticElementId = element.id;
       saveState();
@@ -5285,9 +5572,32 @@
     $("#tacticBoardSelect")?.addEventListener("change", () => {
       selectedTacticBoardId = $("#tacticBoardSelect").value;
       selectedTacticElementId = "";
+      tacticUndoStack = [];
+      tacticRedoStack = [];
       renderTacticBoard();
     });
-    $("#tacticTool")?.addEventListener("change", renderTacticBoard);
+    $("#tacticTool")?.addEventListener("change", () => {
+      updateTacticOptionPanels();
+      renderTacticBoard();
+    });
+    $("#tacticBoardForm")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-tactic-setting]");
+      if (!button) return;
+      const setting = button.dataset.tacticSetting;
+      $$(`[data-tactic-setting="${setting}"]`).forEach((item) => item.classList.toggle("active", item === button));
+      renderTacticBoard();
+    });
+    ["tacticLineColor", "tacticLineWidth", "tacticArrowSize", "tacticTextSize", "tacticTextColor", "tacticFillColor", "tacticStrokeColor", "tacticStrokeWidth"].forEach((id) => {
+      $("#" + id)?.addEventListener("input", renderTacticBoard);
+    });
+    $("#tacticUndoBtn")?.addEventListener("click", undoTacticBoard);
+    $("#tacticRedoBtn")?.addEventListener("click", redoTacticBoard);
+    $("#tacticFieldBtn")?.addEventListener("click", resetTacticBoardView);
+    $("#tacticCutBtn")?.addEventListener("click", () => copySelectedTacticElement(true));
+    $("#tacticCopyBtn")?.addEventListener("click", () => copySelectedTacticElement(false));
+    $("#tacticPasteBtn")?.addEventListener("click", pasteTacticElement);
+    $("#tacticResetBtn")?.addEventListener("click", resetTacticBoardElements);
+    $("#tacticExportImageBtn")?.addEventListener("click", exportTacticBoardImage);
     $("#tacticBoardForm")?.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!canManage()) return;
@@ -5305,6 +5615,7 @@
     $("#resetTacticPlayersBtn")?.addEventListener("click", () => {
       if (!canManage()) return;
       const board = currentTacticBoard();
+      rememberTacticBoard(board);
       board.elements = board.elements.filter((element) => element.type !== "player");
       board.elements.unshift(...defaultTacticPlayers(board));
       selectedTacticElementId = "";
@@ -5313,6 +5624,7 @@
     $("#deleteTacticElementBtn")?.addEventListener("click", () => {
       if (!canManage() || !selectedTacticElementId) return;
       const board = currentTacticBoard();
+      rememberTacticBoard(board);
       board.elements = board.elements.filter((element) => element.id !== selectedTacticElementId);
       selectedTacticElementId = "";
       saveState();
@@ -5321,6 +5633,7 @@
       if (!canManage()) return;
       if (!window.confirm("Alle Elemente dieser Taktikgrafik loeschen?")) return;
       const board = currentTacticBoard();
+      rememberTacticBoard(board);
       board.elements = [];
       selectedTacticElementId = "";
       saveState();
@@ -5330,6 +5643,8 @@
       if (!button) return;
       selectedTacticBoardId = button.dataset.openTactic;
       selectedTacticElementId = "";
+      tacticUndoStack = [];
+      tacticRedoStack = [];
       renderTacticBoard();
     });
     $("#tacticBoardSvg")?.addEventListener("pointerdown", (event) => {
@@ -5337,6 +5652,7 @@
       const board = currentTacticBoard();
       const point = tacticSvgPoint(event);
       const tool = $("#tacticTool").value || "select";
+      const options = tacticOptions();
       const target = event.target.closest?.("[data-tactic-id]");
       if (tool === "select") {
         if (!target) {
@@ -5346,13 +5662,28 @@
         }
         selectedTacticElementId = target.dataset.tacticId;
         const element = board.elements.find((item) => item.id === selectedTacticElementId);
+        if (element) rememberTacticBoard(board);
         tacticPointer = element ? { mode: "move", id: element.id, start: point, original: { ...element } } : null;
         event.currentTarget.setPointerCapture?.(event.pointerId);
         renderTacticBoard();
         return;
       }
-      if (tool === "line" || tool === "dashed") {
-        const element = { id: crypto.randomUUID(), type: "line", x1: point.x, y1: point.y, x2: point.x, y2: point.y, dashed: tool === "dashed" };
+      if (tool === "line") {
+        rememberTacticBoard(board);
+        const element = {
+          id: crypto.randomUUID(),
+          type: "line",
+          x1: point.x,
+          y1: point.y,
+          x2: point.x,
+          y2: point.y,
+          curve: options.lineCurve,
+          lineStyle: options.lineStyle,
+          end: options.lineEnd,
+          color: options.lineColor,
+          width: options.lineWidth,
+          arrowSize: options.arrowSize
+        };
         board.elements.push(element);
         selectedTacticElementId = element.id;
         tacticPointer = { mode: "line", id: element.id };

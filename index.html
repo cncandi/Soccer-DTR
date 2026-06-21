@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=91">
+  <link rel="stylesheet" href="css/app.css?v=92">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v91</span></h1>
+          <h1>Kadrivo <span class="app-version">v92</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v91</span></h1>
+          <h1>Kadrivo <span class="app-version">v92</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -239,15 +239,98 @@
               <div class="field full"><label>Titel</label><input name="title" required></div>
               <div class="field full"><label>Zuordnung</label><select name="eventId" id="tacticEventSelect"></select></div>
               <div class="field"><label>Teamfarbe</label><input name="teamColor" type="color" value="#155e3b"></div>
-              <div class="field"><label>Werkzeug</label><select id="tacticTool">
+              <div class="field full"><label>Werkzeug</label><select id="tacticTool">
                 <option value="select">Auswaehlen / Verschieben</option>
-                <option value="line">Linie mit Pfeil</option>
-                <option value="dashed">Gestrichelter Pfeil</option>
+                <option value="line">Linien / Boegen</option>
                 <option value="text">Text</option>
+                <option value="polygon">Polygon</option>
+                <option value="circle">Kreis</option>
+                <option value="playerIcon">Spieler-Symbol</option>
+                <option value="accessory">Zubehoer</option>
                 <option value="cone">Huetchen</option>
                 <option value="poleV">Stange vertikal</option>
                 <option value="poleH">Stange horizontal</option>
               </select></div>
+              <div class="field full tactic-options" data-tactic-options="line">
+                <h4>Linien</h4>
+                <label>Kruemmung</label>
+                <div class="tactic-choice-row">
+                  <button class="tactic-choice active" type="button" data-tactic-setting="lineCurve" data-value="straight">Gerade</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="lineCurve" data-value="curved">Gebogen</button>
+                </div>
+                <label>Linientyp</label>
+                <div class="tactic-choice-row">
+                  <button class="tactic-choice active" type="button" data-tactic-setting="lineStyle" data-value="solid">Normal</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="lineStyle" data-value="dashed">Gestrichelt</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="lineStyle" data-value="wavy">Geschlaengelt</button>
+                </div>
+                <label>Linienende</label>
+                <div class="tactic-choice-row">
+                  <button class="tactic-choice" type="button" data-tactic-setting="lineEnd" data-value="none">Keine</button>
+                  <button class="tactic-choice active" type="button" data-tactic-setting="lineEnd" data-value="arrow">Pfeil</button>
+                </div>
+                <div class="tactic-option-grid">
+                  <div class="field"><label>Konturfarbe</label><input id="tacticLineColor" type="color" value="#ffffff"></div>
+                  <div class="field"><label>Konturbreite</label><input id="tacticLineWidth" type="number" min="1" max="10" value="2"></div>
+                  <div class="field"><label>Pfeilgroesse</label><input id="tacticArrowSize" type="number" min="2" max="14" value="5"></div>
+                </div>
+              </div>
+              <div class="field full tactic-options" data-tactic-options="text" hidden>
+                <h4>Text</h4>
+                <label>Schriftstil</label>
+                <div class="tactic-choice-row">
+                  <button class="tactic-choice active" type="button" data-tactic-setting="textStyle" data-value="normal">Normal</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="textStyle" data-value="bold">Fett</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="textStyle" data-value="italic">Kursiv</button>
+                </div>
+                <div class="tactic-option-grid">
+                  <div class="field"><label>Schriftgroesse</label><input id="tacticTextSize" type="number" min="8" max="34" value="14"></div>
+                  <div class="field"><label>Schriftfarbe</label><input id="tacticTextColor" type="color" value="#ffffff"></div>
+                </div>
+              </div>
+              <div class="field full tactic-options" data-tactic-options="shape" hidden>
+                <h4>Form</h4>
+                <div class="tactic-option-grid">
+                  <div class="field"><label>Fuellfarbe</label><input id="tacticFillColor" type="color" value="#000000"></div>
+                  <div class="field"><label>Konturfarbe</label><input id="tacticStrokeColor" type="color" value="#ffffff"></div>
+                  <div class="field"><label>Konturbreite</label><input id="tacticStrokeWidth" type="number" min="0" max="10" value="1"></div>
+                </div>
+                <label>Konturtyp</label>
+                <div class="tactic-choice-row">
+                  <button class="tactic-choice active" type="button" data-tactic-setting="shapeStrokeStyle" data-value="solid">Durchgezogen</button>
+                  <button class="tactic-choice" type="button" data-tactic-setting="shapeStrokeStyle" data-value="dashed">Gestrichelt</button>
+                </div>
+              </div>
+              <div class="field full tactic-options" data-tactic-options="playerIcon" hidden>
+                <h4>Spieler</h4>
+                <div class="tactic-card-grid">
+                  <button class="tactic-card active" type="button" data-tactic-setting="playerIcon" data-value="run">Laufen</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="playerIcon" data-value="pass">Passen</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="playerIcon" data-value="stand">Stehen</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="playerIcon" data-value="jump">Springen</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="playerIcon" data-value="keeper">Torhueter</button>
+                </div>
+              </div>
+              <div class="field full tactic-options" data-tactic-options="accessory" hidden>
+                <h4>Zubehoer</h4>
+                <div class="tactic-card-grid">
+                  <button class="tactic-card active" type="button" data-tactic-setting="accessoryType" data-value="goal">Tor</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="goalTilted">Tor gekippt</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="miniGoal">Minitor</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="hallGoal">Hallentor</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="ball">Ball</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="cone">Huetchen</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="pylon">Pylon</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="dummy">Dummy</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="ladder">Leiter</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="pole">Stange</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="ring">Ring</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="mat">Matte</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="flag">Flagge</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="flagBase">Flagge mit Fuss</button>
+                  <button class="tactic-card" type="button" data-tactic-setting="accessoryType" data-value="bench">Bank</button>
+                </div>
+              </div>
               <div class="field full row-actions">
                 <button class="btn-primary" type="submit">Speichern</button>
                 <button class="btn-secondary" id="resetTacticPlayersBtn" type="button">Spieler neu setzen</button>
@@ -262,6 +345,16 @@
             <div class="item-head">
               <h3 id="tacticBoardTitle">Taktikboard</h3>
               <span class="chip" id="tacticBoardHint">Auswaehlen / Verschieben</span>
+            </div>
+            <div class="tactic-commandbar" aria-label="Taktikboard Aktionen">
+              <button class="mini" id="tacticUndoBtn" type="button">Zurueck</button>
+              <button class="mini" id="tacticRedoBtn" type="button">Wiederholen</button>
+              <button class="mini" id="tacticFieldBtn" type="button">Spielfeld</button>
+              <button class="mini" id="tacticCutBtn" type="button">Ausschneiden</button>
+              <button class="mini" id="tacticCopyBtn" type="button">Kopieren</button>
+              <button class="mini" id="tacticPasteBtn" type="button">Einfuegen</button>
+              <button class="mini" id="tacticResetBtn" type="button">Reset</button>
+              <button class="mini" id="tacticExportImageBtn" type="button">Als Bild speichern</button>
             </div>
             <div class="tactic-board-wrap">
               <svg id="tacticBoardSvg" class="tactic-board" viewBox="0 0 100 68" role="img" aria-label="Taktikboard Fussballfeld"></svg>
@@ -650,6 +743,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=91" defer></script>
+  <script src="js/app.js?v=92" defer></script>
 </body>
 </html>
