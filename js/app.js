@@ -3898,12 +3898,41 @@
       `;
     }
 
+    function editablePeopleForModal(player) {
+      const isRosterPlayer = hasMemberRole(player, "Spieler");
+      return state.players
+        .filter((item) => !pendingIncomingTransfer(item) && !activeIncomingTemporaryTransfer(item))
+        .filter((item) => hasMemberRole(item, "Spieler") === isRosterPlayer)
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    }
+
+    function updatePlayerModalNavigation(player) {
+      const people = editablePeopleForModal(player);
+      const index = people.findIndex((item) => item.id === player.id);
+      const hasNavigation = people.length > 1 && index >= 0;
+      const prev = hasNavigation ? people[(index - 1 + people.length) % people.length] : null;
+      const next = hasNavigation ? people[(index + 1) % people.length] : null;
+      const prevButton = $("#prevPlayerBtn");
+      const nextButton = $("#nextPlayerBtn");
+      if (prevButton) {
+        prevButton.disabled = !prev;
+        prevButton.dataset.playerNav = prev?.id || "";
+      }
+      if (nextButton) {
+        nextButton.disabled = !next;
+        nextButton.dataset.playerNav = next?.id || "";
+      }
+      const saveButton = $("#savePlayerModalBtn");
+      if (saveButton) saveButton.hidden = activeIncomingTemporaryTransfer(player);
+    }
+
     function openPlayerModal(playerId) {
       const player = state.players.find((item) => item.id === playerId);
       if (!player || !canManagePlayers()) return;
       const isRosterPlayer = hasMemberRole(player, "Spieler");
       const fullAccess = canManage();
       $("#playerModalTitle").textContent = `${player.name} bearbeiten`;
+      updatePlayerModalNavigation(player);
       if (activeIncomingTemporaryTransfer(player)) {
         $("#playerEditForm").innerHTML = `
           <input type="hidden" name="id" value="${escapeAttr(player.id)}">
@@ -4606,6 +4635,15 @@
       if (event.target === $("#eventModal")) closeEventModal();
     });
     $("#closePlayerModalBtn").addEventListener("click", closePlayerModal);
+    $("#savePlayerModalBtn")?.addEventListener("click", () => {
+      $("#playerEditForm")?.requestSubmit();
+    });
+    $$(".player-nav-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const playerId = button.dataset.playerNav;
+        if (playerId) openPlayerModal(playerId);
+      });
+    });
     $("#playerModal").addEventListener("click", (event) => {
       if (event.target === $("#playerModal")) closePlayerModal();
     });
