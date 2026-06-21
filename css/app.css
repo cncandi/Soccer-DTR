@@ -1364,11 +1364,46 @@
       grid-column: 1 / -1;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      padding: 6px;
-      border: 1px solid var(--line);
+      gap: 4px;
+      padding: 0 0 10px;
+      margin: 2px 0 10px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .player-tabs .mini {
+      position: relative;
+      min-height: 42px;
+      padding: 0 18px;
       border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 850;
+    }
+
+    .player-tabs .mini:hover {
       background: var(--soft);
+      color: var(--text);
+    }
+
+    .player-tabs .mini.active {
+      background: #fff;
+      color: var(--green);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .player-tabs .mini.active::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: -11px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--green);
     }
 
     .player-tab-panel {
