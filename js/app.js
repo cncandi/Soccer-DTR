@@ -196,8 +196,31 @@
         name: club.name || "Mein Verein",
         color: club.color || "#155e3b",
         logo: club.logo || "",
+        licenseKey: club.licenseKey || club.license_key || generateLicenseKey(),
+        licenseStatus: normalizeLicenseStatus(club.licenseStatus || club.license_status),
         updatedAt: club.updatedAt || ""
       };
+    }
+
+    function generateLicenseKey() {
+      const randomPart = crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+      return `KAD-${randomPart.slice(0, 4)}-${randomPart.slice(4, 8)}-${randomPart.slice(8, 12)}`;
+    }
+
+    function normalizeLicenseStatus(status) {
+      return ["trial", "active", "blocked"].includes(status) ? status : "trial";
+    }
+
+    function licenseStatusLabel(status) {
+      return {
+        trial: "Testlizenz",
+        active: "Aktiv",
+        blocked: "Gesperrt"
+      }[normalizeLicenseStatus(status)];
+    }
+
+    function clubLicenseAllowsAccess(club = currentClub()) {
+      return normalizeLicenseStatus(club?.licenseStatus) !== "blocked";
     }
 
     function loadCurrentClubId() {
@@ -803,7 +826,8 @@
     function renderStatus() {
       const club = clubs.find((item) => item.id === currentClubId);
       const mode = settings.url && settings.key ? `Supabase bereit: ${settings.table}` : "Lokale Daten aktiv.";
-      setStatus(`${club ? club.name : "Verein"} - ${mode}`);
+      const license = club ? ` - ${licenseStatusLabel(club.licenseStatus)}` : "";
+      setStatus(`${club ? club.name : "Verein"}${license} - ${mode}`);
     }
 
     function installHintText() {
@@ -1250,6 +1274,8 @@
       form.elements.name.value = club.name;
       form.elements.color.value = normalizeHexColor(club.color || "#155e3b");
       form.elements.logoUrl.value = club.logo && !club.logo.startsWith("data:") ? club.logo : "";
+      if (form.elements.licenseKey) form.elements.licenseKey.value = club.licenseKey || "";
+      if (form.elements.licenseStatus) form.elements.licenseStatus.value = normalizeLicenseStatus(club.licenseStatus);
     }
 
     function renderLoginUsers() {
@@ -3221,6 +3247,7 @@
       const club = currentClub();
       club.name = values.name.trim() || club.name;
       club.color = normalizeHexColor(values.color);
+      if (values.licenseStatus) club.licenseStatus = normalizeLicenseStatus(values.licenseStatus);
       const file = $("#clubLogoFile").files[0];
       if (file) {
         club.logo = await readFileAsDataUrl(file);
@@ -3614,6 +3641,10 @@
       event.preventDefault();
       currentClubId = $("#loginClubSelect").value;
       state = loadState();
+      if (!clubLicenseAllowsAccess()) {
+        $("#loginError").textContent = "Die Lizenz fuer diesen Verein ist gesperrt.";
+        return;
+      }
       const userName = $("#loginUser").value;
       const player = playerByName(userName);
       const password = $("#loginPassword").value;
@@ -3654,7 +3685,14 @@
       if (!canManage()) return;
       const name = $("#newClubName").value.trim();
       if (!name) return;
-      const club = touchClub({ id: crypto.randomUUID(), name, color: normalizeHexColor(currentClub().color), logo: "" });
+      const club = touchClub({
+        id: crypto.randomUUID(),
+        name,
+        color: normalizeHexColor(currentClub().color),
+        logo: "",
+        licenseKey: generateLicenseKey(),
+        licenseStatus: "trial"
+      });
       clubs.push(club);
       currentClubId = club.id;
       state = loadState();

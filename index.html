@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=64">
+  <link rel="stylesheet" href="css/app.css?v=65">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v64</span></h1>
+          <h1>Kadrivo <span class="app-version">v65</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -70,7 +70,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v64</span></h1>
+          <h1>Kadrivo <span class="app-version">v65</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -386,6 +386,8 @@ Nein</textarea></div>
             <h3>Vereinsdesign</h3>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
+              <div class="field"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
+              <div class="field"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
               <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
               <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
               <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
@@ -417,23 +419,18 @@ Nein</textarea></div>
             <p class="meta" id="paypalStatus">PayPal ist nicht verbunden.</p>
           </section>
           <section class="panel">
-            <h3>Empfohlene Supabase-Tabelle</h3>
-            <textarea readonly style="min-height: 230px;">create table club_documents (
-  id text primary key,
-  document jsonb not null,
-  updated_at timestamptz default now()
-);
+            <h3>Supabase-Setup</h3>
+            <textarea readonly style="min-height: 230px;">Das vollstaendige Setup liegt in supabase-setup.sql.
 
-alter table club_documents enable row level security;
+Es enthaelt:
+- club_documents als Uebergang fuer die aktuelle App
+- clubs mit Lizenznummer und Lizenzstatus
+- players, events, event_rsvps
+- cash_entries, fine_catalog
+- polls, messages, hall_of_fame_entries
 
-create policy "club read" on club_documents
-for select using (true);
-
-create policy "club write" on club_documents
-for insert with check (true);
-
-create policy "club update" on club_documents
-for update using (true);</textarea>
+Fuer den ersten Schritt bleibt alles in einem Supabase-Projekt.
+Alle neuen Tabellen sind ueber club_id pro Verein getrennt.</textarea>
           </section>
           <section class="panel superadmin-only">
             <h3>Push-Tabelle</h3>
@@ -572,6 +569,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=64" defer></script>
+  <script src="js/app.js?v=65" defer></script>
 </body>
 </html>
