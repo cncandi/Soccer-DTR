@@ -800,6 +800,43 @@
         || message.includes("does not exist");
     }
 
+    function clubFromRow(row) {
+      return normalizeClub({
+        id: row.id,
+        name: row.name,
+        color: row.color,
+        logo: row.logo,
+        licenseKey: row.license_key,
+        licenseStatus: row.license_status,
+        licenseActivatedAt: row.license_activated_at,
+        licenseExpiresAt: row.license_expires_at,
+        licenseAutoRenew: row.license_auto_renew,
+        updatedAt: row.updated_at || row.created_at || ""
+      });
+    }
+
+    async function loadRemoteClubsFromTable(client) {
+      const withLicense = await client
+        .from("clubs")
+        .select("id,name,color,logo,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+      if (!withLicense.error) return (withLicense.data || []).map(clubFromRow);
+
+      const message = withLicense.error.message || "";
+      if (!message.includes("license_activated_at") && !message.includes("license_expires_at") && !message.includes("license_auto_renew")) {
+        if (normalizedSchemaUnavailable(withLicense.error)) return [];
+        throw withLicense.error;
+      }
+
+      const fallback = await client
+        .from("clubs")
+        .select("id,name,color,logo,license_key,license_status,created_at,updated_at");
+      if (fallback.error) {
+        if (normalizedSchemaUnavailable(fallback.error)) return [];
+        throw fallback.error;
+      }
+      return (fallback.data || []).map(clubFromRow);
+    }
+
     function rowData(row, fallback = {}) {
       return row && row.data && typeof row.data === "object" && !Array.isArray(row.data)
         ? row.data
@@ -1311,7 +1348,8 @@
       if (playerInsert.error) throw playerInsert.error;
 
       const createdState = normalizeState({ ...newClubState(), players: [player] });
-      await client.from(settings.table).upsert({ id: `${DOC_ID}:${club.id}`, document: createdState, updated_at: now });
+      const stateDocument = await client.from(settings.table).upsert({ id: `${DOC_ID}:${club.id}`, document: createdState, updated_at: now });
+      if (stateDocument.error) throw stateDocument.error;
 
       clubs = mergeClubs([...clubs, club], []);
       const clubsDocument = await client.from(settings.table).upsert({
@@ -1433,11 +1471,20 @@
     async function syncClubs(client, options = {}) {
       const previousClubId = currentClubId;
       const previousClubs = clubs.map(normalizeClub);
-      const { data, error } = await client.from(settings.table).select("document,updated_at").eq("id", clubsDocumentId()).maybeSingle();
+      const [tableClubs, documentResult] = await Promise.all([
+        loadRemoteClubsFromTable(client),
+        client.from(settings.table).select("document,updated_at").eq("id", clubsDocumentId()).maybeSingle()
+      ]);
+      const { data, error } = documentResult;
       if (error) throw new Error(error.message);
+      let documentClubs = [];
       if (data && data.document && Array.isArray(data.document.clubs)) {
-        const remoteClubs = data.document.clubs.map((club) => normalizeClub({ ...club, updatedAt: club.updatedAt || data.updated_at || "" }));
-        clubs = options.preferLocal ? mergeClubs(clubs, remoteClubs) : (remoteClubs.length ? remoteClubs : previousClubs);
+        documentClubs = data.document.clubs.map((club) => normalizeClub({ ...club, updatedAt: club.updatedAt || data.updated_at || "" }));
+      }
+
+      const remoteClubs = tableClubs.length ? tableClubs : documentClubs;
+      if (remoteClubs.length) {
+        clubs = options.preferLocal ? mergeClubs(remoteClubs, clubs) : remoteClubs;
         if (clubs.length && !clubs.some((club) => club.id === currentClubId)) {
           currentClubId = clubs[0].id;
         }
@@ -1445,6 +1492,8 @@
           currentClubId = requestedClubId;
         }
         saveClubs({ sync: false });
+      } else {
+        clubs = previousClubs;
       }
 
       const result = await client.from(settings.table).upsert({
