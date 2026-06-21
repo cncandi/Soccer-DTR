@@ -1,12 +1,12 @@
-const CACHE_NAME = "soccer-dtr-v69";
+const CACHE_NAME = "soccer-dtr-v70";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
 const APP_SHELL = [
   "./",
   "index.html",
-  "css/app.css?v=69",
-  "js/app.js?v=69",
+  "css/app.css?v=70",
+  "js/app.js?v=70",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
   "kadrivo-icon-192.png",
@@ -27,23 +27,36 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
       await self.clients.claim();
-      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      await Promise.all(clientList.map((client) => client.navigate(client.url).catch(() => {})));
     })()
   );
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+
+  if (!isSameOrigin) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("index.html"))
+    );
+    return;
+  }
+
+  const cacheableDestinations = new Set(["style", "script", "image", "manifest"]);
+  if (!cacheableDestinations.has(event.request.destination)) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        if (!response || !response.ok) return response;
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("index.html")))
+      .catch(() => caches.match(event.request))
   );
 });
 
