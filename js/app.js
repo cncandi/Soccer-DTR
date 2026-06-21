@@ -119,6 +119,7 @@
     const defaultState = {
       players: [],
       events: [],
+      tacticBoards: [],
       cashFines: [],
       fineCatalog: [],
       polls: [],
@@ -138,6 +139,9 @@
     let calendarMode = "week";
     let expandedEventId = "";
     let selectedFamePlayer = "";
+    let selectedTacticBoardId = "";
+    let selectedTacticElementId = "";
+    let tacticPointer = null;
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -151,6 +155,7 @@
       events: ["Training & Spiele", "Termine erstellen und Zu- oder Absagen erfassen."],
       polls: ["Abstimmungen", "Schnelle Entscheidungen fuer Mannschaft, Mannschaftsrat und Kasse."],
       messages: ["Mitteilungen", "Gruppen-Kommunikation im Stil eines Team-Chats."],
+      tactics: ["Taktikboard", "Spielsituationen fuer Training und Spiel zeichnen."],
       cash: ["Mannschaftskasse", "Strafen, offene Betraege und Kassenstand."],
       fame: ["Hall of Fame", "Punkte, Rangliste und besondere Leistungen."],
       settings: ["Einstellungen", "Vereinsdesign und Datenbank-Einstellungen verwalten."]
@@ -587,9 +592,10 @@
 
     function normalizeState(loadedState = {}) {
       return {
-        players: mergePlayersByName(loadedState.players || []),
-        events: (loadedState.events || []).map(normalizeEvent),
-        cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
+      players: mergePlayersByName(loadedState.players || []),
+      events: (loadedState.events || []).map(normalizeEvent),
+      tacticBoards: (loadedState.tacticBoards || []).map(normalizeTacticBoard),
+      cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
         messages: loadedState.messages || [],
@@ -695,6 +701,18 @@
         repeatGroup: event.repeatGroup || "",
         createdAt: event.createdAt || new Date().toISOString(),
         rsvps: event.rsvps || {}
+      };
+    }
+
+    function normalizeTacticBoard(board = {}) {
+      return {
+        id: board.id || crypto.randomUUID(),
+        title: board.title || "Neue Taktik",
+        eventId: board.eventId || "",
+        teamColor: board.teamColor || currentClub()?.color || "#155e3b",
+        elements: Array.isArray(board.elements) ? board.elements : [],
+        createdAt: board.createdAt || new Date().toISOString(),
+        updatedAt: board.updatedAt || new Date().toISOString()
       };
     }
 
@@ -1217,8 +1235,17 @@
 
       const playerRows = playersResult.data || [];
       const eventRows = eventsResult.data || [];
+      let tacticRows = [];
+      try {
+        const tacticResult = await client.from("tactic_boards").select("*").eq("club_id", currentClubId);
+        if (tacticResult.error) throw tacticResult.error;
+        tacticRows = tacticResult.data || [];
+      } catch (tacticError) {
+        if (!normalizedSchemaUnavailable(tacticError)) throw tacticError;
+      }
       const hasRows = Boolean(clubResult.data)
-        || results.some((result) => (result.data || []).length);
+        || results.some((result) => (result.data || []).length)
+        || tacticRows.length;
       if (!hasRows) return null;
 
       const players = playerRows.map((row) => normalizePlayer({
@@ -1280,6 +1307,15 @@
       return normalizeState({
         players,
         events,
+        tacticBoards: tacticRows.map((row) => normalizeTacticBoard({
+          id: row.id,
+          title: row.title,
+          eventId: row.event_id || "",
+          teamColor: row.team_color || "",
+          createdAt: row.created_at || "",
+          updatedAt: row.updated_at || "",
+          ...rowData(row)
+        })),
         cashFines: (cashResult.data || []).map((row) => normalizeCashFine({
           id: row.id,
           player: row.player_name || "",
@@ -1361,6 +1397,7 @@
 
       state.players.forEach(ensureEntityId);
       state.events.forEach(ensureEntityId);
+      (state.tacticBoards || []).forEach(ensureEntityId);
       (state.cashFines || []).forEach(ensureEntityId);
       (state.fineCatalog || []).forEach(ensureEntityId);
       (state.polls || []).forEach(ensureEntityId);
@@ -1447,6 +1484,25 @@
       if (rsvpRows.length) {
         const result = await client.from("event_rsvps").insert(rsvpRows);
         if (result.error) throw result.error;
+      }
+
+      const tacticRows = (state.tacticBoards || []).map((board) => ({
+        id: board.id,
+        club_id: currentClubId,
+        event_id: board.eventId || null,
+        title: board.title || "Taktik",
+        team_color: board.teamColor || currentClub().color || "#155e3b",
+        data: board,
+        updated_at: now
+      }));
+      try {
+        if (tacticRows.length) {
+          const result = await client.from("tactic_boards").upsert(tacticRows);
+          if (result.error) throw result.error;
+        }
+        await deleteMissingRows(client, "tactic_boards", tacticRows.map((row) => row.id));
+      } catch (tacticError) {
+        if (!normalizedSchemaUnavailable(tacticError)) throw tacticError;
       }
 
       const cashRows = (state.cashFines || []).map((fine) => ({
@@ -2298,6 +2354,7 @@
       renderCalendar();
       renderEvents();
       renderAllEventsList();
+      renderTacticBoard();
       renderFines();
       renderCash();
       renderFame();
@@ -4291,6 +4348,167 @@
       printWindow.focus();
     }
 
+    function currentTacticBoard() {
+      if (!state.tacticBoards.length) {
+        state.tacticBoards.push(normalizeTacticBoard({ title: "Freie Taktik" }));
+      }
+      if (!selectedTacticBoardId || !state.tacticBoards.some((board) => board.id === selectedTacticBoardId)) {
+        selectedTacticBoardId = state.tacticBoards[0].id;
+      }
+      return state.tacticBoards.find((board) => board.id === selectedTacticBoardId);
+    }
+
+    function tacticEventOptions(selected = "") {
+      const options = [`<option value="">Ohne Zuordnung / Datenbank</option>`]
+        .concat(state.events
+          .slice()
+          .filter((eventItem) => eventItem.type === "Spiel" || eventItem.type === "Training")
+          .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+          .map((eventItem) => `<option value="${escapeAttr(eventItem.id)}" ${eventItem.id === selected ? "selected" : ""}>${escapeHtml(`${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${eventItem.type}: ${eventItem.title}`)}</option>`));
+      return options.join("");
+    }
+
+    function tacticPlayersForBoard(board) {
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const names = eventItem
+        ? Object.entries(eventItem.rsvps || {})
+          .filter(([, value]) => rsvpRecord({ rsvps: { temp: value } }, "temp").status === "yes")
+          .map(([name]) => name)
+        : rosterPlayers().map((player) => player.name);
+      const uniqueNames = [...new Set(names)].filter(Boolean);
+      return uniqueNames
+        .map((name) => playerByName(name))
+        .filter((player) => player && hasMemberRole(player, "Spieler"))
+        .slice(0, 18);
+    }
+
+    function defaultTacticPlayers(board) {
+      const positions = [
+        [8, 34], [22, 16], [22, 30], [22, 42], [22, 56],
+        [43, 20], [43, 34], [43, 48], [64, 18], [64, 34], [64, 50]
+      ];
+      const subPositions = [[92, 12], [92, 22], [92, 32], [92, 42], [92, 52], [92, 62], [86, 62]];
+      return tacticPlayersForBoard(board).map((player, index) => {
+        const [x, y] = index < 11 ? positions[index] : subPositions[index - 11] || [92, 62];
+        return {
+          id: crypto.randomUUID(),
+          type: "player",
+          x,
+          y,
+          name: player.name,
+          color: board.teamColor || currentClub().color || "#155e3b",
+          sub: index >= 11
+        };
+      });
+    }
+
+    function ensureTacticPlayers(board) {
+      if (!board.elements.some((element) => element.type === "player")) {
+        board.elements.push(...defaultTacticPlayers(board));
+      }
+    }
+
+    function tacticSvgPoint(event) {
+      const svg = $("#tacticBoardSvg");
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+        y: Math.max(0, Math.min(68, ((event.clientY - rect.top) / rect.height) * 68))
+      };
+    }
+
+    function fieldSvgMarkup() {
+      return `
+        <defs>
+          <marker id="tacticArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffffff"></path>
+          </marker>
+        </defs>
+        <rect class="field-bg" x="0" y="0" width="100" height="68"></rect>
+        <rect class="field-line" x="2" y="2" width="96" height="64"></rect>
+        <line class="field-line" x1="50" y1="2" x2="50" y2="66"></line>
+        <circle class="field-line" cx="50" cy="34" r="9.15"></circle>
+        <circle class="field-dot" cx="50" cy="34" r=".45"></circle>
+        <rect class="field-line" x="2" y="13.84" width="16.5" height="40.32"></rect>
+        <rect class="field-line" x="81.5" y="13.84" width="16.5" height="40.32"></rect>
+        <rect class="field-line" x="2" y="24.84" width="5.5" height="18.32"></rect>
+        <rect class="field-line" x="92.5" y="24.84" width="5.5" height="18.32"></rect>
+        <circle class="field-dot" cx="11" cy="34" r=".45"></circle>
+        <circle class="field-dot" cx="89" cy="34" r=".45"></circle>
+        <path class="field-line" d="M 18.5 26.7 A 9.15 9.15 0 0 1 18.5 41.3"></path>
+        <path class="field-line" d="M 81.5 26.7 A 9.15 9.15 0 0 0 81.5 41.3"></path>
+        <path class="field-line" d="M 2 30 Q 6 34 2 38"></path>
+        <path class="field-line" d="M 98 30 Q 94 34 98 38"></path>
+      `;
+    }
+
+    function tacticElementMarkup(element, board) {
+      const selected = element.id === selectedTacticElementId ? " selected" : "";
+      if (element.type === "line") {
+        return `<line class="tactic-el tactic-line${selected}" data-tactic-id="${escapeAttr(element.id)}" x1="${element.x1}" y1="${element.y1}" x2="${element.x2}" y2="${element.y2}" ${element.dashed ? 'stroke-dasharray="2.4 1.8"' : ""} marker-end="url(#tacticArrow)"></line>`;
+      }
+      if (element.type === "text") {
+        return `<text class="tactic-el tactic-text${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x}" y="${element.y}">${escapeHtml(element.text || "Text")}</text>`;
+      }
+      if (element.type === "cone") {
+        return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${escapeAttr(element.id)}" d="M ${element.x} ${element.y - 1.7} L ${element.x - 1.7} ${element.y + 1.6} L ${element.x + 1.7} ${element.y + 1.6} Z"></path>`;
+      }
+      if (element.type === "poleV") {
+        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - .45}" y="${element.y - 3}" width=".9" height="6" rx=".3"></rect>`;
+      }
+      if (element.type === "poleH") {
+        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - 3}" y="${element.y - .45}" width="6" height=".9" rx=".3"></rect>`;
+      }
+      if (element.type === "player") {
+        const fill = element.color || board.teamColor || currentClub().color || "#155e3b";
+        return `<g class="tactic-el tactic-player${selected} ${element.sub ? "sub" : ""}" data-tactic-id="${escapeAttr(element.id)}">
+          <circle cx="${element.x}" cy="${element.y}" r="${element.sub ? 1.8 : 2.25}" fill="${escapeAttr(fill)}"></circle>
+          <text x="${element.x}" y="${element.y + 4.4}">${escapeHtml(element.name || "Spieler")}</text>
+        </g>`;
+      }
+      return "";
+    }
+
+    function renderTacticBoard() {
+      const root = $("#tacticBoardSvg");
+      if (!root) return;
+      const board = currentTacticBoard();
+      ensureTacticPlayers(board);
+      $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
+      $("#tacticBoardHint").textContent = $("#tacticTool")?.selectedOptions?.[0]?.textContent || "Auswaehlen / Verschieben";
+      $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title)}</option>`).join("");
+      $("#tacticBoardSelect").value = board.id;
+      $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
+      $("#tacticBoardForm").elements.title.value = board.title;
+      $("#tacticBoardForm").elements.eventId.value = board.eventId || "";
+      $("#tacticBoardForm").elements.teamColor.value = board.teamColor || currentClub().color || "#155e3b";
+      $("#tacticBoardList").innerHTML = state.tacticBoards.map((item) => `<article class="item ${item.id === board.id ? "selected-item" : ""}"><button class="mini" type="button" data-open-tactic="${escapeAttr(item.id)}">${escapeHtml(item.title)}</button><span class="meta">${escapeHtml(state.events.find((eventItem) => eventItem.id === item.eventId)?.title || "Ohne Zuordnung")}</span></article>`).join("");
+      root.innerHTML = `${fieldSvgMarkup()}${board.elements.map((element) => tacticElementMarkup(element, board)).join("")}`;
+    }
+
+    function addTacticBoard() {
+      const board = normalizeTacticBoard({ title: `Taktik ${state.tacticBoards.length + 1}`, teamColor: currentClub().color || "#155e3b" });
+      board.elements = defaultTacticPlayers(board);
+      state.tacticBoards.unshift(board);
+      selectedTacticBoardId = board.id;
+      selectedTacticElementId = "";
+      saveState();
+    }
+
+    function addTacticElement(type, point) {
+      const board = currentTacticBoard();
+      const element = {
+        id: crypto.randomUUID(),
+        type,
+        x: point.x,
+        y: point.y
+      };
+      if (type === "text") element.text = window.prompt("Text auf dem Feld")?.trim() || "Text";
+      board.elements.push(element);
+      selectedTacticElementId = element.id;
+      saveState();
+    }
+
     function switchView(viewName) {
       const button = $(`.nav button[data-view="${viewName}"]`);
       if (!button || button.hidden || !canAccess(button.dataset.minRole)) return;
@@ -5062,6 +5280,117 @@
     });
     $("#printTrainerReportBtn")?.addEventListener("click", () => {
       if (canManage()) printTrainerReport();
+    });
+    $("#newTacticBoardBtn")?.addEventListener("click", addTacticBoard);
+    $("#tacticBoardSelect")?.addEventListener("change", () => {
+      selectedTacticBoardId = $("#tacticBoardSelect").value;
+      selectedTacticElementId = "";
+      renderTacticBoard();
+    });
+    $("#tacticTool")?.addEventListener("change", renderTacticBoard);
+    $("#tacticBoardForm")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      const values = formValues(event.currentTarget);
+      board.title = values.title.trim() || "Taktik";
+      board.eventId = values.eventId || "";
+      board.teamColor = values.teamColor || currentClub().color || "#155e3b";
+      board.elements.filter((element) => element.type === "player").forEach((element) => {
+        element.color = board.teamColor;
+      });
+      board.updatedAt = new Date().toISOString();
+      saveState();
+    });
+    $("#resetTacticPlayersBtn")?.addEventListener("click", () => {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      board.elements = board.elements.filter((element) => element.type !== "player");
+      board.elements.unshift(...defaultTacticPlayers(board));
+      selectedTacticElementId = "";
+      saveState();
+    });
+    $("#deleteTacticElementBtn")?.addEventListener("click", () => {
+      if (!canManage() || !selectedTacticElementId) return;
+      const board = currentTacticBoard();
+      board.elements = board.elements.filter((element) => element.id !== selectedTacticElementId);
+      selectedTacticElementId = "";
+      saveState();
+    });
+    $("#clearTacticBoardBtn")?.addEventListener("click", () => {
+      if (!canManage()) return;
+      if (!window.confirm("Alle Elemente dieser Taktikgrafik loeschen?")) return;
+      const board = currentTacticBoard();
+      board.elements = [];
+      selectedTacticElementId = "";
+      saveState();
+    });
+    $("#tacticBoardList")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-open-tactic]");
+      if (!button) return;
+      selectedTacticBoardId = button.dataset.openTactic;
+      selectedTacticElementId = "";
+      renderTacticBoard();
+    });
+    $("#tacticBoardSvg")?.addEventListener("pointerdown", (event) => {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      const point = tacticSvgPoint(event);
+      const tool = $("#tacticTool").value || "select";
+      const target = event.target.closest?.("[data-tactic-id]");
+      if (tool === "select") {
+        if (!target) {
+          selectedTacticElementId = "";
+          renderTacticBoard();
+          return;
+        }
+        selectedTacticElementId = target.dataset.tacticId;
+        const element = board.elements.find((item) => item.id === selectedTacticElementId);
+        tacticPointer = element ? { mode: "move", id: element.id, start: point, original: { ...element } } : null;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        renderTacticBoard();
+        return;
+      }
+      if (tool === "line" || tool === "dashed") {
+        const element = { id: crypto.randomUUID(), type: "line", x1: point.x, y1: point.y, x2: point.x, y2: point.y, dashed: tool === "dashed" };
+        board.elements.push(element);
+        selectedTacticElementId = element.id;
+        tacticPointer = { mode: "line", id: element.id };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        renderTacticBoard();
+        return;
+      }
+      addTacticElement(tool, point);
+    });
+    $("#tacticBoardSvg")?.addEventListener("pointermove", (event) => {
+      if (!tacticPointer) return;
+      const board = currentTacticBoard();
+      const point = tacticSvgPoint(event);
+      const element = board.elements.find((item) => item.id === tacticPointer.id);
+      if (!element) return;
+      if (tacticPointer.mode === "line") {
+        element.x2 = point.x;
+        element.y2 = point.y;
+      } else if (tacticPointer.mode === "move") {
+        const dx = point.x - tacticPointer.start.x;
+        const dy = point.y - tacticPointer.start.y;
+        if (element.type === "line") {
+          element.x1 = Math.max(0, Math.min(100, tacticPointer.original.x1 + dx));
+          element.y1 = Math.max(0, Math.min(68, tacticPointer.original.y1 + dy));
+          element.x2 = Math.max(0, Math.min(100, tacticPointer.original.x2 + dx));
+          element.y2 = Math.max(0, Math.min(68, tacticPointer.original.y2 + dy));
+        } else {
+          element.x = Math.max(0, Math.min(100, tacticPointer.original.x + dx));
+          element.y = Math.max(0, Math.min(68, tacticPointer.original.y + dy));
+        }
+      }
+      renderTacticBoard();
+    });
+    $("#tacticBoardSvg")?.addEventListener("pointerup", () => {
+      if (!tacticPointer) return;
+      tacticPointer = null;
+      currentTacticBoard().updatedAt = new Date().toISOString();
+      saveState();
     });
     $("#prevCalendarBtn").addEventListener("click", () => {
       const date = new Date(`${calendarDate}T00:00`);

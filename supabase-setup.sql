@@ -189,6 +189,42 @@ for update using (true);
 create policy "event rsvps delete" on public.event_rsvps
 for delete using (true);
 
+create table if not exists public.tactic_boards (
+  id text primary key default gen_random_uuid()::text,
+  club_id text not null references public.clubs(id) on delete cascade,
+  event_id text references public.events(id) on delete set null,
+  title text not null default 'Taktik',
+  team_color text not null default '#155e3b',
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.tactic_boards add column if not exists event_id text references public.events(id) on delete set null;
+alter table public.tactic_boards add column if not exists team_color text not null default '#155e3b';
+alter table public.tactic_boards add column if not exists data jsonb not null default '{}'::jsonb;
+
+create index if not exists tactic_boards_club_event_idx on public.tactic_boards (club_id, event_id);
+
+alter table public.tactic_boards enable row level security;
+
+drop policy if exists "tactic boards read" on public.tactic_boards;
+drop policy if exists "tactic boards write" on public.tactic_boards;
+drop policy if exists "tactic boards update" on public.tactic_boards;
+drop policy if exists "tactic boards delete" on public.tactic_boards;
+
+create policy "tactic boards read" on public.tactic_boards
+for select using (true);
+
+create policy "tactic boards write" on public.tactic_boards
+for insert with check (true);
+
+create policy "tactic boards update" on public.tactic_boards
+for update using (true);
+
+create policy "tactic boards delete" on public.tactic_boards
+for delete using (true);
+
 create table if not exists public.cash_entries (
   id text primary key default gen_random_uuid()::text,
   club_id text not null references public.clubs(id) on delete cascade,

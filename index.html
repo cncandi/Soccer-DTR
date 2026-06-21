@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=90">
+  <link rel="stylesheet" href="css/app.css?v=91">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v90</span></h1>
+          <h1>Kadrivo <span class="app-version">v91</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v90</span></h1>
+          <h1>Kadrivo <span class="app-version">v91</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -93,6 +93,7 @@
         <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
         <button data-view="players" data-min-role="admin">Spieler</button>
         <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
+        <button data-view="tactics" data-min-role="admin">Taktikboard</button>
         <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="cash" data-min-role="player">Kasse</button>
@@ -221,6 +222,52 @@
           </div>
           <div class="list" id="allEventsList"></div>
         </section>
+      </section>
+
+      <section class="view" id="tactics">
+        <div class="tactic-shell">
+          <section class="panel tactic-sidebar">
+            <div class="item-head">
+              <h3>Taktiken</h3>
+              <button class="mini" id="newTacticBoardBtn" type="button">Neu</button>
+            </div>
+            <div class="field">
+              <label for="tacticBoardSelect">Grafik</label>
+              <select id="tacticBoardSelect"></select>
+            </div>
+            <form id="tacticBoardForm" class="form-grid">
+              <div class="field full"><label>Titel</label><input name="title" required></div>
+              <div class="field full"><label>Zuordnung</label><select name="eventId" id="tacticEventSelect"></select></div>
+              <div class="field"><label>Teamfarbe</label><input name="teamColor" type="color" value="#155e3b"></div>
+              <div class="field"><label>Werkzeug</label><select id="tacticTool">
+                <option value="select">Auswaehlen / Verschieben</option>
+                <option value="line">Linie mit Pfeil</option>
+                <option value="dashed">Gestrichelter Pfeil</option>
+                <option value="text">Text</option>
+                <option value="cone">Huetchen</option>
+                <option value="poleV">Stange vertikal</option>
+                <option value="poleH">Stange horizontal</option>
+              </select></div>
+              <div class="field full row-actions">
+                <button class="btn-primary" type="submit">Speichern</button>
+                <button class="btn-secondary" id="resetTacticPlayersBtn" type="button">Spieler neu setzen</button>
+                <button class="btn-secondary" id="deleteTacticElementBtn" type="button">Element loeschen</button>
+                <button class="btn-danger" id="clearTacticBoardBtn" type="button">Alles loeschen</button>
+              </div>
+            </form>
+            <div class="meta">Spieler werden aus Zusagen des zugeordneten Trainings/Spiels geladen. Ohne Zuordnung nutzt das Board den aktuellen Kader.</div>
+            <div class="list" id="tacticBoardList"></div>
+          </section>
+          <section class="panel tactic-workspace">
+            <div class="item-head">
+              <h3 id="tacticBoardTitle">Taktikboard</h3>
+              <span class="chip" id="tacticBoardHint">Auswaehlen / Verschieben</span>
+            </div>
+            <div class="tactic-board-wrap">
+              <svg id="tacticBoardSvg" class="tactic-board" viewBox="0 0 100 68" role="img" aria-label="Taktikboard Fussballfeld"></svg>
+            </div>
+          </section>
+        </div>
       </section>
 
       <section class="view" id="cash">
@@ -432,6 +479,7 @@ Es enthaelt:
 - club_documents als Uebergang fuer die aktuelle App
 - clubs mit Lizenznummer und Lizenzstatus
 - players, events, event_rsvps
+- tactic_boards fuer Taktikgrafiken
 - cash_entries, fine_catalog
 - polls, messages, hall_of_fame_entries
 
@@ -602,6 +650,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=90" defer></script>
+  <script src="js/app.js?v=91" defer></script>
 </body>
 </html>
