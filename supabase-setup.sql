@@ -63,10 +63,13 @@ create table if not exists public.players (
   alternate_positions text[] not null default '{}',
   availability jsonb not null default '{}'::jsonb,
   performance jsonb not null default '{}'::jsonb,
+  data jsonb not null default '{}'::jsonb,
   active boolean not null default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.players add column if not exists data jsonb not null default '{}'::jsonb;
 
 create unique index if not exists players_club_name_unique
 on public.players (club_id, lower(name));
@@ -93,7 +96,7 @@ for delete using (true);
 create table if not exists public.events (
   id text primary key default gen_random_uuid()::text,
   club_id text not null references public.clubs(id) on delete cascade,
-  type text not null check (type in ('game', 'training', 'event')),
+  type text not null check (type in ('Spiel', 'Training', 'Event', 'Sonstiges', 'game', 'training', 'event')),
   title text not null default '',
   date date not null,
   time text not null default '',
@@ -111,9 +114,15 @@ create table if not exists public.events (
   focus text not null default '',
   details text not null default '',
   remark text not null default '',
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.events drop constraint if exists events_type_check;
+alter table public.events
+add constraint events_type_check check (type in ('Spiel', 'Training', 'Event', 'Sonstiges', 'game', 'training', 'event'));
+alter table public.events add column if not exists data jsonb not null default '{}'::jsonb;
 
 create index if not exists events_club_date_idx on public.events (club_id, date);
 
@@ -169,14 +178,19 @@ create table if not exists public.cash_entries (
   id text primary key default gen_random_uuid()::text,
   club_id text not null references public.clubs(id) on delete cascade,
   player_id text references public.players(id) on delete set null,
+  player_name text not null default '',
   label text not null,
   amount numeric(10,2) not null default 0,
   date date,
   note text not null default '',
   paid boolean not null default false,
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.cash_entries add column if not exists player_name text not null default '';
+alter table public.cash_entries add column if not exists data jsonb not null default '{}'::jsonb;
 
 alter table public.cash_entries enable row level security;
 
@@ -204,9 +218,12 @@ create table if not exists public.fine_catalog (
   description text not null default '',
   amount numeric(10,2) not null default 0,
   penalty text not null default '',
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.fine_catalog add column if not exists data jsonb not null default '{}'::jsonb;
 
 create index if not exists fine_catalog_club_idx on public.fine_catalog (club_id);
 
@@ -236,10 +253,13 @@ create table if not exists public.polls (
   options jsonb not null default '[]'::jsonb,
   votes jsonb not null default '{}'::jsonb,
   group_name text not null default 'Mannschaft',
+  data jsonb not null default '{}'::jsonb,
   active boolean not null default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.polls add column if not exists data jsonb not null default '{}'::jsonb;
 
 alter table public.polls enable row level security;
 
@@ -267,9 +287,12 @@ create table if not exists public.messages (
   title text not null default '',
   body text not null default '',
   author text not null default '',
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.messages add column if not exists data jsonb not null default '{}'::jsonb;
 
 create index if not exists messages_club_created_idx on public.messages (club_id, created_at desc);
 
@@ -296,12 +319,17 @@ create table if not exists public.hall_of_fame_entries (
   id text primary key default gen_random_uuid()::text,
   club_id text not null references public.clubs(id) on delete cascade,
   player_id text references public.players(id) on delete set null,
+  player_name text not null default '',
   category text not null,
   value numeric(10,2) not null default 0,
   meta jsonb not null default '{}'::jsonb,
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.hall_of_fame_entries add column if not exists player_name text not null default '';
+alter table public.hall_of_fame_entries add column if not exists data jsonb not null default '{}'::jsonb;
 
 alter table public.hall_of_fame_entries enable row level security;
 

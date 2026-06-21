@@ -684,6 +684,375 @@
       return "Supabase-Fehler: " + message;
     }
 
+    function normalizedSchemaUnavailable(error) {
+      const message = error?.message || String(error || "");
+      return message.includes("Could not find the table")
+        || message.includes("Could not find the")
+        || message.includes("schema cache")
+        || message.includes("relation ")
+        || message.includes("does not exist");
+    }
+
+    function rowData(row, fallback = {}) {
+      return row && row.data && typeof row.data === "object" && !Array.isArray(row.data)
+        ? row.data
+        : fallback;
+    }
+
+    function ensureEntityId(entity) {
+      if (!entity.id) entity.id = crypto.randomUUID();
+      return entity.id;
+    }
+
+    function normalizedEventType(type) {
+      if (type === "Sonstiges") return "Event";
+      return eventTypeForForm(type);
+    }
+
+    function playerIdByNameMap(players = state.players) {
+      return new Map(players.map((player) => [playerNameKey(player.name), player.id]).filter(([key, id]) => key && id));
+    }
+
+    async function loadNormalizedState(client) {
+      const clubResult = await client.from("clubs").select("*").eq("id", currentClubId).maybeSingle();
+      if (clubResult.error) throw clubResult.error;
+
+      const [playersResult, eventsResult, cashResult, catalogResult, pollsResult, messagesResult, fameResult] = await Promise.all([
+        client.from("players").select("*").eq("club_id", currentClubId),
+        client.from("events").select("*").eq("club_id", currentClubId),
+        client.from("cash_entries").select("*").eq("club_id", currentClubId),
+        client.from("fine_catalog").select("*").eq("club_id", currentClubId),
+        client.from("polls").select("*").eq("club_id", currentClubId),
+        client.from("messages").select("*").eq("club_id", currentClubId),
+        client.from("hall_of_fame_entries").select("*").eq("club_id", currentClubId)
+      ]);
+      const results = [playersResult, eventsResult, cashResult, catalogResult, pollsResult, messagesResult, fameResult];
+      const failed = results.find((result) => result.error);
+      if (failed) throw failed.error;
+
+      const playerRows = playersResult.data || [];
+      const eventRows = eventsResult.data || [];
+      const hasRows = Boolean(clubResult.data)
+        || results.some((result) => (result.data || []).length);
+      if (!hasRows) return null;
+
+      const players = playerRows.map((row) => normalizePlayer({
+        id: row.id,
+        name: row.name,
+        password: row.password || DEFAULT_PASSWORD,
+        role: row.role || "Spieler",
+        memberRoles: row.member_roles || undefined,
+        groups: row.groups || undefined,
+        position: row.position || "",
+        phone: row.phone || "",
+        notes: row.notes || "",
+        photo: row.photo || "",
+        alternatePositions: row.alternate_positions || [],
+        availability: row.availability || {},
+        performance: row.performance || {},
+        ...rowData(row)
+      }));
+
+      const playerNamesById = new Map(players.map((player) => [player.id, player.name]));
+      const events = eventRows.map((row) => normalizeEvent({
+        id: row.id,
+        type: normalizedEventType(row.type),
+        title: row.title,
+        date: row.date,
+        time: row.time,
+        location: row.location,
+        gameVenue: row.home_away || row.game_venue || "",
+        gameCategory: row.game_type || row.game_category || "",
+        meetingPoint: row.meeting_place || "",
+        meetingTime: row.meeting_time || "",
+        details: row.details || "",
+        coach: row.coach || "",
+        focus: row.focus || "",
+        remark: row.remark || "",
+        createdAt: row.created_at || "",
+        ...rowData(row)
+      }));
+
+      if (events.length) {
+        const rsvpResult = await client.from("event_rsvps").select("*").in("event_id", events.map((event) => event.id));
+        if (rsvpResult.error) throw rsvpResult.error;
+        const eventsById = new Map(events.map((event) => [event.id, event]));
+        (rsvpResult.data || []).forEach((rsvp) => {
+          const eventItem = eventsById.get(rsvp.event_id);
+          const playerName = playerNamesById.get(rsvp.player_id);
+          if (!eventItem || !playerName) return;
+          eventItem.rsvps = eventItem.rsvps || {};
+          eventItem.rsvps[playerName] = {
+            ...(eventItem.rsvps[playerName] || {}),
+            status: rsvp.status,
+            note: rsvp.note || "",
+            transport: rsvp.transport || "",
+            updatedAt: rsvp.updated_at || ""
+          };
+        });
+      }
+
+      return normalizeState({
+        players,
+        events,
+        cashFines: (cashResult.data || []).map((row) => normalizeCashFine({
+          id: row.id,
+          player: row.player_name || "",
+          label: row.label,
+          amount: row.amount,
+          date: row.date,
+          note: row.note,
+          paid: row.paid,
+          createdAt: row.created_at || "",
+          ...rowData(row)
+        })),
+        fineCatalog: (catalogResult.data || []).map((row) => normalizeFineCatalogItem({
+          id: row.id,
+          label: row.label,
+          description: row.description,
+          amount: row.amount,
+          penalty: row.penalty,
+          ...rowData(row)
+        })),
+        polls: (pollsResult.data || []).map((row) => ({
+          id: row.id,
+          question: row.question,
+          group: row.group_name || "Mannschaft",
+          options: row.options || [],
+          votes: row.votes || {},
+          ...rowData(row)
+        })),
+        messages: (messagesResult.data || []).map((row) => ({
+          id: row.id,
+          group: row.group_name || "Mannschaft",
+          title: row.title || "",
+          body: row.body || "",
+          author: row.author || "",
+          createdAt: row.created_at || "",
+          ...rowData(row)
+        })),
+        hallOfFame: {
+          selfTrainings: (fameResult.data || [])
+            .filter((row) => row.category === "selfTraining")
+            .map((row) => normalizeSelfTraining({ id: row.id, player: row.player_name || "", ...(row.meta || {}), ...rowData(row) })),
+          bonusPoints: (fameResult.data || [])
+            .filter((row) => row.category === "bonusPoint")
+            .map((row) => normalizeBonusPoint({ id: row.id, player: row.player_name || "", points: row.value, ...(row.meta || {}), ...rowData(row) }))
+        }
+      });
+    }
+
+    async function deleteMissingRows(client, table, ids) {
+      let query = client.from(table).delete().eq("club_id", currentClubId);
+      if (ids.length) query = query.not("id", "in", `(${ids.join(",")})`);
+      const result = await query;
+      if (result.error) throw result.error;
+    }
+
+    async function saveNormalizedState(client) {
+      state = normalizeState(state);
+      const now = new Date().toISOString();
+      const normalizedClubs = clubs.map(normalizeClub);
+      const clubRows = normalizedClubs.map((club) => ({
+        id: club.id,
+        name: club.name,
+        color: normalizeHexColor(club.color || "#155e3b"),
+        logo: club.logo || "",
+        license_key: club.licenseKey || generateLicenseKey(),
+        license_status: normalizeLicenseStatus(club.licenseStatus),
+        updated_at: club.updatedAt || now
+      }));
+      const clubUpsert = await client.from("clubs").upsert(clubRows);
+      if (clubUpsert.error) throw clubUpsert.error;
+
+      state.players.forEach(ensureEntityId);
+      state.events.forEach(ensureEntityId);
+      (state.cashFines || []).forEach(ensureEntityId);
+      (state.fineCatalog || []).forEach(ensureEntityId);
+      (state.polls || []).forEach(ensureEntityId);
+      (state.messages || []).forEach(ensureEntityId);
+      const fame = normalizeHallOfFame(state.hallOfFame);
+      fame.selfTrainings.forEach(ensureEntityId);
+      fame.bonusPoints.forEach(ensureEntityId);
+      state.hallOfFame = fame;
+
+      const playerIds = playerIdByNameMap();
+      const playerRows = state.players.map((player) => ({
+        id: player.id,
+        club_id: currentClubId,
+        name: player.name,
+        password: player.password || DEFAULT_PASSWORD,
+        role: player.role || "Spieler",
+        member_roles: normalizeMemberRoles(player),
+        groups: normalizeGroups(player),
+        position: player.position || "",
+        phone: player.phone || "",
+        notes: player.notes || "",
+        photo: player.photo || "",
+        alternate_positions: player.alternatePositions || [],
+        availability: player.availability || {},
+        performance: player.performance || {},
+        active: true,
+        data: player,
+        updated_at: now
+      }));
+      if (playerRows.length) {
+        const result = await client.from("players").upsert(playerRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "players", playerRows.map((row) => row.id));
+
+      const eventRows = state.events.map((eventItem) => ({
+        id: eventItem.id,
+        club_id: currentClubId,
+        type: normalizedEventType(eventItem.type),
+        title: eventItem.title || normalizedEventType(eventItem.type),
+        date: eventItem.date,
+        time: eventItem.time || "",
+        location: eventItem.location || "",
+        opponent: eventItem.type === "Spiel" ? eventItem.title || "" : "",
+        home_away: eventItem.gameVenue || "",
+        field_address: eventItem.location || "",
+        game_type: eventItem.gameCategory || "",
+        meeting_place: eventItem.meetingPoint || "",
+        meeting_time: eventItem.meetingTime || "",
+        on_site_time: eventItem.meetingTime || "",
+        repeat: eventItem.repeat || "",
+        repeat_until: null,
+        coach: eventItem.coach || "",
+        focus: eventItem.focus || "",
+        details: eventItem.details || "",
+        remark: eventItem.remark || "",
+        data: eventItem,
+        updated_at: now
+      }));
+      if (eventRows.length) {
+        const result = await client.from("events").upsert(eventRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "events", eventRows.map((row) => row.id));
+
+      const rsvpEventIds = state.events.map((eventItem) => eventItem.id);
+      if (rsvpEventIds.length) {
+        const deleteRsvps = await client.from("event_rsvps").delete().in("event_id", rsvpEventIds);
+        if (deleteRsvps.error) throw deleteRsvps.error;
+      }
+      const rsvpRows = state.events.flatMap((eventItem) => Object.entries(eventItem.rsvps || {}).map(([name, value]) => {
+        const rsvp = typeof value === "string" ? { status: value } : value || {};
+        const playerId = playerIds.get(playerNameKey(name));
+        if (!playerId) return null;
+        return {
+          event_id: eventItem.id,
+          player_id: playerId,
+          status: rsvp.status || value || "yes",
+          note: rsvp.note || "",
+          transport: rsvp.transport || "",
+          updated_at: rsvp.updatedAt || now
+        };
+      }).filter(Boolean));
+      if (rsvpRows.length) {
+        const result = await client.from("event_rsvps").insert(rsvpRows);
+        if (result.error) throw result.error;
+      }
+
+      const cashRows = (state.cashFines || []).map((fine) => ({
+        id: fine.id,
+        club_id: currentClubId,
+        player_id: playerIds.get(playerNameKey(fine.player)) || null,
+        player_name: fine.player || "",
+        label: fine.label || "Strafe",
+        amount: Number(fine.amount || 0),
+        date: fine.date || null,
+        note: fine.note || "",
+        paid: Boolean(fine.paid),
+        data: fine,
+        updated_at: now
+      }));
+      if (cashRows.length) {
+        const result = await client.from("cash_entries").upsert(cashRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "cash_entries", cashRows.map((row) => row.id));
+
+      const catalogRows = (state.fineCatalog || []).map((fine) => ({
+        id: fine.id,
+        club_id: currentClubId,
+        label: fine.label || "Strafe",
+        description: fine.description || "",
+        amount: Number(fine.amount || 0),
+        penalty: fine.penalty || "",
+        data: fine,
+        updated_at: now
+      }));
+      if (catalogRows.length) {
+        const result = await client.from("fine_catalog").upsert(catalogRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "fine_catalog", catalogRows.map((row) => row.id));
+
+      const pollRows = (state.polls || []).map((poll) => ({
+        id: poll.id,
+        club_id: currentClubId,
+        question: poll.question || "",
+        options: poll.options || [],
+        votes: poll.votes || {},
+        group_name: poll.group || "Mannschaft",
+        data: poll,
+        updated_at: now
+      }));
+      if (pollRows.length) {
+        const result = await client.from("polls").upsert(pollRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "polls", pollRows.map((row) => row.id));
+
+      const messageRows = (state.messages || []).map((message) => ({
+        id: message.id,
+        club_id: currentClubId,
+        group_name: message.group || "Mannschaft",
+        title: message.title || "",
+        body: message.body || "",
+        author: message.author || "",
+        data: message,
+        updated_at: now
+      }));
+      if (messageRows.length) {
+        const result = await client.from("messages").upsert(messageRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "messages", messageRows.map((row) => row.id));
+
+      const fameRows = [
+        ...fame.selfTrainings.map((entry) => ({
+          id: entry.id,
+          club_id: currentClubId,
+          player_id: playerIds.get(playerNameKey(entry.player)) || null,
+          player_name: entry.player || "",
+          category: "selfTraining",
+          value: entry.approved ? 1 : 0,
+          meta: entry,
+          data: entry,
+          updated_at: now
+        })),
+        ...fame.bonusPoints.map((entry) => ({
+          id: entry.id,
+          club_id: currentClubId,
+          player_id: playerIds.get(playerNameKey(entry.player)) || null,
+          player_name: entry.player || "",
+          category: "bonusPoint",
+          value: Number(entry.points || 0),
+          meta: entry,
+          data: entry,
+          updated_at: now
+        }))
+      ];
+      if (fameRows.length) {
+        const result = await client.from("hall_of_fame_entries").upsert(fameRows);
+        if (result.error) throw result.error;
+      }
+      await deleteMissingRows(client, "hall_of_fame_entries", fameRows.map((row) => row.id));
+    }
+
     async function waitForSupabaseLibrary(timeoutMs = 5000) {
       if (!settings.url || !settings.key || window.supabase) return Boolean(window.supabase);
       const startedAt = Date.now();
@@ -732,8 +1101,31 @@
           return;
         }
 
-        if (!options.preferLocal && data && data.document) {
-          state = normalizeState(data.document);
+        let normalizedReady = true;
+        let migratedFromLegacy = false;
+        if (!options.preferLocal) {
+          try {
+            const normalizedState = await loadNormalizedState(client);
+            if (normalizedState) {
+              state = normalizedState;
+            } else if (data && data.document) {
+              state = normalizeState(data.document);
+              migratedFromLegacy = true;
+            }
+          } catch (normalizedError) {
+            if (!normalizedSchemaUnavailable(normalizedError)) throw normalizedError;
+            normalizedReady = false;
+            if (data && data.document) state = normalizeState(data.document);
+          }
+        }
+
+        if (normalizedReady) {
+          try {
+            await saveNormalizedState(client);
+          } catch (normalizedError) {
+            if (!normalizedSchemaUnavailable(normalizedError)) throw normalizedError;
+            normalizedReady = false;
+          }
         }
 
         const payload = { id: clubDocumentId(), document: state, updated_at: new Date().toISOString() };
@@ -744,7 +1136,10 @@
         }
 
         localStorage.setItem(stateKey(), JSON.stringify(state));
-        setStatus("Synchronisiert: " + new Date().toLocaleTimeString("de-DE"));
+        const syncMode = normalizedReady
+          ? (migratedFromLegacy ? "Migriert und synchronisiert" : "Synchronisiert")
+          : "Synchronisiert mit Dokument-Speicher";
+        setStatus(`${syncMode}: ${new Date().toLocaleTimeString("de-DE")}`);
         render();
       } catch (error) {
         setStatus(supabaseErrorMessage(error));
