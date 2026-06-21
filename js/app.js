@@ -3771,7 +3771,7 @@
       const club = currentClub();
       club.name = values.name.trim() || club.name;
       club.color = normalizeHexColor(values.color);
-      if (values.licenseStatus) club.licenseStatus = normalizeLicenseStatus(values.licenseStatus);
+      if (isSuperadmin() && values.licenseStatus) club.licenseStatus = normalizeLicenseStatus(values.licenseStatus);
       const file = $("#clubLogoFile").files[0];
       if (file) {
         club.logo = await readFileAsDataUrl(file);

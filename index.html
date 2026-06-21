@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=70">
+  <link rel="stylesheet" href="css/app.css?v=71">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v70</span></h1>
+          <h1>Kadrivo <span class="app-version">v71</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -71,7 +71,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v70</span></h1>
+          <h1>Kadrivo <span class="app-version">v71</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -107,7 +107,7 @@
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="cash" data-min-role="player">Kasse</button>
         <button data-view="fame" data-min-role="player">Hall of Fame</button>
-        <button data-view="settings" data-min-role="superadmin">Einstellungen</button>
+        <button data-view="settings" data-min-role="admin">Einstellungen</button>
       </nav>
 
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
@@ -383,12 +383,12 @@ Nein</textarea></div>
 
       <section class="view" id="settings">
         <div class="grid two">
-          <section class="panel superadmin-only">
+          <section class="panel admin-only">
             <h3>Vereinsdesign</h3>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
-              <div class="field"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
-              <div class="field"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
+              <div class="field superadmin-only"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
+              <div class="field superadmin-only"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
               <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
               <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
               <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
@@ -405,7 +405,7 @@ Nein</textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
             </form>
           </section>
-          <section class="panel superadmin-only">
+          <section class="panel admin-only">
             <h3>PayPal-Zahlungen</h3>
             <form id="paypalSettingsForm" class="form-grid">
               <div class="field full"><label class="check-row"><input type="checkbox" name="paypal_enabled"> PayPal aktivieren</label></div>
@@ -419,7 +419,7 @@ Nein</textarea></div>
             </form>
             <p class="meta" id="paypalStatus">PayPal ist nicht verbunden.</p>
           </section>
-          <section class="panel">
+          <section class="panel superadmin-only">
             <h3>Supabase-Setup</h3>
             <textarea readonly style="min-height: 230px;">Das vollstaendige Setup liegt in supabase-setup.sql.
 
@@ -592,6 +592,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=70" defer></script>
+  <script src="js/app.js?v=71" defer></script>
 </body>
 </html>
