@@ -152,6 +152,9 @@
     let loginDirectory = [];
     let loginDirectoryLoaded = false;
 
+    const TACTIC_VIEW = { x: -8, y: -5, width: 116, height: 78 };
+    const TACTIC_PITCH = { x: 0, y: 0, width: 100, height: 68 };
+
     const titles = {
       dashboard: ["Uebersicht", "Alles Wichtige fuer Mannschaft, Training, Spiele und Gruppen."],
       players: ["Spieler", "Kader, Gruppen und Kontaktdaten verwalten."],
@@ -4395,19 +4398,27 @@
       const clone = JSON.parse(JSON.stringify(element));
       clone.id = crypto.randomUUID();
       if (clone.type === "line") {
-        clone.x1 = Math.max(0, Math.min(100, Number(clone.x1 || 0) + offset));
-        clone.y1 = Math.max(0, Math.min(68, Number(clone.y1 || 0) + offset));
-        clone.x2 = Math.max(0, Math.min(100, Number(clone.x2 || 0) + offset));
-        clone.y2 = Math.max(0, Math.min(68, Number(clone.y2 || 0) + offset));
+        clone.x1 = clampTacticX(Number(clone.x1 || 0) + offset);
+        clone.y1 = clampTacticY(Number(clone.y1 || 0) + offset);
+        clone.x2 = clampTacticX(Number(clone.x2 || 0) + offset);
+        clone.y2 = clampTacticY(Number(clone.y2 || 0) + offset);
       } else {
-        clone.x = Math.max(0, Math.min(100, Number(clone.x || 50) + offset));
-        clone.y = Math.max(0, Math.min(68, Number(clone.y || 34) + offset));
+        clone.x = clampTacticX(Number(clone.x || 50) + offset);
+        clone.y = clampTacticY(Number(clone.y || 34) + offset);
       }
       return clone;
     }
 
     function selectedTacticElement() {
       return currentTacticBoard().elements.find((element) => element.id === selectedTacticElementId) || null;
+    }
+
+    function clampTacticX(value) {
+      return Math.max(TACTIC_VIEW.x, Math.min(TACTIC_VIEW.x + TACTIC_VIEW.width, Number(value || 0)));
+    }
+
+    function clampTacticY(value) {
+      return Math.max(TACTIC_VIEW.y, Math.min(TACTIC_VIEW.y + TACTIC_VIEW.height, Number(value || 0)));
     }
 
     function copySelectedTacticElement(cut = false) {
@@ -4456,7 +4467,7 @@
       const clone = svg.cloneNode(true);
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
       style.textContent = `
-        .field-bg{fill:#157a43}.field-line{fill:none;stroke:rgba(255,255,255,.95);stroke-width:.42}.field-dot{fill:rgba(255,255,255,.95)}
+        .field-margin{fill:#08751e}.field-bg{fill:#14972b}.field-stripe-a{fill:#06891c}.field-stripe-b{fill:#1ca333}.field-line{fill:none;stroke:rgba(255,255,255,.95);stroke-width:.42}.field-dot{fill:rgba(255,255,255,.95)}
         .tactic-player circle,.tactic-player-icon circle{stroke:#fff;stroke-width:.45}.tactic-player text,.tactic-text,.tactic-player-icon text{fill:#fff;font-size:2.3px;font-weight:800;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.35}
         .tactic-cone{fill:#f97316;stroke:#fff;stroke-width:.25}.tactic-pole{fill:#facc15;stroke:#7c2d12;stroke-width:.18}
       `;
@@ -4468,10 +4479,10 @@
       const url = URL.createObjectURL(blob);
       image.onload = () => {
         const canvas = document.createElement("canvas");
-        canvas.width = 1600;
-        canvas.height = 1088;
+        canvas.width = 1740;
+        canvas.height = 1170;
         const context = canvas.getContext("2d");
-        context.fillStyle = "#157a43";
+        context.fillStyle = "#08751e";
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
@@ -4517,9 +4528,9 @@
         [8, 34], [22, 16], [22, 30], [22, 42], [22, 56],
         [43, 20], [43, 34], [43, 48], [64, 18], [64, 34], [64, 50]
       ];
-      const subPositions = [[92, 12], [92, 22], [92, 32], [92, 42], [92, 52], [92, 62], [86, 62]];
+      const subPositions = [[105, 8], [105, 17], [105, 26], [105, 35], [105, 44], [105, 53], [105, 62]];
       return tacticPlayersForBoard(board).map((player, index) => {
-        const [x, y] = index < 11 ? positions[index] : subPositions[index - 11] || [92, 62];
+        const [x, y] = index < 11 ? positions[index] : subPositions[index - 11] || [105, 62];
         return {
           id: crypto.randomUUID(),
           type: "player",
@@ -4542,8 +4553,8 @@
       const svg = $("#tacticBoardSvg");
       const rect = svg.getBoundingClientRect();
       return {
-        x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
-        y: Math.max(0, Math.min(68, ((event.clientY - rect.top) / rect.height) * 68))
+        x: clampTacticX(TACTIC_VIEW.x + ((event.clientX - rect.left) / rect.width) * TACTIC_VIEW.width),
+        y: clampTacticY(TACTIC_VIEW.y + ((event.clientY - rect.top) / rect.height) * TACTIC_VIEW.height)
       };
     }
 
@@ -4659,27 +4670,35 @@
     }
 
     function fieldSvgMarkup() {
+      const stripes = Array.from({ length: 12 }).map((_, index) => {
+        const stripeWidth = TACTIC_PITCH.width / 12;
+        return `<rect class="${index % 2 ? "field-stripe-b" : "field-stripe-a"}" x="${index * stripeWidth}" y="0" width="${stripeWidth}" height="68"></rect>`;
+      }).join("");
       return `
         <defs>
           <marker id="tacticArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffffff"></path>
           </marker>
         </defs>
+        <rect class="field-margin" x="${TACTIC_VIEW.x}" y="${TACTIC_VIEW.y}" width="${TACTIC_VIEW.width}" height="${TACTIC_VIEW.height}"></rect>
         <rect class="field-bg" x="0" y="0" width="100" height="68"></rect>
-        <rect class="field-line" x="2" y="2" width="96" height="64"></rect>
-        <line class="field-line" x1="50" y1="2" x2="50" y2="66"></line>
+        ${stripes}
+        <rect class="field-line" x="0" y="0" width="100" height="68"></rect>
+        <line class="field-line" x1="50" y1="0" x2="50" y2="68"></line>
         <circle class="field-line" cx="50" cy="34" r="9.15"></circle>
         <circle class="field-dot" cx="50" cy="34" r=".45"></circle>
-        <rect class="field-line" x="2" y="13.84" width="16.5" height="40.32"></rect>
-        <rect class="field-line" x="81.5" y="13.84" width="16.5" height="40.32"></rect>
-        <rect class="field-line" x="2" y="24.84" width="5.5" height="18.32"></rect>
-        <rect class="field-line" x="92.5" y="24.84" width="5.5" height="18.32"></rect>
+        <rect class="field-line" x="0" y="13.84" width="16.5" height="40.32"></rect>
+        <rect class="field-line" x="83.5" y="13.84" width="16.5" height="40.32"></rect>
+        <rect class="field-line" x="0" y="24.84" width="5.5" height="18.32"></rect>
+        <rect class="field-line" x="94.5" y="24.84" width="5.5" height="18.32"></rect>
         <circle class="field-dot" cx="11" cy="34" r=".45"></circle>
         <circle class="field-dot" cx="89" cy="34" r=".45"></circle>
-        <path class="field-line" d="M 18.5 26.7 A 9.15 9.15 0 0 1 18.5 41.3"></path>
-        <path class="field-line" d="M 81.5 26.7 A 9.15 9.15 0 0 0 81.5 41.3"></path>
-        <path class="field-line" d="M 2 30 Q 6 34 2 38"></path>
-        <path class="field-line" d="M 98 30 Q 94 34 98 38"></path>
+        <path class="field-line" d="M 16.5 26.7 A 9.15 9.15 0 0 1 16.5 41.3"></path>
+        <path class="field-line" d="M 83.5 26.7 A 9.15 9.15 0 0 0 83.5 41.3"></path>
+        <path class="field-line" d="M 0 0 A 2.4 2.4 0 0 1 2.4 2.4"></path>
+        <path class="field-line" d="M 100 0 A 2.4 2.4 0 0 0 97.6 2.4"></path>
+        <path class="field-line" d="M 0 68 A 2.4 2.4 0 0 0 2.4 65.6"></path>
+        <path class="field-line" d="M 100 68 A 2.4 2.4 0 0 1 97.6 65.6"></path>
       `;
     }
 
@@ -5706,13 +5725,13 @@
         const dx = point.x - tacticPointer.start.x;
         const dy = point.y - tacticPointer.start.y;
         if (element.type === "line") {
-          element.x1 = Math.max(0, Math.min(100, tacticPointer.original.x1 + dx));
-          element.y1 = Math.max(0, Math.min(68, tacticPointer.original.y1 + dy));
-          element.x2 = Math.max(0, Math.min(100, tacticPointer.original.x2 + dx));
-          element.y2 = Math.max(0, Math.min(68, tacticPointer.original.y2 + dy));
+          element.x1 = clampTacticX(tacticPointer.original.x1 + dx);
+          element.y1 = clampTacticY(tacticPointer.original.y1 + dy);
+          element.x2 = clampTacticX(tacticPointer.original.x2 + dx);
+          element.y2 = clampTacticY(tacticPointer.original.y2 + dy);
         } else {
-          element.x = Math.max(0, Math.min(100, tacticPointer.original.x + dx));
-          element.y = Math.max(0, Math.min(68, tacticPointer.original.y + dy));
+          element.x = clampTacticX(tacticPointer.original.x + dx);
+          element.y = clampTacticY(tacticPointer.original.y + dy);
         }
       }
       renderTacticBoard();

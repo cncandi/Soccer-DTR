@@ -1523,7 +1523,7 @@
       width: 100%;
       overflow: auto;
       border-radius: 8px;
-      background: #0d5c35;
+      background: #08751e;
       border: 1px solid #c9d8cf;
     }
 
@@ -1531,13 +1531,25 @@
       display: block;
       width: 100%;
       min-width: 760px;
-      aspect-ratio: 100 / 68;
+      aspect-ratio: 116 / 78;
       touch-action: none;
       user-select: none;
     }
 
+    .field-margin {
+      fill: #08751e;
+    }
+
     .field-bg {
-      fill: #157a43;
+      fill: #14972b;
+    }
+
+    .field-stripe-a {
+      fill: #06891c;
+    }
+
+    .field-stripe-b {
+      fill: #1ca333;
     }
 
     .field-line {
