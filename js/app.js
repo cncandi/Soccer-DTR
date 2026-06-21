@@ -2331,8 +2331,9 @@
       if (!players.length) return empty(list, "Kein Spieler passt zur Suche.");
       players
         .forEach((player) => {
+          const isTemporaryGuest = activeIncomingTemporaryTransfer(player);
           list.appendChild(item(`
-            <div class="item-head">
+            <div class="item-head ${isTemporaryGuest ? "temporary-transfer" : ""}">
               <div class="player-summary">
                 <div class="player-photo">${player.photo ? `<img src="${escapeAttr(player.photo)}" alt="${escapeAttr(player.name)}">` : escapeHtml(initials(player.name))}</div>
                 <div>
@@ -2343,18 +2344,20 @@
                   <div class="meta"><span>${escapeHtml(displayPosition(player))}</span><span>${escapeHtml(memberRoleLabels(player))}</span><span>${escapeHtml(player.role || "Spieler")}</span><span>${escapeHtml(player.memberSince ? `Im Verein seit ${formatShortDate(player.memberSince)}` : "Eintritt offen")}</span><span>${escapeHtml(player.phone || "Keine Telefonnummer")}</span></div>
                 </div>
               </div>
-              <span class="chip">${escapeHtml(groupLabels(player))}</span>
+              <span class="chip">${isTemporaryGuest ? "Temporaer" : escapeHtml(groupLabels(player))}</span>
             </div>
+            ${isTemporaryGuest ? `<p class="meta transfer-note">Temporaer von ${escapeHtml(player.transfer.originClubName || "anderem Verein")} bis ${escapeHtml(formatShortDate(player.transfer.untilDate))}. Kann sich normal einloggen, aber hier nicht bearbeitet oder geloescht werden.</p>` : ""}
             ${renderAvailabilityLine(player)}
             ${renderPlayerCalendarStats(player)}
             ${player.notes ? `<p class="meta">${escapeHtml(player.notes)}</p>` : ""}
-            ${canManage() ? renderPerformanceSummary(player) : ""}
-            ${canManagePlayers() ? `
+            ${canManage() && !isTemporaryGuest ? renderPerformanceSummary(player) : ""}
+            ${canManagePlayers() && !isTemporaryGuest ? `
               <div class="row-actions"><button class="mini" data-open-player="${escapeAttr(player.id)}">Spieler bearbeiten</button></div>
               ${canManage() ? `<div class="row-actions">
                 <button class="mini no" data-delete-player="${escapeAttr(player.id)}">Entfernen</button>
               </div>` : ""}
             ` : ""}
+            ${canManage() && isTemporaryGuest ? `<div class="row-actions"><button class="mini" data-return-transfer="${escapeAttr(player.id)}">Vorzeitig zurueckgeben</button></div>` : ""}
           `));
         });
     }
@@ -4550,6 +4553,7 @@
       const deleteBonusPointId = target.dataset.deleteBonusPoint;
       const markNoShowId = target.dataset.markNoshow;
       const clearNoShowId = target.dataset.clearNoshow;
+      const returnTransferId = target.dataset.returnTransfer;
       const attendancePlayer = target.dataset.player;
       const transportEventId = target.dataset.transport;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
@@ -4557,6 +4561,14 @@
 
       if (playerId) {
         deletePlayer(playerId);
+        return;
+      }
+
+      if (returnTransferId && canManage()) {
+        const player = state.players.find((item) => item.id === returnTransferId);
+        if (!player || !activeIncomingTemporaryTransfer(player)) return;
+        if (!window.confirm(`${player.name} wirklich vorzeitig an ${player.transfer?.originClubName || "den Ursprungsverein"} zurueckgeben?`)) return;
+        returnTransferredPlayer(player, "early").catch((error) => window.alert("Rueckgabe fehlgeschlagen: " + (error.message || String(error))));
         return;
       }
 

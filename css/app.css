@@ -585,6 +585,18 @@
       align-items: flex-start;
     }
 
+    .item-head.temporary-transfer {
+      opacity: .58;
+      filter: grayscale(.85);
+    }
+
+    .transfer-note {
+      background: #f1f3f2;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
     .item-head[data-toggle-event-details] {
       cursor: pointer;
     }
