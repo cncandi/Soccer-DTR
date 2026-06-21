@@ -1269,7 +1269,7 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      z-index: 80;
+      z-index: 220;
       display: none;
       align-items: center;
       justify-content: center;
