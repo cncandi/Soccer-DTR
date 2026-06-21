@@ -4298,6 +4298,13 @@
           window.alert("Bitte einen Zielverein aus der Liste auswaehlen.");
           return;
         }
+        if (target.id === "transferPermanentBtn") {
+          const confirmation = window.prompt('Soll der Spieler wirklich dauerhaft den Verein wechseln? In der Regel ist dies verbunden mit Entschaedigungen an den Verein\n\nBitte exakt eingeben: Wechsel akzeptiert');
+          if (confirmation !== "Wechsel akzeptiert") {
+            window.alert('Dauerhafter Wechsel wurde abgebrochen. Bitte exakt "Wechsel akzeptiert" eingeben.');
+            return;
+          }
+        }
         target.disabled = true;
         try {
           await transferPlayer(player, {
