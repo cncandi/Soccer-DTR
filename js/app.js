@@ -4027,10 +4027,11 @@
         ${fullAccess ? `<div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>` : ""}
         ${isRosterPlayer && fullAccess ? renderTransferControls(player) : ""}
-        <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
-        <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
         </div>
         <div class="player-tab-panel form-grid" data-player-tab-panel="details">
+        <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
+        <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
+        <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
         ${isRosterPlayer && fullAccess ? `<div class="field full"><label>Trainingsschwerpunkt kurzfristig</label><input name="trainingFocusShort" value="${escapeAttr(player.trainingFocusShort || "")}"></div>
         <div class="field full"><label>Trainingsschwerpunkt langfristig</label><input name="trainingFocusLong" value="${escapeAttr(player.trainingFocusLong || "")}"></div>` : ""}
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
@@ -4048,7 +4049,6 @@
             <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
             <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
         </div>` : ""}
-        <div class="field"><button class="btn-secondary" id="clearPlayerPhotoBtn" type="button">Bild entfernen</button></div>
         ${fullAccess ? `<div class="field"><button class="btn-danger" id="deletePlayerFromModalBtn" type="button">Spieler entfernen</button></div>` : ""}
         <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
       `;
