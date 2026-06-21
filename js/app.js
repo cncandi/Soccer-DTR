@@ -313,7 +313,12 @@
     function loadCurrentClubId() {
       if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) return requestedClubId;
       const stored = localStorage.getItem(CURRENT_CLUB_KEY);
-      return clubs.some((club) => club.id === stored) ? stored : clubs[0].id;
+      const selectable = selectableClubs();
+      return selectable.some((club) => club.id === stored) ? stored : (selectable[0] || clubs[0]).id;
+    }
+
+    function selectableClubs() {
+      return clubs.filter((club) => normalizeLicenseStatus(club.licenseStatus) !== "blocked");
     }
 
     function stateKey(clubId = currentClubId) {
@@ -377,6 +382,10 @@
       if (!canManage()) return;
       const player = state.players.find((item) => item.id === playerId);
       if (!player) return;
+      if (activeIncomingTemporaryTransfer(player)) {
+        window.alert("Temporaer uebernommene Spieler koennen nicht geloescht werden. Bitte den Spieler zurueckgeben.");
+        return;
+      }
       if (!window.confirm(`${player.name} wirklich entfernen?`)) return;
       state.players = state.players.filter((item) => item.id !== playerId);
       state.events = (state.events || []).map((eventItem) => {
@@ -404,6 +413,17 @@
 
     function transferWarningActive(player) {
       return temporaryTransferCount(player) > 6;
+    }
+
+    function pendingIncomingTransfer(player) {
+      return player.transfer?.status === "pending" && player.transfer?.targetClubId === currentClubId;
+    }
+
+    function activeIncomingTemporaryTransfer(player) {
+      return player.transfer?.type === "temporary"
+        && player.transfer?.status === "accepted"
+        && player.transfer?.originClubId
+        && player.transfer.originClubId !== currentClubId;
     }
 
     function transferHistoryText(player) {
@@ -461,6 +481,61 @@
         data: normalized,
         updated_at: now
       };
+    }
+
+    async function returnTransferredPlayer(player, reason = "returned") {
+      const client = getSupabaseClient();
+      if (!client) throw new Error(supabaseMissingReason());
+      const transfer = player.transfer;
+      if (!transfer?.originClubId) throw new Error("Ursprungsverein fehlt.");
+      const restored = normalizePlayer({
+        ...(transfer.originPlayerData || player),
+        id: player.id,
+        transfer: null,
+        transferHistory: player.transferHistory || []
+      });
+      const { error } = await client
+        .from("players")
+        .update(playerRowPayload(restored, transfer.originClubId))
+        .eq("id", player.id);
+      if (error) throw error;
+      state.players = state.players.filter((item) => item.id !== player.id);
+      closePlayerModal();
+      setStatus(`${player.name} wurde an ${transfer.originClubName || "den Ursprungsverein"} zurueckgegeben.`);
+      saveState();
+    }
+
+    async function acceptIncomingTransfer(player) {
+      const client = getSupabaseClient();
+      if (!client) throw new Error(supabaseMissingReason());
+      const transfer = { ...(player.transfer || {}), status: "accepted", acceptedAt: new Date().toISOString(), acceptedBy: activeUser() };
+      if (transfer.type === "permanent") delete transfer.originPlayerData;
+      const accepted = normalizePlayer({ ...player, transfer });
+      const { error } = await client
+        .from("players")
+        .update(playerRowPayload(accepted, currentClubId))
+        .eq("id", player.id);
+      if (error) throw error;
+      const index = state.players.findIndex((item) => item.id === player.id);
+      if (index >= 0) state.players[index] = accepted;
+      saveState();
+    }
+
+    async function handleIncomingTransferPrompts() {
+      if (!canManage()) return;
+      const pending = state.players.filter(pendingIncomingTransfer);
+      for (const player of pending) {
+        const transfer = player.transfer || {};
+        const question = `${player.name} wurde von ${transfer.originClubName || "einem anderen Verein"} an ${currentClub().name} uebergeben.\n\nSoll der Spieler uebernommen werden?`;
+        if (window.confirm(question)) {
+          await acceptIncomingTransfer(player);
+        } else {
+          await returnTransferredPlayer(player, "rejected");
+        }
+      }
+      if (pending.length) {
+        await syncWithSupabase({ silent: true });
+      }
     }
 
     function normalizeState(loadedState = {}) {
@@ -989,6 +1064,7 @@
           : (player.transferHistory || []),
         transfer: mode === "temporary" ? {
           type: "temporary",
+          status: "pending",
           originClubId: currentClubId,
           originClubName: currentClub().name,
           targetClubId,
@@ -998,11 +1074,13 @@
           originPlayerData: normalizePlayer(player)
         } : {
           type: "permanent",
+          status: "pending",
           originClubId: currentClubId,
           originClubName: currentClub().name,
           targetClubId,
           targetClubName: clubNameById(targetClubId),
-          fromDate
+          fromDate,
+          originPlayerData: normalizePlayer(player)
         }
       });
       const { error } = await client
@@ -2190,7 +2268,12 @@
     }
 
     function renderClubSelect() {
-      const options = clubs
+      const visibleClubs = selectableClubs();
+      if (visibleClubs.length && !visibleClubs.some((club) => club.id === currentClubId)) {
+        currentClubId = visibleClubs[0].id;
+        localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      }
+      const options = visibleClubs
         .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
         .join("");
       [$("#clubSelect"), $("#loginClubSelect")].forEach((select) => {
@@ -2218,7 +2301,7 @@
 
     function renderLoginUsers() {
       const selected = loginPrefillFor().user;
-      const names = [...new Set(state.players.map((player) => player.name))]
+      const names = [...new Set(state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name))]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
         .map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
@@ -2238,7 +2321,7 @@
     function renderPlayers() {
       const list = $("#playerList");
       list.innerHTML = "";
-      const roster = state.players.filter((player) => hasMemberRole(player, "Spieler"));
+      const roster = state.players.filter((player) => hasMemberRole(player, "Spieler") && !pendingIncomingTransfer(player));
       if (!roster.length) return empty(list, "Noch keine Spieler angelegt.");
       const query = ($("#playerSearch")?.value || "").trim().toLowerCase();
       const players = roster
@@ -3701,6 +3784,19 @@
       const isRosterPlayer = hasMemberRole(player, "Spieler");
       const fullAccess = canManage();
       $("#playerModalTitle").textContent = `${player.name} bearbeiten`;
+      if (activeIncomingTemporaryTransfer(player)) {
+        $("#playerEditForm").innerHTML = `
+          <input type="hidden" name="id" value="${escapeAttr(player.id)}">
+          <div class="field full">
+            <p class="meta">${escapeHtml(player.name)} ist temporaer von ${escapeHtml(player.transfer.originClubName || "einem anderen Verein")} uebernommen bis ${escapeHtml(formatShortDate(player.transfer.untilDate))}.</p>
+            <p class="meta">Der Spieler kann hier nicht bearbeitet oder geloescht werden.</p>
+          </div>
+          <div class="field full"><button class="btn-primary" id="returnTemporaryTransferBtn" type="button">Vorzeitig zurueckgeben</button></div>
+        `;
+        $("#playerModal").classList.add("open");
+        $("#playerModal").setAttribute("aria-hidden", "false");
+        return;
+      }
       $("#playerEditForm").innerHTML = `
         <input type="hidden" name="id" value="${escapeAttr(player.id)}">
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
@@ -4326,6 +4422,17 @@
       if (target.id === "deletePlayerFromModalBtn") {
         deletePlayer(player.id);
       }
+      if (target.id === "returnTemporaryTransferBtn") {
+        if (!window.confirm(`${player.name} wirklich vorzeitig an ${player.transfer?.originClubName || "den Ursprungsverein"} zurueckgeben?`)) return;
+        target.disabled = true;
+        try {
+          await returnTransferredPlayer(player, "early");
+        } catch (error) {
+          window.alert("Rueckgabe fehlgeschlagen: " + (error.message || String(error)));
+        } finally {
+          target.disabled = false;
+        }
+      }
       if (target.id === "transferPermanentBtn" || target.id === "transferTemporaryBtn") {
         const form = $("#playerEditForm");
         const targetClubId = transferTargetClubIdFromInput(form.elements.transferClubName?.value);
@@ -4690,7 +4797,7 @@
       loadPaypalSettings();
     });
     $("#loginUser").addEventListener("change", fillSavedLoginPassword);
-    $("#loginForm").addEventListener("submit", (event) => {
+    $("#loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       currentClubId = $("#loginClubSelect").value;
       state = loadState();
@@ -4726,7 +4833,8 @@
       render();
       const licenseWarning = licenseLoginWarningText();
       if (licenseWarning) window.alert(licenseWarning);
-      syncWithSupabase({ silent: true });
+      await syncWithSupabase({ silent: true });
+      await handleIncomingTransferPrompts();
       loadPaypalSettings();
     });
     $("#logoutBtn").addEventListener("click", () => {
