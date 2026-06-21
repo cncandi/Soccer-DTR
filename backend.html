@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#102b20">
+  <title>Kadrivo Backend</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="css/backend.css?v=1">
+</head>
+<body>
+  <main class="backend-shell">
+    <section class="backend-login" id="backendLogin">
+      <div class="login-card">
+        <div class="brand-row">
+          <img src="kadrivo-icon-192.png" alt="Kadrivo">
+          <div>
+            <h1>Kadrivo Backend <span class="app-version">v74</span></h1>
+            <p>Superadmin-Zugriff fuer Vereine, Lizenzen und Nutzung.</p>
+          </div>
+        </div>
+        <form id="backendLoginForm" class="form-grid">
+          <div class="field full">
+            <label>Superadmin-Passwort</label>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </div>
+          <p class="meta full" id="backendLoginStatus"></p>
+          <button class="btn-primary full" type="submit">Backend oeffnen</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="backend-app" id="backendApp" hidden>
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">Kadrivo Backend</span>
+          <h1>Vereinsverwaltung <span class="app-version">v74</span></h1>
+          <p id="backendStatus">Daten werden geladen ...</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn-secondary" id="refreshBackendBtn" type="button">Aktualisieren</button>
+          <button class="btn-secondary" id="backendLogoutBtn" type="button">Abmelden</button>
+        </div>
+      </header>
+
+      <section class="stats-grid" id="backendStats"></section>
+
+      <section class="layout">
+        <aside class="club-list-panel">
+          <div class="panel-head">
+            <h2>Vereine</h2>
+            <input id="clubSearch" type="search" placeholder="Verein suchen">
+          </div>
+          <div class="club-list" id="backendClubList"></div>
+        </aside>
+
+        <section class="details-panel" id="backendDetails">
+          <div class="empty">Bitte einen Verein auswaehlen.</div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="js/backend.js?v=1" defer></script>
+</body>
+</html>
