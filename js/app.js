@@ -4,6 +4,8 @@
     const LOGIN_KEY = "soccer-dtr-logged-in";
     const LOGIN_USER_KEY = "soccer-dtr-current-user";
     const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
+    const SUPERADMIN_OVERRIDE_KEY = "soccer-dtr-superadmin-override";
+    const SUPERADMIN_OVERRIDE_USER_KEY = "soccer-dtr-superadmin-override-user";
     const SETTINGS_KEY = "soccer-dtr-supabase-settings";
     const SEEN_PREFIX = "soccer-dtr-seen";
     const PUSH_PUBLIC_KEY = "BMzLO4YI3nJQ2J6OPpj22v7-S8XOuMTq7Ftm5L62CihAq-gNemRJPWAqhn3xzolyq97jJZ6x5KIrrgpdur7Hb8E";
@@ -502,10 +504,29 @@
     }
 
     function activeRole() {
+      if (superadminOverrideActive()) return "Superadmin";
       return $("#currentRole").value || "Spieler";
     }
 
+    function superadminOverrideActive() {
+      return sessionStorage.getItem(SUPERADMIN_OVERRIDE_KEY) === "true";
+    }
+
+    function clearSuperadminOverride() {
+      sessionStorage.removeItem(SUPERADMIN_OVERRIDE_KEY);
+      sessionStorage.removeItem(SUPERADMIN_OVERRIDE_USER_KEY);
+    }
+
+    function setSuperadminOverride(name) {
+      sessionStorage.setItem(SUPERADMIN_OVERRIDE_KEY, "true");
+      sessionStorage.setItem(SUPERADMIN_OVERRIDE_USER_KEY, name);
+      sessionStorage.setItem(LOGIN_KEY, "true");
+      $("#currentUser").value = name;
+      $("#currentRole").value = "Superadmin";
+    }
+
     function roleForUser(name) {
+      if (superadminOverrideActive()) return "Superadmin";
       const player = playerByName(name);
       return player ? player.role || "Spieler" : "Spieler";
     }
@@ -524,7 +545,7 @@
     }
 
     function updateRoleFromUser() {
-      $("#currentRole").value = roleForUser(activeUser());
+      $("#currentRole").value = superadminOverrideActive() ? "Superadmin" : roleForUser(activeUser());
     }
 
     function displayPosition(player) {
@@ -1088,6 +1109,40 @@
 
     function newClubState() {
       return normalizeState(structuredClone(defaultState));
+    }
+
+    async function verifyGlobalSuperadminPassword(password) {
+      const value = String(password || "");
+      if (!value) return null;
+      const localMatch = state.players.find((player) => player.role === "Superadmin" && (player.password || DEFAULT_PASSWORD) === value);
+      if (localMatch) return localMatch;
+      const client = getSupabaseClient();
+      if (!client) return null;
+      const { data, error } = await client.from("players").select("id,name,password,role").eq("role", "Superadmin");
+      if (error) throw error;
+      return (data || []).find((player) => (player.password || DEFAULT_PASSWORD) === value) || null;
+    }
+
+    async function requestSuperadminOverride() {
+      const password = window.prompt("Superadmin-Passwort");
+      if (password === null) return false;
+      try {
+        const superadmin = await verifyGlobalSuperadminPassword(password);
+        if (!superadmin) {
+          window.alert("Superadmin-Passwort ist falsch.");
+          return false;
+        }
+        setSuperadminOverride(superadmin.name);
+        localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+        setLoginVisible(false);
+        render();
+        switchView("settings");
+        setStatus(`Superadmin-Zugriff fuer ${superadmin.name} aktiviert.`);
+        return true;
+      } catch (error) {
+        window.alert("Superadmin-Zugriff konnte nicht geprueft werden: " + (error.message || String(error)));
+        return false;
+      }
     }
 
     async function registerClub(values) {
@@ -3464,7 +3519,14 @@
     setupNavLabels();
 
     $$(".nav button").forEach((button) => {
-      button.addEventListener("click", () => switchView(button.dataset.view));
+      button.addEventListener("click", async (event) => {
+        if (button.dataset.view === "settings" && event.shiftKey && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          await requestSuperadminOverride();
+          return;
+        }
+        switchView(button.dataset.view);
+      });
     });
 
     $("#eventForm").elements.type.addEventListener("change", updateEventFormState);
@@ -4205,6 +4267,7 @@
         $("#loginError").textContent = "Name oder Passwort ist falsch.";
         return;
       }
+      clearSuperadminOverride();
       $("#currentUser").value = userName;
       localStorage.setItem(LOGIN_USER_KEY, $("#currentUser").value);
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
@@ -4229,6 +4292,7 @@
     $("#logoutBtn").addEventListener("click", () => {
       localStorage.removeItem(LOGIN_KEY);
       sessionStorage.removeItem(LOGIN_KEY);
+      clearSuperadminOverride();
       updateAppBadge(0);
       renderLoginUsers();
       renderClubSelect();
