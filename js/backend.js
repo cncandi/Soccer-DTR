@@ -91,11 +91,36 @@ function optionListWithEmpty(options, selected) {
     .join("");
 }
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), ms))
+  ]);
+}
+
+async function fetchJson(endpoint, options = {}) {
+  const response = await fetch(`${DEFAULT_SUPABASE_URL}/rest/v1/${endpoint}`, {
+    ...options,
+    headers: {
+      apikey: DEFAULT_SUPABASE_ANON_KEY,
+      authorization: `Bearer ${DEFAULT_SUPABASE_ANON_KEY}`,
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!response.ok) throw new Error(data?.message || data?.error || `HTTP ${response.status}`);
+  return data;
+}
+
 async function verifySuperadmin(password) {
   const value = String(password || "").trim();
   if (!value) return null;
-  const { data, error } = await client.from("players").select("name,password,role").eq("role", "Superadmin");
-  if (error) throw error;
+  const data = await withTimeout(
+    fetchJson("players?select=name,password,role&role=eq.Superadmin"),
+    10000,
+    "Supabase antwortet beim Login nicht. Bitte Verbindung pruefen und neu laden."
+  );
   return (data || []).find((player) => String(player.password || "fussball").trim() === value) || null;
 }
 
