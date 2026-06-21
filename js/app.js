@@ -345,7 +345,9 @@
         position: isPlayerMember ? (player.position || "") : "",
         alternatePositions: isPlayerMember && Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
         availability: normalizeAvailability(player.availability),
-        performance: { ...defaultPerformance(), ...(player.performance || {}) }
+        performance: { ...defaultPerformance(), ...(player.performance || {}) },
+        transfer: player.transfer && typeof player.transfer === "object" ? player.transfer : null,
+        transferHistory: Array.isArray(player.transferHistory) ? player.transferHistory : []
       };
     }
 
@@ -380,6 +382,79 @@
       });
       if ($("#playerEditForm")?.elements.id?.value === playerId) closePlayerModal();
       saveState();
+    }
+
+    function transferHalfYear(dateValue = new Date().toISOString().slice(0, 10)) {
+      const date = new Date(`${dateValue}T00:00`);
+      const year = Number.isFinite(date.getTime()) ? date.getFullYear() : new Date().getFullYear();
+      const month = Number.isFinite(date.getTime()) ? date.getMonth() + 1 : new Date().getMonth() + 1;
+      return month >= 7 ? `${year}-hinrunde` : `${year}-rueckrunde`;
+    }
+
+    function temporaryTransferCount(player, halfYear = transferHalfYear()) {
+      return (player.transferHistory || [])
+        .filter((entry) => entry.type === "temporary" && transferHalfYear(entry.fromDate || entry.createdAt) === halfYear)
+        .length;
+    }
+
+    function transferWarningActive(player) {
+      return temporaryTransferCount(player) > 6;
+    }
+
+    function transferHistoryText(player) {
+      const total = (player.transferHistory || []).filter((entry) => entry.type === "temporary").length;
+      const current = temporaryTransferCount(player);
+      const transfer = player.transfer?.type === "temporary"
+        ? `Aktuell temporaer bei ${clubNameById(player.transfer.targetClubId || currentClubId)} bis ${formatDate(player.transfer.untilDate)}. `
+        : "";
+      return `${transfer}Temporaere Wechsel: ${total} gesamt, ${current} in dieser Halbserie.`;
+    }
+
+    function pureTransferPlayer(player) {
+      return normalizePlayer({
+        id: player.id,
+        name: player.name,
+        password: player.password || DEFAULT_PASSWORD,
+        role: "Spieler",
+        memberRoles: ["Spieler"],
+        groups: ["Mannschaft"],
+        group: "Mannschaft",
+        position: player.position || "",
+        phone: player.phone || "",
+        notes: "",
+        photo: player.photo || "",
+        alternatePositions: Array.isArray(player.alternatePositions) ? player.alternatePositions : [],
+        availability: defaultAvailability(),
+        performance: defaultPerformance(),
+        transferHistory: player.transferHistory || []
+      });
+    }
+
+    function transferTargetClubIdFromInput(value) {
+      const key = String(value || "").trim().toLowerCase();
+      return clubs.find((club) => club.id !== currentClubId && club.name.trim().toLowerCase() === key)?.id || "";
+    }
+
+    function playerRowPayload(player, clubId, now = new Date().toISOString()) {
+      const normalized = normalizePlayer(player);
+      return {
+        club_id: clubId,
+        name: normalized.name,
+        password: normalized.password || DEFAULT_PASSWORD,
+        role: normalized.role || "Spieler",
+        member_roles: normalizeMemberRoles(normalized),
+        groups: normalizeGroups(normalized),
+        position: normalized.position || "",
+        phone: normalized.phone || "",
+        notes: normalized.notes || "",
+        photo: normalized.photo || "",
+        alternate_positions: normalized.alternatePositions || [],
+        availability: normalized.availability || {},
+        performance: normalized.performance || {},
+        active: true,
+        data: normalized,
+        updated_at: now
+      };
     }
 
     function normalizeState(loadedState = {}) {
@@ -683,6 +758,10 @@
       return clubs.find((club) => club.id === currentClubId) || clubs[0];
     }
 
+    function clubNameById(clubId) {
+      return clubs.find((club) => club.id === clubId)?.name || clubId || "Verein";
+    }
+
     function touchClub(club) {
       club.updatedAt = new Date().toISOString();
       return club;
@@ -835,6 +914,103 @@
         throw fallback.error;
       }
       return (fallback.data || []).map(clubFromRow);
+    }
+
+    async function processExpiredTemporaryTransfers(client) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await client.from("players").select("*");
+      if (error) {
+        if (normalizedSchemaUnavailable(error)) return;
+        throw error;
+      }
+      const expired = (data || []).filter((row) => {
+        const transfer = rowData(row).transfer;
+        return transfer?.type === "temporary"
+          && transfer.originClubId
+          && transfer.untilDate
+          && transfer.untilDate < today
+          && row.club_id !== transfer.originClubId;
+      });
+      for (const row of expired) {
+        const transfer = rowData(row).transfer;
+        const restored = normalizePlayer({
+          ...(transfer.originPlayerData || rowData(row)),
+          id: row.id,
+          transfer: null,
+          transferHistory: rowData(row).transferHistory || []
+        });
+        const now = new Date().toISOString();
+        const { error: restoreError } = await client
+          .from("players")
+          .update(playerRowPayload(restored, transfer.originClubId, now))
+          .eq("id", row.id);
+        if (restoreError) throw restoreError;
+      }
+    }
+
+    async function transferPlayer(player, values) {
+      const client = getSupabaseClient();
+      if (!client) throw new Error(supabaseMissingReason());
+      const targetClubId = values.transferClubId;
+      if (!targetClubId || targetClubId === currentClubId) throw new Error("Bitte einen anderen Zielverein auswaehlen.");
+      const mode = values.transferMode || "temporary";
+      const fromDate = values.transferFromDate || new Date().toISOString().slice(0, 10);
+      const untilDate = values.transferUntilDate || "";
+      if (mode === "temporary" && !untilDate) throw new Error("Bitte ein Bis-Datum fuer den temporaeren Wechsel angeben.");
+      if (mode === "temporary" && untilDate < fromDate) throw new Error("Das Bis-Datum darf nicht vor dem Ab-Datum liegen.");
+
+      const now = new Date().toISOString();
+      const purePlayer = pureTransferPlayer(player);
+      const historyEntry = {
+        id: crypto.randomUUID(),
+        type: mode,
+        fromClubId: currentClubId,
+        fromClubName: currentClub().name,
+        targetClubId,
+        targetClubName: clubNameById(targetClubId),
+        fromDate,
+        untilDate,
+        createdAt: now
+      };
+      const transferred = normalizePlayer({
+        ...purePlayer,
+        transferHistory: mode === "temporary"
+          ? [...(player.transferHistory || []), historyEntry]
+          : (player.transferHistory || []),
+        transfer: mode === "temporary" ? {
+          type: "temporary",
+          originClubId: currentClubId,
+          originClubName: currentClub().name,
+          targetClubId,
+          targetClubName: clubNameById(targetClubId),
+          fromDate,
+          untilDate,
+          originPlayerData: normalizePlayer(player)
+        } : {
+          type: "permanent",
+          originClubId: currentClubId,
+          originClubName: currentClub().name,
+          targetClubId,
+          targetClubName: clubNameById(targetClubId),
+          fromDate
+        }
+      });
+      const { error } = await client
+        .from("players")
+        .update(playerRowPayload(transferred, targetClubId, now))
+        .eq("id", player.id);
+      if (error) throw error;
+
+      state.players = state.players.filter((item) => item.id !== player.id);
+      state.events = (state.events || []).map((eventItem) => {
+        if (!eventItem.rsvps?.[player.name]) return eventItem;
+        const rsvps = { ...eventItem.rsvps };
+        delete rsvps[player.name];
+        return { ...eventItem, rsvps };
+      });
+      closePlayerModal();
+      setStatus(`${player.name} wurde ${mode === "temporary" ? "temporaer" : "dauerhaft"} an ${clubNameById(targetClubId)} uebergeben.`);
+      saveState();
     }
 
     function rowData(row, fallback = {}) {
@@ -1406,6 +1582,7 @@
       pendingCloudSync = false;
       if (!options.silent) setStatus("Synchronisiere mit Supabase ...");
       try {
+        await processExpiredTemporaryTransfers(client);
         const clubChanged = await syncClubs(client, options);
         if (clubChanged) {
           state = loadState();
@@ -3456,6 +3633,37 @@
       `;
     }
 
+    function renderTransferControls(player) {
+      const targets = clubs
+        .filter((club) => club.id !== currentClubId && normalizeLicenseStatus(club.licenseStatus) !== "blocked")
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      if (!targets.length) {
+        return `<div class="field full"><p class="meta">Kein weiterer Verein fuer eine Uebergabe vorhanden.</p></div>`;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const options = targets.map((club) => `<option value="${escapeAttr(club.name)}">${escapeHtml(club.name)}</option>`).join("");
+      const temporaryClass = transferWarningActive(player) ? "btn-danger" : "btn-secondary";
+      return `
+        <details class="form-details field full transfer-box">
+          <summary>Spieler an anderen Verein uebergeben</summary>
+          <div class="form-grid">
+            <div class="field full"><p class="meta">${escapeHtml(transferHistoryText(player))}</p></div>
+            <div class="field full">
+              <label>Zielverein suchen</label>
+              <input name="transferClubName" list="transferClubOptions" placeholder="Verein eingeben">
+              <datalist id="transferClubOptions">${options}</datalist>
+            </div>
+            <div class="field"><label>Dauerhaft ab Datum</label><input name="transferFromDate" type="date" value="${today}"></div>
+            <div class="field"><label>Temporaer bis Datum</label><input name="transferUntilDate" type="date"></div>
+            <div class="field full row-actions">
+              <button class="btn-secondary" id="transferPermanentBtn" type="button">Dauerhaft uebergeben</button>
+              <button class="${temporaryClass}" id="transferTemporaryBtn" type="button">Wechsel temporaer</button>
+            </div>
+          </div>
+        </details>
+      `;
+    }
+
     function openPlayerModal(playerId) {
       const player = state.players.find((item) => item.id === playerId);
       if (!player || !canManagePlayers()) return;
@@ -3472,6 +3680,7 @@
         ${fullAccess ? `<div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>` : ""}
+        ${isRosterPlayer && fullAccess ? renderTransferControls(player) : ""}
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
         <div class="field full"><label>Bild als URL</label><input name="photo" value="${escapeAttr(player.photo && !player.photo.startsWith("data:") ? player.photo : "")}" placeholder="https://..."></div>
         <div class="field full"><label>Notizen</label><textarea name="notes">${escapeHtml(player.notes || "")}</textarea></div>
@@ -4062,7 +4271,7 @@
       if (event.target === $("#cashFineModal")) closeCashFineModal();
     });
 
-    $("#playerEditForm").addEventListener("click", (event) => {
+    $("#playerEditForm").addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       const player = state.players.find((item) => item.id === $("#playerEditForm").elements.id.value);
@@ -4081,6 +4290,27 @@
       }
       if (target.id === "deletePlayerFromModalBtn") {
         deletePlayer(player.id);
+      }
+      if (target.id === "transferPermanentBtn" || target.id === "transferTemporaryBtn") {
+        const form = $("#playerEditForm");
+        const targetClubId = transferTargetClubIdFromInput(form.elements.transferClubName?.value);
+        if (!targetClubId) {
+          window.alert("Bitte einen Zielverein aus der Liste auswaehlen.");
+          return;
+        }
+        target.disabled = true;
+        try {
+          await transferPlayer(player, {
+            transferMode: target.id === "transferTemporaryBtn" ? "temporary" : "permanent",
+            transferClubId: targetClubId,
+            transferFromDate: form.elements.transferFromDate?.value,
+            transferUntilDate: form.elements.transferUntilDate?.value
+          });
+        } catch (error) {
+          window.alert("Uebergabe fehlgeschlagen: " + (error.message || String(error)));
+        } finally {
+          target.disabled = false;
+        }
       }
     });
 

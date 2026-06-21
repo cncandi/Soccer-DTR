@@ -1069,6 +1069,18 @@
       gap: 7px;
     }
 
+    .transfer-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbf9;
+      padding: 10px;
+    }
+
+    .transfer-box summary {
+      cursor: pointer;
+      font-weight: 850;
+    }
+
     .event-form-head {
       display: grid;
       gap: 14px;
