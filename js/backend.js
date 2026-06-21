@@ -92,9 +92,11 @@ function optionListWithEmpty(options, selected) {
 }
 
 async function verifySuperadmin(password) {
+  const value = String(password || "").trim();
+  if (!value) return null;
   const { data, error } = await client.from("players").select("name,password,role").eq("role", "Superadmin");
   if (error) throw error;
-  return (data || []).find((player) => (player.password || "fussball") === password) || null;
+  return (data || []).find((player) => String(player.password || "fussball").trim() === value) || null;
 }
 
 async function fetchTable(table, select = "*") {
@@ -470,7 +472,11 @@ $("#backendLoginForm").addEventListener("submit", async (event) => {
     }
     sessionStorage.setItem(BACKEND_SESSION_KEY, superadmin.name);
     showBackend();
-    await loadBackendData();
+    try {
+      await loadBackendData();
+    } catch (loadError) {
+      $("#backendStatus").textContent = "Backend geoeffnet, aber Daten konnten nicht geladen werden: " + (loadError.message || String(loadError));
+    }
   } catch (error) {
     status.textContent = error.message || String(error);
   }
