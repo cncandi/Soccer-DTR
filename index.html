@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=84">
+  <link rel="stylesheet" href="css/app.css?v=85">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v84</span></h1>
+          <h1>Kadrivo <span class="app-version">v85</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v84</span></h1>
+          <h1>Kadrivo <span class="app-version">v85</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -80,24 +80,13 @@
       <section class="profile-card">
         <label for="currentUser">Angemeldeter Name</label>
         <input id="currentUser" autocomplete="name" readonly>
-        <div class="profile-role superadmin-only">
-          <label for="currentRole">Rolle</label>
-          <select id="currentRole" disabled>
-            <option>Superadmin</option>
-            <option>Admin</option>
-            <option>Spieler</option>
-          </select>
-        </div>
+        <input id="currentRole" type="hidden" value="Spieler">
         <button class="logout-btn" id="logoutBtn" type="button">Abmelden</button>
       </section>
 
       <section class="tenant-card superadmin-only">
         <label for="clubSelect">Verein</label>
         <select id="clubSelect"></select>
-        <div class="tenant-actions">
-          <input id="newClubName" placeholder="Neuer Verein">
-          <button id="addClubBtn" type="button">+</button>
-        </div>
       </section>
 
       <nav class="nav" aria-label="Hauptnavigation">
@@ -606,6 +595,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=84" defer></script>
+  <script src="js/app.js?v=85" defer></script>
 </body>
 </html>

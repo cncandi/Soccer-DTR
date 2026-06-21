@@ -5087,7 +5087,7 @@
       renderClubSelect();
       setLoginVisible(true);
     });
-    $("#addClubBtn").addEventListener("click", () => {
+    $("#addClubBtn")?.addEventListener("click", () => {
       if (!canManage()) return;
       const name = $("#newClubName").value.trim();
       if (!name) return;
