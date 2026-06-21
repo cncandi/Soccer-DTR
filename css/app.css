@@ -203,6 +203,14 @@
       margin: 0;
     }
 
+    .app-version {
+      color: #b6cec2;
+      font-size: .62rem;
+      font-weight: 800;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
     .brand span {
       color: #b6cec2;
       font-size: .88rem;
