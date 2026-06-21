@@ -29,9 +29,16 @@ create table if not exists public.clubs (
   logo text not null default '',
   license_key text not null unique default ('KAD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))),
   license_status text not null default 'trial' check (license_status in ('trial', 'active', 'blocked')),
+  license_activated_at timestamptz default now(),
+  license_expires_at timestamptz default (now() + interval '21 days'),
+  license_auto_renew boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.clubs add column if not exists license_activated_at timestamptz default now();
+alter table public.clubs add column if not exists license_expires_at timestamptz default (now() + interval '21 days');
+alter table public.clubs add column if not exists license_auto_renew boolean not null default false;
 
 alter table public.clubs enable row level security;
 

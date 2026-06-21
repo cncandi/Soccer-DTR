@@ -21,6 +21,10 @@
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
+    const TRIAL_DAYS = 21;
+    const FULL_LICENSE_DAYS = 365;
+    const LICENSE_WARNING_DAYS = 5;
+    const EXPIRED_LICENSE_VIEWS = new Set(["players", "events", "fame", "settings"]);
     const MESSAGE_GROUP_CLASSES = {
       Mannschaft: "group-mannschaft",
       Mannschaftsrat: "group-mannschaftsrat",
@@ -193,13 +197,19 @@
     }
 
     function normalizeClub(club) {
+      const status = normalizeLicenseStatus(club.licenseStatus || club.license_status);
+      const activatedAt = validIsoDateTime(club.licenseActivatedAt || club.license_activated_at) || new Date().toISOString();
+      const expiresAt = validIsoDateTime(club.licenseExpiresAt || club.license_expires_at) || defaultLicenseExpiresAt(status, activatedAt);
       return {
         id: club.id || crypto.randomUUID(),
         name: club.name || "Mein Verein",
         color: club.color || "#155e3b",
         logo: club.logo || "",
         licenseKey: club.licenseKey || club.license_key || generateLicenseKey(),
-        licenseStatus: normalizeLicenseStatus(club.licenseStatus || club.license_status),
+        licenseStatus: status,
+        licenseActivatedAt: activatedAt,
+        licenseExpiresAt: expiresAt,
+        licenseAutoRenew: Boolean(club.licenseAutoRenew ?? club.license_auto_renew),
         updatedAt: club.updatedAt || ""
       };
     }
@@ -213,6 +223,24 @@
       return ["trial", "active", "blocked"].includes(status) ? status : "trial";
     }
 
+    function validIsoDateTime(value) {
+      if (!value) return "";
+      const time = Date.parse(value);
+      return Number.isFinite(time) ? new Date(time).toISOString() : "";
+    }
+
+    function addDaysIso(value, days) {
+      const date = new Date(value);
+      date.setDate(date.getDate() + days);
+      return date.toISOString();
+    }
+
+    function defaultLicenseExpiresAt(status, activatedAt = new Date().toISOString()) {
+      if (status === "active") return addDaysIso(activatedAt, FULL_LICENSE_DAYS);
+      if (status === "trial") return addDaysIso(activatedAt, TRIAL_DAYS);
+      return activatedAt;
+    }
+
     function licenseStatusLabel(status) {
       return {
         trial: "Testlizenz",
@@ -223,6 +251,59 @@
 
     function clubLicenseAllowsAccess(club = currentClub()) {
       return normalizeLicenseStatus(club?.licenseStatus) !== "blocked";
+    }
+
+    function licenseDaysLeft(club = currentClub()) {
+      const expiresAt = Date.parse(club?.licenseExpiresAt || "");
+      if (!Number.isFinite(expiresAt)) return null;
+      return Math.ceil((expiresAt - Date.now()) / 86400000);
+    }
+
+    function licenseIsExpired(club = currentClub()) {
+      if (!club || normalizeLicenseStatus(club.licenseStatus) === "blocked") return true;
+      if (club.licenseAutoRenew && normalizeLicenseStatus(club.licenseStatus) === "active") return false;
+      const days = licenseDaysLeft(club);
+      return days !== null && days < 0;
+    }
+
+    function licenseLimitsFeatures(club = currentClub()) {
+      return licenseIsExpired(club);
+    }
+
+    function licenseFeatureAllowed(viewName) {
+      return !licenseLimitsFeatures() || EXPIRED_LICENSE_VIEWS.has(viewName);
+    }
+
+    function formatLicenseDate(value) {
+      const date = Date.parse(value || "");
+      return Number.isFinite(date) ? new Date(date).toLocaleDateString("de-DE") : "-";
+    }
+
+    function licenseBadgeText(club = currentClub()) {
+      const status = normalizeLicenseStatus(club?.licenseStatus);
+      if (status === "blocked") return "Lizenz gesperrt";
+      const days = licenseDaysLeft(club);
+      const label = licenseStatusLabel(status);
+      if (club?.licenseAutoRenew && status === "active") {
+        return `${label} · automatische Verlaengerung · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
+      }
+      if (days === null) return label;
+      if (days < 0) return `${label} abgelaufen seit ${Math.abs(days)} Tagen`;
+      return `${label} · noch ${days} Tage · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
+    }
+
+    function licenseLoginWarningText(club = currentClub()) {
+      if (!canManage()) return "";
+      const status = normalizeLicenseStatus(club?.licenseStatus);
+      if (status === "blocked") return "Die Lizenz dieses Vereins ist gesperrt.";
+      if (club?.licenseAutoRenew && status === "active") return "";
+      const days = licenseDaysLeft(club);
+      if (days === null) return "";
+      if (days < 0) return "Die Lizenz ist abgelaufen. Zurzeit stehen nur Spieler, Training & Spiele, Hall of Fame und Einstellungen zur Verfügung.";
+      if (days <= LICENSE_WARNING_DAYS) {
+        return `Die Lizenz laeuft in ${days} Tagen ab und sollte erneuert werden, damit alle Funktionen erhalten bleiben.`;
+      }
+      return "";
     }
 
     function loadCurrentClubId() {
@@ -886,6 +967,9 @@
         logo: club.logo || "",
         license_key: club.licenseKey || generateLicenseKey(),
         license_status: normalizeLicenseStatus(club.licenseStatus),
+        license_activated_at: club.licenseActivatedAt,
+        license_expires_at: club.licenseExpiresAt,
+        license_auto_renew: Boolean(club.licenseAutoRenew),
         updated_at: club.updatedAt || now
       }));
       const clubUpsert = await client.from("clubs").upsert(clubRows);
@@ -1161,7 +1245,10 @@
         color: "#155e3b",
         logo: "",
         licenseKey: generateLicenseKey(),
-        licenseStatus: "trial"
+        licenseStatus: "trial",
+        licenseActivatedAt: now,
+        licenseExpiresAt: addDaysIso(now, TRIAL_DAYS),
+        licenseAutoRenew: false
       });
       const player = normalizePlayer({
         id: crypto.randomUUID(),
@@ -1182,7 +1269,7 @@
         performance: defaultPerformance()
       });
 
-      const clubInsert = await client.from("clubs").insert({
+      const clubPayload = {
         id: club.id,
         name: club.name,
         slug: `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
@@ -1190,8 +1277,16 @@
         logo: club.logo,
         license_key: club.licenseKey,
         license_status: club.licenseStatus,
+        license_activated_at: club.licenseActivatedAt,
+        license_expires_at: club.licenseExpiresAt,
+        license_auto_renew: club.licenseAutoRenew,
         updated_at: now
-      });
+      };
+      let clubInsert = await client.from("clubs").insert(clubPayload);
+      if (clubInsert.error && normalizedSchemaUnavailable(clubInsert.error)) {
+        const { license_activated_at, license_expires_at, license_auto_renew, ...legacyClubPayload } = clubPayload;
+        clubInsert = await client.from("clubs").insert(legacyClubPayload);
+      }
       if (clubInsert.error) throw clubInsert.error;
 
       const playerInsert = await client.from("players").insert({
@@ -1781,6 +1876,7 @@
 
     function render() {
       applyClubTheme();
+      renderLicenseBadge();
       applyPermissions();
       renderClubSelect();
       renderLoginUsers();
@@ -1823,15 +1919,24 @@
         el.style.display = canJoinHallOfFame() ? "" : "none";
       });
       $$(".nav button").forEach((button) => {
-        button.hidden = !canAccess(button.dataset.minRole);
+        button.hidden = !canAccess(button.dataset.minRole) || !licenseFeatureAllowed(button.dataset.view);
       });
-      $("#exportBtn").hidden = !canManage();
+      $("#exportBtn").hidden = !canManage() || licenseLimitsFeatures();
 
       const activeButton = $(".nav button.active:not([hidden])");
       if (!activeButton) {
         const firstAllowed = $(".nav button:not([hidden])");
         if (firstAllowed) switchView(firstAllowed.dataset.view);
       }
+    }
+
+    function renderLicenseBadge() {
+      const badge = $("#licenseBadge");
+      if (!badge) return;
+      const club = currentClub();
+      badge.textContent = licenseBadgeText(club);
+      badge.classList.toggle("expired", licenseIsExpired(club));
+      badge.classList.toggle("warning", !licenseIsExpired(club) && (licenseDaysLeft(club) ?? 99) <= LICENSE_WARNING_DAYS);
     }
 
     function renderClubSelect() {
@@ -1854,6 +1959,9 @@
       form.elements.logoUrl.value = club.logo && !club.logo.startsWith("data:") ? club.logo : "";
       if (form.elements.licenseKey) form.elements.licenseKey.value = club.licenseKey || "";
       if (form.elements.licenseStatus) form.elements.licenseStatus.value = normalizeLicenseStatus(club.licenseStatus);
+      if (form.elements.licenseActivatedAt) form.elements.licenseActivatedAt.value = formatLicenseDate(club.licenseActivatedAt);
+      if (form.elements.licenseExpiresAt) form.elements.licenseExpiresAt.value = formatLicenseDate(club.licenseExpiresAt);
+      if (form.elements.licenseAutoRenew) form.elements.licenseAutoRenew.checked = Boolean(club.licenseAutoRenew);
     }
 
     function renderLoginUsers() {
@@ -3833,7 +3941,15 @@
       const club = currentClub();
       club.name = values.name.trim() || club.name;
       club.color = normalizeHexColor(values.color);
-      if (isSuperadmin() && values.licenseStatus) club.licenseStatus = normalizeLicenseStatus(values.licenseStatus);
+      if (isSuperadmin() && values.licenseStatus) {
+        const nextStatus = normalizeLicenseStatus(values.licenseStatus);
+        if (nextStatus !== club.licenseStatus) {
+          club.licenseStatus = nextStatus;
+          club.licenseActivatedAt = new Date().toISOString();
+          club.licenseExpiresAt = defaultLicenseExpiresAt(nextStatus, club.licenseActivatedAt);
+        }
+        club.licenseAutoRenew = values.licenseAutoRenew === "on";
+      }
       const file = $("#clubLogoFile").files[0];
       if (file) {
         club.logo = await readFileAsDataUrl(file);
@@ -4286,6 +4402,8 @@
       ensureSeenDefaults();
       setLoginVisible(false);
       render();
+      const licenseWarning = licenseLoginWarningText();
+      if (licenseWarning) window.alert(licenseWarning);
       syncWithSupabase({ silent: true });
       loadPaypalSettings();
     });
@@ -4302,13 +4420,17 @@
       if (!canManage()) return;
       const name = $("#newClubName").value.trim();
       if (!name) return;
+      const now = new Date().toISOString();
       const club = touchClub({
         id: crypto.randomUUID(),
         name,
         color: normalizeHexColor(currentClub().color),
         logo: "",
         licenseKey: generateLicenseKey(),
-        licenseStatus: "trial"
+        licenseStatus: "trial",
+        licenseActivatedAt: now,
+        licenseExpiresAt: addDaysIso(now, TRIAL_DAYS),
+        licenseAutoRenew: false
       });
       clubs.push(club);
       currentClubId = club.id;

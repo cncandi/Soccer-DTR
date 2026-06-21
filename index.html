@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=72">
+  <link rel="stylesheet" href="css/app.css?v=73">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v72</span></h1>
+          <h1>Kadrivo <span class="app-version">v73</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -68,10 +68,11 @@
 
   <div class="app-shell">
     <aside class="sidebar">
+      <div class="license-badge" id="licenseBadge">Lizenz wird geladen</div>
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v72</span></h1>
+          <h1>Kadrivo <span class="app-version">v73</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -389,6 +390,9 @@ Nein</textarea></div>
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
               <div class="field superadmin-only"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
               <div class="field superadmin-only"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
+              <div class="field superadmin-only"><label>Aktiviert am</label><input name="licenseActivatedAt" readonly></div>
+              <div class="field superadmin-only"><label>Ablaufdatum</label><input name="licenseExpiresAt" readonly></div>
+              <div class="field full superadmin-only"><label class="check-row"><input type="checkbox" name="licenseAutoRenew"> Automatische Verlaengerung</label></div>
               <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
               <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
               <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
@@ -592,6 +596,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=72" defer></script>
+  <script src="js/app.js?v=73" defer></script>
 </body>
 </html>
