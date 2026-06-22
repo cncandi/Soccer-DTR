@@ -4513,16 +4513,9 @@
 
     function tacticPlayersForBoard(board) {
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const names = eventItem
-        ? Object.entries(eventItem.rsvps || {})
-          .filter(([, value]) => rsvpRecord({ rsvps: { temp: value } }, "temp").status === "yes")
-          .map(([name]) => name)
-        : rosterPlayers().map((player) => player.name);
-      const uniqueNames = [...new Set(names)].filter(Boolean);
-      return uniqueNames
-        .map((name) => playerByName(name))
-        .filter((player) => player && hasMemberRole(player, "Spieler"))
-        .slice(0, 18);
+      return rosterPlayers()
+        .filter((player) => hasMemberRole(player, "Spieler"))
+        .filter((player) => !eventItem || effectiveRsvp(eventItem, player) === "yes");
     }
 
     function tacticPlayerId(player, index) {
@@ -4904,7 +4897,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=95&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=96&board=${encodeURIComponent(board.id)}`;
       $("#openTactic3dBtn").href = openUrl;
       const frame = $("#tactic3dFrame");
       if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
