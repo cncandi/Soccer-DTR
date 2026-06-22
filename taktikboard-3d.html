@@ -71,11 +71,13 @@ canvas{display:block}
 .scene-thumb canvas{width:100%;height:100%;display:block;border-radius:2px}
 #scene-thumbs{display:flex;gap:4px;max-width:300px;overflow-x:auto;scrollbar-width:none}
 #morph-speed{accent-color:#7070cc;width:60px}
+#kadrivo-link{padding:3px 9px;border-radius:10px;font-size:10px;font-weight:700;background:#17331f;color:#7ee787;border:1px solid #285c36}
 </style>
 </head>
 <body>
 <div id="topbar">
   <h1>⚽ Taktiktafel</h1>
+  <span id="kadrivo-link">Kadrivo</span>
   <div class="sep"></div>
   <div class="group">
     <span id="modebadge" class="spiel">SPIEL</span>
@@ -248,6 +250,11 @@ let playerScale = parseFloat(localStorage.getItem('playerScale') || '2.0');
   const s = document.getElementById('playerScale');
   if(s){ s.value = playerScale; document.getElementById('scale-val').textContent = playerScale.toFixed(2); }
 })();
+
+let kadrivoBoardId = null;
+let kadrivoReady = false;
+let kadrivoHydrating = false;
+let kadrivoSaveTimer = null;
 
 // ============================================================
 // THREE.JS SETUP
@@ -1450,6 +1457,38 @@ function initSquad(team, prefix){
 initSquad('home','H');
 initSquad('away','A');
 
+function clearPlayerMeshes(){
+  Object.values(players).forEach(p=>{
+    if(p.mesh){
+      scene.remove(p.mesh);
+      fieldObjects = fieldObjects.filter(f=>f!==p.mesh);
+      p.mesh = null;
+      p.onField = false;
+    }
+  });
+}
+
+function setKadrivoRoster(roster){
+  clearPlayerMeshes();
+  players = {};
+  (roster || []).forEach((item, index)=>{
+    const id = item.id || `home_${index}`;
+    players[id] = {
+      id,
+      team: item.team || 'home',
+      num: Number(item.num || index + 1),
+      name: item.name || `Spieler ${index + 1}`,
+      pos: item.pos || '',
+      onField: false,
+      mesh: null,
+      vestColor: item.vestColor || null
+    };
+  });
+  if(!Object.keys(players).length) initSquad('home','H');
+  updateSidebar();
+  updateStatus();
+}
+
 // ============================================================
 // FELD-OPERATIONEN
 // ============================================================
@@ -1462,6 +1501,7 @@ function placePlayer(pid_str, x, z){
   m.userData.playerId=pid_str;
   scene.add(m); p.mesh=m; p.onField=true; fieldObjects.push(m);
   updateSidebar(); updateStatus();
+  scheduleKadrivoSave();
 }
 function removeFromField(pid_str){
   const p=players[pid_str];
@@ -1469,6 +1509,7 @@ function removeFromField(pid_str){
   scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);
   p.mesh=null; p.onField=false;
   updateSidebar(); updateStatus();
+  scheduleKadrivoSave();
 }
 function refreshPlayerMesh(pid_str){
   const p=players[pid_str];
@@ -1808,6 +1849,7 @@ function toggleMode(){
   else if(activeTab==='tools') showTab('home');
   document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
   document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+  scheduleKadrivoSave();
 }
 
 function updateColors(){
@@ -1817,6 +1859,7 @@ function updateColors(){
   awayColorSecond=document.getElementById('awayColorSecond').value;
   Object.values(players).filter(p=>p.onField).forEach(p=>refreshPlayerMesh(p.id));
   updateSidebar();
+  scheduleKadrivoSave();
 }
 function resetField(){
   if(!confirm('Alle Objekte vom Feld entfernen?')) return;
@@ -2032,6 +2075,7 @@ canvas.addEventListener('mousemove',e=>{
 
 canvas.addEventListener('mouseup',e=>{
   if(e.button===0){
+    const changed = Boolean(dragObj && isDragging);
     if(dragObj&&!isDragging){
       const now=Date.now();
       if(now-lastClickTime<350){
@@ -2046,6 +2090,7 @@ canvas.addEventListener('mouseup',e=>{
     }
     dragHandle = null;
     dragObj=null; isDragging=false; mouseDown=false;
+    if(changed) scheduleKadrivoSave();
   }
 });
 
@@ -2091,6 +2136,7 @@ function ctxAction(action){
   } else if(action==='edit'){
     openEdit(obj);
   }
+  if(action !== 'edit') scheduleKadrivoSave();
 }
 
 document.addEventListener('click',()=>{ document.getElementById('ctxmenu').style.display='none'; });
@@ -2121,6 +2167,7 @@ function applyEdit(){
   p.pos=document.getElementById('ep-pos').value;
   p.vestColor=document.getElementById('ep-vest').value;
   refreshPlayerMesh(p.id); updateSidebar();
+  scheduleKadrivoSave();
 }
 function closeEdit(){document.getElementById('editpanel').style.display='none';editTarget=null;}
 
@@ -2607,6 +2654,7 @@ function addScene(){
     currentScene++;
   }
   updateSceneUI();
+  scheduleKadrivoSave();
 }
 
 function gotoScene(idx, animate=false){
@@ -2633,6 +2681,7 @@ function clearScenes(){
   const btn=document.getElementById('btn-play');
   if(btn){ btn.textContent='▶ Play'; btn.classList.remove('active'); }
   updateSceneUI();
+  scheduleKadrivoSave();
 }
 
 function toggleSceneBar(){
@@ -2699,6 +2748,108 @@ function updateSceneUI(){
     scenes.length===0?'0 Szenen':`${currentScene+1} / ${scenes.length}`;
 }
 
+function exportKadrivoState(){
+  return {
+    version: 2,
+    mode,
+    colors: { homeColor, homeColorSecond, awayColor, awayColorSecond },
+    players: Object.fromEntries(Object.entries(players).map(([id,p])=>[id,{
+      id:p.id, team:p.team, num:p.num, name:p.name, pos:p.pos, onField:p.onField,
+      vestColor:p.vestColor, x:p.mesh?.position.x || 0, z:p.mesh?.position.z || 0,
+      ry:p.mesh?.rotation.y || 0
+    }])),
+    scenes,
+    currentScene,
+    snapshot: getSnapshot()
+  };
+}
+
+function importKadrivoState(data, roster){
+  kadrivoHydrating = true;
+  try{
+    setKadrivoRoster(roster || []);
+    if(data?.colors){
+      homeColor = data.colors.homeColor || homeColor;
+      homeColorSecond = data.colors.homeColorSecond || homeColorSecond;
+      awayColor = data.colors.awayColor || awayColor;
+      awayColorSecond = data.colors.awayColorSecond || awayColorSecond;
+      document.getElementById('homeColor').value = homeColor;
+      document.getElementById('homeColorSecond').value = homeColorSecond;
+      document.getElementById('awayColor').value = awayColor;
+      document.getElementById('awayColorSecond').value = awayColorSecond;
+    }
+    mode = data?.mode || mode;
+    const badge=document.getElementById('modebadge');
+    badge.textContent=mode==='spiel'?'SPIEL':'TRAINING';
+    badge.className='modebadge '+(mode==='spiel'?'spiel':'training');
+    document.getElementById('tab-tools').style.display=mode==='training'?'':'none';
+    document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
+    document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+    if(data?.players){
+      Object.entries(data.players).forEach(([id, saved])=>{
+        if(!players[id]) return;
+        players[id].num = saved.num || players[id].num;
+        players[id].name = saved.name || players[id].name;
+        players[id].pos = saved.pos || players[id].pos;
+        players[id].vestColor = saved.vestColor || null;
+        if(saved.onField) placePlayer(id, Number(saved.x || 0), Number(saved.z || 0));
+      });
+    } else {
+      autoPlace('home');
+    }
+    scenes = Array.isArray(data?.scenes) ? data.scenes : [];
+    currentScene = Number.isInteger(data?.currentScene) ? data.currentScene : (scenes.length ? 0 : -1);
+    if(data?.snapshot && Object.values(players).some(p=>p.onField)) applySnapshot(data.snapshot);
+    updateSceneUI();
+    updateSidebar();
+    updateStatus();
+  } finally {
+    kadrivoHydrating = false;
+  }
+}
+
+function scheduleKadrivoSave(){
+  if(!kadrivoReady || kadrivoHydrating || !kadrivoBoardId || !window.parent || window.parent === window) return;
+  clearTimeout(kadrivoSaveTimer);
+  kadrivoSaveTimer = setTimeout(()=>{
+    window.parent.postMessage({
+      type: 'kadrivo:tactic-save',
+      boardId: kadrivoBoardId,
+      state: exportKadrivoState()
+    }, window.location.origin);
+  }, 400);
+}
+
+window.addEventListener('message', (event)=>{
+  if(event.origin !== window.location.origin) return;
+  const data = event.data || {};
+  if(data.type !== 'kadrivo:tactic-load') return;
+  kadrivoBoardId = data.boardId || null;
+  kadrivoReady = true;
+  const link=document.getElementById('kadrivo-link');
+  if(link) link.textContent = data.event ? `${data.event.type}: ${data.event.title}` : 'Kadrivo';
+  if(data.mode) mode = data.mode;
+  importKadrivoState(data.saved, data.players || []);
+});
+
+function bootKadrivoStandalone(){
+  const boardId = new URLSearchParams(location.search).get('board');
+  if(!boardId) return;
+  try{
+    const payload = JSON.parse(localStorage.getItem(`kadrivo:tactic:${boardId}`) || 'null');
+    if(payload?.type === 'kadrivo:tactic-load'){
+      kadrivoBoardId = payload.boardId || boardId;
+      kadrivoReady = false;
+      const link=document.getElementById('kadrivo-link');
+      if(link) link.textContent = payload.event ? `${payload.event.type}: ${payload.event.title}` : 'Kadrivo';
+      if(payload.mode) mode = payload.mode;
+      importKadrivoState(payload.saved, payload.players || []);
+    }
+  } catch(err){
+    console.warn('Kadrivo-Taktikdaten konnten nicht geladen werden.', err);
+  }
+}
+
 // Morphing im Render-Loop
 function tickMorph(){
   if(!morphFrom||!morphTo) return;
@@ -2735,6 +2886,7 @@ function animate(){
   drawMinimap();
   drawRuler();
 }
+bootKadrivoStandalone();
 animate();
 </script>
 </body>

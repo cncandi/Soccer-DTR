@@ -145,6 +145,7 @@
     let tacticUndoStack = [];
     let tacticRedoStack = [];
     let tacticClipboard = null;
+    let tactic3dSaveTimer = null;
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -717,6 +718,7 @@
         eventId: board.eventId || "",
         teamColor: board.teamColor || currentClub()?.color || "#155e3b",
         elements: Array.isArray(board.elements) ? board.elements : [],
+        threeData: board.threeData || null,
         createdAt: board.createdAt || new Date().toISOString(),
         updatedAt: board.updatedAt || new Date().toISOString()
       };
@@ -4500,7 +4502,7 @@
     }
 
     function tacticEventOptions(selected = "") {
-      const options = [`<option value="">Ohne Zuordnung / Datenbank</option>`]
+      const options = [`<option value="">Spiel oder Training auswaehlen</option>`]
         .concat(state.events
           .slice()
           .filter((eventItem) => eventItem.type === "Spiel" || eventItem.type === "Training")
@@ -4521,6 +4523,65 @@
         .map((name) => playerByName(name))
         .filter((player) => player && hasMemberRole(player, "Spieler"))
         .slice(0, 18);
+    }
+
+    function tacticPlayerId(player, index) {
+      return `home_${String(player.id || player.name || index).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || index}`;
+    }
+
+    function tactic3dPlayersForBoard(board) {
+      return tacticPlayersForBoard(board).map((player, index) => ({
+        id: tacticPlayerId(player, index),
+        team: "home",
+        num: Number(player.number || player.jerseyNumber || player.shirtNumber || index + 1),
+        name: player.name,
+        pos: player.position || "",
+        onField: index < 11,
+        vestColor: null
+      }));
+    }
+
+    function tactic3dPayload(board = currentTacticBoard()) {
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const players = tactic3dPlayersForBoard(board);
+      return {
+        type: "kadrivo:tactic-load",
+        boardId: board.id,
+        title: board.title || "Taktik",
+        mode: eventItem?.type === "Training" ? "training" : "spiel",
+        event: eventItem ? {
+          id: eventItem.id,
+          type: eventItem.type,
+          title: eventItem.title,
+          date: eventItem.date,
+          time: eventItem.time,
+          location: eventItem.location || eventItem.address || ""
+        } : null,
+        players,
+        saved: board.threeData || null,
+        teamColor: board.teamColor || currentClub().color || "#155e3b"
+      };
+    }
+
+    function sendTactic3dPayload() {
+      const frame = $("#tactic3dFrame");
+      const payload = tactic3dPayload();
+      try {
+        localStorage.setItem(`kadrivo:tactic:${payload.boardId}`, JSON.stringify(payload));
+      } catch (error) {
+        console.warn("Taktik-Payload konnte nicht lokal gespeichert werden.", error);
+      }
+      if (!frame?.contentWindow) return;
+      frame.contentWindow.postMessage(payload, window.location.origin);
+    }
+
+    function scheduleTactic3dSave(data) {
+      const board = currentTacticBoard();
+      if (!board || data.boardId !== board.id) return;
+      board.threeData = data.state || null;
+      board.updatedAt = new Date().toISOString();
+      clearTimeout(tactic3dSaveTimer);
+      tactic3dSaveTimer = setTimeout(() => saveState(), 600);
     }
 
     function defaultTacticPlayers(board) {
@@ -4829,26 +4890,40 @@
     }
 
     function renderTacticBoard() {
-      const root = $("#tacticBoardSvg");
-      if (!root) return;
+      if (!$("#tacticBoardForm")) return;
       const board = currentTacticBoard();
-      ensureTacticPlayers(board);
-      updateTacticOptionPanels();
       $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
-      $("#tacticBoardHint").textContent = $("#tacticTool")?.selectedOptions?.[0]?.textContent || "Auswaehlen / Verschieben";
+      $("#tacticBoardHint").textContent = board.eventId ? "Beim Termin gespeichert" : "Termin auswaehlen";
       $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title)}</option>`).join("");
       $("#tacticBoardSelect").value = board.id;
       $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
       $("#tacticBoardForm").elements.title.value = board.title;
       $("#tacticBoardForm").elements.eventId.value = board.eventId || "";
-      $("#tacticBoardForm").elements.teamColor.value = board.teamColor || currentClub().color || "#155e3b";
-      $("#tacticBoardList").innerHTML = state.tacticBoards.map((item) => `<article class="item ${item.id === board.id ? "selected-item" : ""}"><button class="mini" type="button" data-open-tactic="${escapeAttr(item.id)}">${escapeHtml(item.title)}</button><span class="meta">${escapeHtml(state.events.find((eventItem) => eventItem.id === item.eventId)?.title || "Ohne Zuordnung")}</span></article>`).join("");
-      root.innerHTML = `${fieldSvgMarkup()}${board.elements.map((element) => tacticElementMarkup(element, board)).join("")}`;
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const tacticPlayers = tacticPlayersForBoard(board);
+      $("#tactic3dMeta").textContent = eventItem
+        ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
+        : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
+      const openUrl = `taktikboard-3d.html?v=95&board=${encodeURIComponent(board.id)}`;
+      $("#openTactic3dBtn").href = openUrl;
+      const frame = $("#tactic3dFrame");
+      if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
+      $("#tacticBoardList").innerHTML = state.tacticBoards.map((item) => {
+        const linkedEvent = state.events.find((eventItem) => eventItem.id === item.eventId);
+        return `<article class="item ${item.id === board.id ? "selected-item" : ""}"><button class="mini" type="button" data-open-tactic="${escapeAttr(item.id)}">${escapeHtml(item.title)}</button><span class="meta">${escapeHtml(linkedEvent ? `${linkedEvent.type}: ${linkedEvent.title}` : "Kein Termin zugeordnet")}</span></article>`;
+      }).join("");
+      requestAnimationFrame(sendTactic3dPayload);
     }
 
     function addTacticBoard() {
-      const board = normalizeTacticBoard({ title: `Taktik ${state.tacticBoards.length + 1}`, teamColor: currentClub().color || "#155e3b" });
-      board.elements = defaultTacticPlayers(board);
+      const nextEvent = state.events
+        .filter((eventItem) => eventItem.type === "Spiel" || eventItem.type === "Training")
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
+      const board = normalizeTacticBoard({
+        title: nextEvent ? `Taktik ${nextEvent.title}` : `Taktik ${state.tacticBoards.length + 1}`,
+        eventId: nextEvent?.id || "",
+        teamColor: currentClub().color || "#155e3b"
+      });
       state.tacticBoards.unshift(board);
       selectedTacticBoardId = board.id;
       selectedTacticElementId = "";
@@ -5670,6 +5745,21 @@
       tacticRedoStack = [];
       renderTacticBoard();
     });
+    $("#tactic3dFrame")?.addEventListener("load", () => {
+      sendTactic3dPayload();
+    });
+    $("#tacticEventSelect")?.addEventListener("change", () => {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      board.eventId = $("#tacticEventSelect").value || "";
+      board.threeData = null;
+      board.updatedAt = new Date().toISOString();
+      saveState();
+    });
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "kadrivo:tactic-save") scheduleTactic3dSave(event.data);
+    });
     $("#tacticTool")?.addEventListener("change", () => {
       updateTacticOptionPanels();
       renderTacticBoard();
@@ -5715,20 +5805,16 @@
       const values = formValues(event.currentTarget);
       board.title = values.title.trim() || "Taktik";
       board.eventId = values.eventId || "";
-      board.teamColor = values.teamColor || currentClub().color || "#155e3b";
-      board.elements.filter((element) => element.type === "player").forEach((element) => {
-        element.color = board.teamColor;
-      });
+      board.teamColor = currentClub().color || "#155e3b";
       board.updatedAt = new Date().toISOString();
       saveState();
     });
     $("#resetTacticPlayersBtn")?.addEventListener("click", () => {
       if (!canManage()) return;
       const board = currentTacticBoard();
-      rememberTacticBoard(board);
-      board.elements = board.elements.filter((element) => element.type !== "player");
-      board.elements.unshift(...defaultTacticPlayers(board));
-      selectedTacticElementId = "";
+      if (!window.confirm("Angemeldete Spieler fuer diese Taktik neu aus dem Termin laden? Die aktuelle 3D-Aufstellung wird zurueckgesetzt.")) return;
+      board.threeData = null;
+      board.updatedAt = new Date().toISOString();
       saveState();
     });
     $("#deleteTacticElementBtn")?.addEventListener("click", () => {
