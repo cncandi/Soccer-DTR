@@ -1431,6 +1431,25 @@
       min-width: 0;
     }
 
+    .tactic-3d-panel {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 16px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7faf8;
+    }
+
+    .tactic-3d-frame {
+      width: 100%;
+      min-height: 720px;
+      border: 0;
+      border-radius: 8px;
+      background: #12122a;
+      box-shadow: inset 0 0 0 1px rgba(16,33,25,.12);
+    }
+
     .tactic-commandbar {
       display: flex;
       flex-wrap: wrap;
@@ -1531,7 +1550,7 @@
       display: block;
       width: 100%;
       min-width: 760px;
-      aspect-ratio: 116 / 78;
+      aspect-ratio: 130 / 74;
       touch-action: none;
       user-select: none;
     }
@@ -1541,26 +1560,40 @@
     }
 
     .field-bg {
-      fill: #14972b;
+      fill: #129429;
     }
 
     .field-stripe-a {
-      fill: #06891c;
+      fill: #008414;
     }
 
     .field-stripe-b {
-      fill: #1ca333;
+      fill: #1fa435;
     }
 
     .field-line {
       fill: none;
       stroke: rgba(255,255,255,.95);
-      stroke-width: .42;
+      stroke-width: .76;
       vector-effect: non-scaling-stroke;
     }
 
     .field-dot {
       fill: rgba(255,255,255,.95);
+    }
+
+    .tactic-hit {
+      pointer-events: stroke;
+      stroke: transparent;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .tactic-hit-fill {
+      pointer-events: all;
+      fill: transparent;
+      stroke: transparent;
     }
 
     .tactic-el {
@@ -1576,7 +1609,7 @@
 
     .tactic-line.selected {
       stroke: #facc15;
-      stroke-width: 1.2;
+      stroke-width: 1.6;
     }
 
     .tactic-shape {
@@ -1586,7 +1619,7 @@
     .tactic-shape.selected,
     .tactic-accessory.selected {
       stroke: #facc15;
-      stroke-width: .9;
+      stroke-width: 1.25;
       vector-effect: non-scaling-stroke;
     }
 
@@ -1634,7 +1667,7 @@
     .tactic-cone.selected,
     .tactic-pole.selected {
       stroke: #facc15;
-      stroke-width: .9;
+      stroke-width: 1.35;
       vector-effect: non-scaling-stroke;
     }
 

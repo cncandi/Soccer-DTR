@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=93">
+  <link rel="stylesheet" href="css/app.css?v=94">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v93</span></h1>
+          <h1>Kadrivo <span class="app-version">v94</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v93</span></h1>
+          <h1>Kadrivo <span class="app-version">v94</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -271,8 +271,8 @@
                 </div>
                 <div class="tactic-option-grid">
                   <div class="field"><label>Konturfarbe</label><input id="tacticLineColor" type="color" value="#ffffff"></div>
-                  <div class="field"><label>Konturbreite</label><input id="tacticLineWidth" type="number" min="1" max="10" value="2"></div>
-                  <div class="field"><label>Pfeilgroesse</label><input id="tacticArrowSize" type="number" min="2" max="14" value="5"></div>
+                  <div class="field"><label>Konturbreite</label><input id="tacticLineWidth" type="number" min="1" max="12" value="4"></div>
+                  <div class="field"><label>Pfeilgroesse</label><input id="tacticArrowSize" type="number" min="2" max="18" value="8"></div>
                 </div>
               </div>
               <div class="field full tactic-options" data-tactic-options="text" hidden>
@@ -284,7 +284,7 @@
                   <button class="tactic-choice" type="button" data-tactic-setting="textStyle" data-value="italic">Kursiv</button>
                 </div>
                 <div class="tactic-option-grid">
-                  <div class="field"><label>Schriftgroesse</label><input id="tacticTextSize" type="number" min="8" max="34" value="14"></div>
+                  <div class="field"><label>Schriftgroesse</label><input id="tacticTextSize" type="number" min="8" max="40" value="18"></div>
                   <div class="field"><label>Schriftfarbe</label><input id="tacticTextColor" type="color" value="#ffffff"></div>
                 </div>
               </div>
@@ -293,7 +293,7 @@
                 <div class="tactic-option-grid">
                   <div class="field"><label>Fuellfarbe</label><input id="tacticFillColor" type="color" value="#000000"></div>
                   <div class="field"><label>Konturfarbe</label><input id="tacticStrokeColor" type="color" value="#ffffff"></div>
-                  <div class="field"><label>Konturbreite</label><input id="tacticStrokeWidth" type="number" min="0" max="10" value="1"></div>
+                  <div class="field"><label>Konturbreite</label><input id="tacticStrokeWidth" type="number" min="0" max="12" value="3"></div>
                 </div>
                 <label>Konturtyp</label>
                 <div class="tactic-choice-row">
@@ -346,6 +346,16 @@
               <h3 id="tacticBoardTitle">Taktikboard</h3>
               <span class="chip" id="tacticBoardHint">Auswaehlen / Verschieben</span>
             </div>
+            <div class="tactic-3d-panel">
+              <div class="item-head">
+                <div>
+                  <h3>3D Taktiktafel</h3>
+                  <p class="meta">Eigenes Profi-Board mit Spielerlisten, Formationen, Trainingswerkzeugen, Szenen und Export.</p>
+                </div>
+                <a class="mini" href="taktikboard-3d.html?v=94" target="_blank" rel="noopener">Gross oeffnen</a>
+              </div>
+              <iframe class="tactic-3d-frame" src="taktikboard-3d.html?v=94" title="3D Taktiktafel"></iframe>
+            </div>
             <div class="tactic-commandbar" aria-label="Taktikboard Aktionen">
               <button class="mini" id="tacticUndoBtn" type="button">Zurueck</button>
               <button class="mini" id="tacticRedoBtn" type="button">Wiederholen</button>
@@ -357,7 +367,7 @@
               <button class="mini" id="tacticExportImageBtn" type="button">Als Bild speichern</button>
             </div>
             <div class="tactic-board-wrap">
-              <svg id="tacticBoardSvg" class="tactic-board" viewBox="-8 -5 116 78" role="img" aria-label="Taktikboard Fussballfeld"></svg>
+              <svg id="tacticBoardSvg" class="tactic-board" viewBox="-5 -3 130 74" role="img" aria-label="Taktikboard Fussballfeld"></svg>
             </div>
           </section>
         </div>
@@ -743,6 +753,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=93" defer></script>
+  <script src="js/app.js?v=94" defer></script>
 </body>
 </html>

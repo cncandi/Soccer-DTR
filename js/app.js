@@ -152,7 +152,7 @@
     let loginDirectory = [];
     let loginDirectoryLoaded = false;
 
-    const TACTIC_VIEW = { x: -8, y: -5, width: 116, height: 78 };
+    const TACTIC_VIEW = { x: -5, y: -3, width: 130, height: 74 };
     const TACTIC_PITCH = { x: 0, y: 0, width: 100, height: 68 };
 
     const titles = {
@@ -4467,7 +4467,7 @@
       const clone = svg.cloneNode(true);
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
       style.textContent = `
-        .field-margin{fill:#08751e}.field-bg{fill:#14972b}.field-stripe-a{fill:#06891c}.field-stripe-b{fill:#1ca333}.field-line{fill:none;stroke:rgba(255,255,255,.95);stroke-width:.42}.field-dot{fill:rgba(255,255,255,.95)}
+        .field-margin{fill:#08751e}.field-bg{fill:#129429}.field-stripe-a{fill:#008414}.field-stripe-b{fill:#1fa435}.field-line{fill:none;stroke:rgba(255,255,255,.95);stroke-width:.76}.field-dot{fill:rgba(255,255,255,.95)}
         .tactic-player circle,.tactic-player-icon circle{stroke:#fff;stroke-width:.45}.tactic-player text,.tactic-text,.tactic-player-icon text{fill:#fff;font-size:2.3px;font-weight:800;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.35}
         .tactic-cone{fill:#f97316;stroke:#fff;stroke-width:.25}.tactic-pole{fill:#facc15;stroke:#7c2d12;stroke-width:.18}
       `;
@@ -4479,8 +4479,8 @@
       const url = URL.createObjectURL(blob);
       image.onload = () => {
         const canvas = document.createElement("canvas");
-        canvas.width = 1740;
-        canvas.height = 1170;
+        canvas.width = 1950;
+        canvas.height = 1110;
         const context = canvas.getContext("2d");
         context.fillStyle = "#08751e";
         context.fillRect(0, 0, canvas.width, canvas.height);
@@ -4528,9 +4528,9 @@
         [8, 34], [22, 16], [22, 30], [22, 42], [22, 56],
         [43, 20], [43, 34], [43, 48], [64, 18], [64, 34], [64, 50]
       ];
-      const subPositions = [[105, 8], [105, 17], [105, 26], [105, 35], [105, 44], [105, 53], [105, 62]];
+      const subPositions = [[108, 7], [108, 15], [108, 23], [108, 31], [108, 39], [108, 47], [108, 55], [108, 63], [117, 15], [117, 23], [117, 31], [117, 39], [117, 47], [117, 55]];
       return tacticPlayersForBoard(board).map((player, index) => {
-        const [x, y] = index < 11 ? positions[index] : subPositions[index - 11] || [105, 62];
+        const [x, y] = index < 11 ? positions[index] : subPositions[index - 11] || [117, 63];
         return {
           id: crypto.randomUUID(),
           type: "player",
@@ -4595,6 +4595,76 @@
       });
     }
 
+    function setTacticChoice(setting, value) {
+      $$(`[data-tactic-setting="${setting}"]`).forEach((item) => {
+        item.classList.toggle("active", item.dataset.value === String(value));
+      });
+    }
+
+    function loadTacticElementOptions(element) {
+      if (!element) return;
+      if (element.type === "line") {
+        $("#tacticTool").value = "line";
+        setTacticChoice("lineCurve", element.curve || "straight");
+        setTacticChoice("lineStyle", element.lineStyle || "solid");
+        setTacticChoice("lineEnd", element.end || "arrow");
+        $("#tacticLineColor").value = element.color || "#ffffff";
+        $("#tacticLineWidth").value = Number(element.width || 4);
+        $("#tacticArrowSize").value = Number(element.arrowSize || 8);
+      } else if (element.type === "text") {
+        $("#tacticTool").value = "text";
+        setTacticChoice("textStyle", element.textStyle || "normal");
+        $("#tacticTextSize").value = Number(element.size || 18);
+        $("#tacticTextColor").value = element.color || "#ffffff";
+      } else if (element.type === "polygon" || element.type === "circle") {
+        $("#tacticTool").value = element.type;
+        setTacticChoice("shapeStrokeStyle", element.strokeStyle || "solid");
+        $("#tacticFillColor").value = element.fillColor || "#000000";
+        $("#tacticStrokeColor").value = element.strokeColor || "#ffffff";
+        $("#tacticStrokeWidth").value = Number(element.strokeWidth || 3);
+      } else if (element.type === "playerIcon") {
+        $("#tacticTool").value = "playerIcon";
+        setTacticChoice("playerIcon", element.icon || "run");
+      } else if (element.type === "accessory") {
+        $("#tacticTool").value = "accessory";
+        setTacticChoice("accessoryType", element.accessoryType || "goal");
+      } else {
+        $("#tacticTool").value = "select";
+      }
+      updateTacticOptionPanels();
+    }
+
+    function updateSelectedTacticElementFromOptions() {
+      const element = selectedTacticElement();
+      if (!element) return false;
+      const options = tacticOptions();
+      if (element.type === "line") {
+        element.curve = options.lineCurve;
+        element.lineStyle = options.lineStyle;
+        element.end = options.lineEnd;
+        element.color = options.lineColor;
+        element.width = options.lineWidth;
+        element.arrowSize = options.arrowSize;
+      } else if (element.type === "text") {
+        element.textStyle = options.textStyle;
+        element.size = options.textSize;
+        element.color = options.textColor;
+      } else if (element.type === "polygon" || element.type === "circle") {
+        element.fillColor = options.fillColor;
+        element.strokeColor = options.strokeColor;
+        element.strokeWidth = options.strokeWidth;
+        element.strokeStyle = options.shapeStrokeStyle;
+      } else if (element.type === "playerIcon") {
+        element.icon = options.playerIcon;
+      } else if (element.type === "accessory") {
+        element.accessoryType = options.accessoryType;
+      } else {
+        return false;
+      }
+      element.updatedAt = new Date().toISOString();
+      return true;
+    }
+
     function lineD(element) {
       if (element.lineStyle === "wavy") {
         const dx = element.x2 - element.x1;
@@ -4628,43 +4698,44 @@
       const y = Number(element.y || 34);
       const id = escapeAttr(element.id);
       const type = element.accessoryType || "goal";
+      const hit = `<circle class="tactic-hit-fill" data-tactic-id="${id}" cx="${x}" cy="${y}" r="6"></circle>`;
       if (type === "goal" || type === "miniGoal" || type === "hallGoal" || type === "goalTilted") {
         const w = type === "goal" ? 9 : 6;
         const h = type === "goal" ? 4 : 3;
         const rotate = type === "goalTilted" ? ` transform="rotate(-8 ${x} ${y})"` : "";
         const net = type === "hallGoal" ? "#86efac" : "#f8fafc";
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"${rotate}><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" fill="none" stroke="#f8fafc" stroke-width=".45"></rect><line x1="${x - w / 2}" y1="${y}" x2="${x + w / 2}" y2="${y}" stroke="${net}" stroke-width=".25"></line>${Array.from({ length: 5 }).map((_, i) => `<line x1="${x - w / 2 + (i + 1) * w / 6}" y1="${y - h / 2}" x2="${x - w / 2 + (i + 1) * w / 6}" y2="${y + h / 2}" stroke="${net}" stroke-width=".12"></line>`).join("")}</g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"${rotate}>${hit}<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" fill="none" stroke="#f8fafc" stroke-width=".45"></rect><line x1="${x - w / 2}" y1="${y}" x2="${x + w / 2}" y2="${y}" stroke="${net}" stroke-width=".25"></line>${Array.from({ length: 5 }).map((_, i) => `<line x1="${x - w / 2 + (i + 1) * w / 6}" y1="${y - h / 2}" x2="${x - w / 2 + (i + 1) * w / 6}" y2="${y + h / 2}" stroke="${net}" stroke-width=".12"></line>`).join("")}</g>`;
       }
       if (type === "ball") {
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><circle cx="${x}" cy="${y}" r="2.1" fill="#fff" stroke="#111" stroke-width=".25"></circle><path d="M ${x - 1.4} ${y} H ${x + 1.4} M ${x} ${y - 1.4} V ${y + 1.4}" stroke="#111" stroke-width=".2"></path></g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}">${hit}<circle cx="${x}" cy="${y}" r="2.1" fill="#fff" stroke="#111" stroke-width=".25"></circle><path d="M ${x - 1.4} ${y} H ${x + 1.4} M ${x} ${y - 1.4} V ${y + 1.4}" stroke="#111" stroke-width=".2"></path></g>`;
       }
       if (type === "cone" || type === "pylon") {
         if (type === "cone") {
-          return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 1.4} L ${x - 2.3} ${y + 1.7} Q ${x} ${y + 2.4} ${x + 2.3} ${y + 1.7} Z"></path>`;
+          return `${hit}<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 1.4} L ${x - 2.3} ${y + 1.7} Q ${x} ${y + 2.4} ${x + 2.3} ${y + 1.7} Z"></path>`;
         }
-        return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 2.8} L ${x - 2.2} ${y + 2.4} L ${x + 2.2} ${y + 2.4} Z"></path>`;
+        return `${hit}<path class="tactic-el tactic-cone${selected}" data-tactic-id="${id}" d="M ${x} ${y - 2.8} L ${x - 2.2} ${y + 2.4} L ${x + 2.2} ${y + 2.4} Z"></path>`;
       }
       if (type === "dummy") {
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><circle cx="${x}" cy="${y - 2.3}" r="1.1" fill="#f97316"></circle><path d="M ${x} ${y - 1.1} C ${x - 2} ${y} ${x - 1.6} ${y + 3} ${x} ${y + 3.6} C ${x + 1.6} ${y + 3} ${x + 2} ${y} ${x} ${y - 1.1}" fill="#f97316" stroke="#9a3412" stroke-width=".2"></path></g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}">${hit}<circle cx="${x}" cy="${y - 2.3}" r="1.1" fill="#f97316"></circle><path d="M ${x} ${y - 1.1} C ${x - 2} ${y} ${x - 1.6} ${y + 3} ${x} ${y + 3.6} C ${x + 1.6} ${y + 3} ${x + 2} ${y} ${x} ${y - 1.1}" fill="#f97316" stroke="#9a3412" stroke-width=".2"></path></g>`;
       }
       if (type === "ladder") {
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><rect x="${x - 5}" y="${y - 1}" width="10" height="2" fill="none" stroke="#fb923c" stroke-width=".35"></rect>${Array.from({ length: 7 }).map((_, i) => `<line x1="${x - 4 + i * 1.35}" y1="${y - 1}" x2="${x - 4 + i * 1.35}" y2="${y + 1}" stroke="#fb923c" stroke-width=".25"></line>`).join("")}</g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}">${hit}<rect x="${x - 5}" y="${y - 1}" width="10" height="2" fill="none" stroke="#fb923c" stroke-width=".35"></rect>${Array.from({ length: 7 }).map((_, i) => `<line x1="${x - 4 + i * 1.35}" y1="${y - 1}" x2="${x - 4 + i * 1.35}" y2="${y + 1}" stroke="#fb923c" stroke-width=".25"></line>`).join("")}</g>`;
       }
       if (type === "pole") {
-        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${id}" x="${x - .35}" y="${y - 4}" width=".7" height="8" rx=".25"></rect>`;
+        return `${hit}<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${id}" x="${x - .35}" y="${y - 4}" width=".7" height="8" rx=".25"></rect>`;
       }
       if (type === "ring") {
-        return `<ellipse class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" cx="${x}" cy="${y}" rx="3.4" ry="2.1" fill="none" stroke="#f97316" stroke-width=".65"></ellipse>`;
+        return `${hit}<ellipse class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" cx="${x}" cy="${y}" rx="3.4" ry="2.1" fill="none" stroke="#f97316" stroke-width=".65"></ellipse>`;
       }
       if (type === "mat") {
-        return `<rect class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" x="${x - 4}" y="${y - 2.4}" width="8" height="4.8" fill="#0284c7" stroke="#075985" stroke-width=".3"></rect>`;
+        return `${hit}<rect class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}" x="${x - 4}" y="${y - 2.4}" width="8" height="4.8" fill="#0284c7" stroke="#075985" stroke-width=".3"></rect>`;
       }
       if (type === "flag" || type === "flagBase") {
         const base = type === "flagBase" ? `<ellipse cx="${x}" cy="${y + 4.2}" rx="1.2" ry=".45" fill="#f97316" stroke="#92400e" stroke-width=".2"></ellipse>` : "";
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}" stroke="#92400e" stroke-width=".35"></line><path d="M ${x} ${y - 4} L ${x + 3} ${y - 3} L ${x} ${y - 2} Z" fill="#f97316"></path>${base}</g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}">${hit}<line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}" stroke="#92400e" stroke-width=".35"></line><path d="M ${x} ${y - 4} L ${x + 3} ${y - 3} L ${x} ${y - 2} Z" fill="#f97316"></path>${base}</g>`;
       }
       if (type === "bench") {
-        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}"><rect x="${x - 4.8}" y="${y - 1}" width="9.6" height="1.8" fill="#facc15" stroke="#92400e" stroke-width=".25"></rect><line x1="${x - 3.5}" y1="${y + .8}" x2="${x - 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line><line x1="${x + 3.5}" y1="${y + .8}" x2="${x + 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line></g>`;
+        return `<g class="tactic-el tactic-accessory${selected}" data-tactic-id="${id}">${hit}<rect x="${x - 4.8}" y="${y - 1}" width="9.6" height="1.8" fill="#facc15" stroke="#92400e" stroke-width=".25"></rect><line x1="${x - 3.5}" y1="${y + .8}" x2="${x - 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line><line x1="${x + 3.5}" y1="${y + .8}" x2="${x + 3.5}" y2="${y + 2}" stroke="#92400e" stroke-width=".25"></line></g>`;
       }
       return "";
     }
@@ -4706,15 +4777,17 @@
       const selected = element.id === selectedTacticElementId ? " selected" : "";
       if (element.type === "line") {
         const color = element.color || "#ffffff";
-        const width = Number(element.width || 2) * .35;
+        const width = Math.max(Number(element.width || 4), 3) * .35;
         const markerId = `arrow-${element.id}`;
         const marker = element.end === "none" ? "" : `<defs><marker id="${escapeAttr(markerId)}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="${Number(element.arrowSize || 5)}" markerHeight="${Number(element.arrowSize || 5)}" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${escapeAttr(color)}"></path></marker></defs>`;
         const dash = element.lineStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : "";
-        return `${marker}<path class="tactic-el tactic-line${selected}" data-tactic-id="${escapeAttr(element.id)}" d="${lineD(element)}" stroke="${escapeAttr(color)}" stroke-width="${width}" fill="none" ${dash} ${element.end === "none" ? "" : `marker-end="url(#${escapeAttr(markerId)})"`}></path>`;
+        return `${marker}<path class="tactic-hit" data-tactic-id="${escapeAttr(element.id)}" d="${lineD(element)}" stroke-width="5"></path><path class="tactic-el tactic-line${selected}" data-tactic-id="${escapeAttr(element.id)}" d="${lineD(element)}" stroke="${escapeAttr(color)}" stroke-width="${width}" fill="none" ${dash} ${element.end === "none" ? "" : `marker-end="url(#${escapeAttr(markerId)})"`}></path>`;
       }
       if (element.type === "text") {
         const style = element.textStyle === "italic" ? "font-style:italic;" : element.textStyle === "bold" ? "font-weight:950;" : "";
-        return `<text class="tactic-el tactic-text${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x}" y="${element.y}" fill="${escapeAttr(element.color || "#ffffff")}" style="font-size:${Number(element.size || 14) / 5}px;${style}">${escapeHtml(element.text || "Text")}</text>`;
+        const fontSize = Number(element.size || 18) / 5;
+        const hitWidth = Math.max(8, String(element.text || "Text").length * fontSize * .9);
+        return `<g class="tactic-el tactic-text-wrap${selected}" data-tactic-id="${escapeAttr(element.id)}"><rect class="tactic-hit-fill" x="${element.x - hitWidth / 2}" y="${element.y - fontSize * 1.25}" width="${hitWidth}" height="${fontSize * 1.8}" rx="1"></rect><text class="tactic-text${selected}" x="${element.x}" y="${element.y}" fill="${escapeAttr(element.color || "#ffffff")}" style="font-size:${fontSize}px;${style}">${escapeHtml(element.text || "Text")}</text></g>`;
       }
       if (element.type === "polygon") {
         const points = [
@@ -4722,30 +4795,32 @@
           [element.x - 4.5, element.y + 3],
           [element.x + 4.5, element.y + 3]
         ].map((point) => point.join(",")).join(" ");
-        return `<polygon class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" points="${points}" fill="${escapeAttr(element.fillColor || "#000000")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Number(element.strokeWidth || 1) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></polygon>`;
+        return `<polygon class="tactic-hit-fill" data-tactic-id="${escapeAttr(element.id)}" points="${points}"></polygon><polygon class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" points="${points}" fill="${escapeAttr(element.fillColor || "#000000")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Math.max(Number(element.strokeWidth || 3), 2) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></polygon>`;
       }
       if (element.type === "circle") {
-        return `<circle class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" cx="${element.x}" cy="${element.y}" r="${Number(element.radius || 4)}" fill="${escapeAttr(element.fillColor || "transparent")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Number(element.strokeWidth || 1) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></circle>`;
+        const radius = Number(element.radius || 4);
+        return `<circle class="tactic-hit-fill" data-tactic-id="${escapeAttr(element.id)}" cx="${element.x}" cy="${element.y}" r="${radius + 3}"></circle><circle class="tactic-el tactic-shape${selected}" data-tactic-id="${escapeAttr(element.id)}" cx="${element.x}" cy="${element.y}" r="${radius}" fill="${escapeAttr(element.fillColor || "transparent")}" stroke="${escapeAttr(element.strokeColor || "#ffffff")}" stroke-width="${Math.max(Number(element.strokeWidth || 3), 2) * .35}" ${element.strokeStyle === "dashed" ? 'stroke-dasharray="2.4 1.8"' : ""}></circle>`;
       }
       if (element.type === "playerIcon") {
         const label = { run: "🏃", pass: "↗", stand: "●", jump: "↟", keeper: "🧤" }[element.icon] || "●";
-        return `<g class="tactic-el tactic-player-icon${selected}" data-tactic-id="${escapeAttr(element.id)}"><circle cx="${element.x}" cy="${element.y}" r="3.1" fill="${escapeAttr(element.color || board.teamColor || "#155e3b")}"></circle><text x="${element.x}" y="${element.y + 1.1}">${escapeHtml(label)}</text></g>`;
+        return `<g class="tactic-el tactic-player-icon${selected}" data-tactic-id="${escapeAttr(element.id)}"><circle class="tactic-hit-fill" cx="${element.x}" cy="${element.y}" r="5.6"></circle><circle cx="${element.x}" cy="${element.y}" r="3.1" fill="${escapeAttr(element.color || board.teamColor || "#155e3b")}"></circle><text x="${element.x}" y="${element.y + 1.1}">${escapeHtml(label)}</text></g>`;
       }
       if (element.type === "accessory") {
         return accessoryMarkup(element, selected);
       }
       if (element.type === "cone") {
-        return `<path class="tactic-el tactic-cone${selected}" data-tactic-id="${escapeAttr(element.id)}" d="M ${element.x} ${element.y - 1.7} L ${element.x - 1.7} ${element.y + 1.6} L ${element.x + 1.7} ${element.y + 1.6} Z"></path>`;
+        return `<circle class="tactic-hit-fill" data-tactic-id="${escapeAttr(element.id)}" cx="${element.x}" cy="${element.y}" r="4.8"></circle><path class="tactic-el tactic-cone${selected}" data-tactic-id="${escapeAttr(element.id)}" d="M ${element.x} ${element.y - 1.7} L ${element.x - 1.7} ${element.y + 1.6} L ${element.x + 1.7} ${element.y + 1.6} Z"></path>`;
       }
       if (element.type === "poleV") {
-        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - .45}" y="${element.y - 3}" width=".9" height="6" rx=".3"></rect>`;
+        return `<rect class="tactic-hit-fill" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - 2.6}" y="${element.y - 4.6}" width="5.2" height="9.2" rx="1"></rect><rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - .45}" y="${element.y - 3}" width=".9" height="6" rx=".3"></rect>`;
       }
       if (element.type === "poleH") {
-        return `<rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - 3}" y="${element.y - .45}" width="6" height=".9" rx=".3"></rect>`;
+        return `<rect class="tactic-hit-fill" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - 4.6}" y="${element.y - 2.6}" width="9.2" height="5.2" rx="1"></rect><rect class="tactic-el tactic-pole${selected}" data-tactic-id="${escapeAttr(element.id)}" x="${element.x - 3}" y="${element.y - .45}" width="6" height=".9" rx=".3"></rect>`;
       }
       if (element.type === "player") {
         const fill = element.color || board.teamColor || currentClub().color || "#155e3b";
         return `<g class="tactic-el tactic-player${selected} ${element.sub ? "sub" : ""}" data-tactic-id="${escapeAttr(element.id)}">
+          <circle class="tactic-hit-fill" cx="${element.x}" cy="${element.y}" r="${element.sub ? 4.8 : 5.4}"></circle>
           <circle cx="${element.x}" cy="${element.y}" r="${element.sub ? 1.8 : 2.25}" fill="${escapeAttr(fill)}"></circle>
           <text x="${element.x}" y="${element.y + 4.4}">${escapeHtml(element.name || "Spieler")}</text>
         </g>`;
@@ -5604,10 +5679,26 @@
       if (!button) return;
       const setting = button.dataset.tacticSetting;
       $$(`[data-tactic-setting="${setting}"]`).forEach((item) => item.classList.toggle("active", item === button));
+      if (selectedTacticElementId) {
+        rememberTacticBoard();
+        if (updateSelectedTacticElementFromOptions()) {
+          saveState();
+          return;
+        }
+      }
       renderTacticBoard();
     });
     ["tacticLineColor", "tacticLineWidth", "tacticArrowSize", "tacticTextSize", "tacticTextColor", "tacticFillColor", "tacticStrokeColor", "tacticStrokeWidth"].forEach((id) => {
-      $("#" + id)?.addEventListener("input", renderTacticBoard);
+      $("#" + id)?.addEventListener("change", () => {
+        if (selectedTacticElementId) {
+          rememberTacticBoard();
+          if (updateSelectedTacticElementFromOptions()) {
+            saveState();
+            return;
+          }
+        }
+        renderTacticBoard();
+      });
     });
     $("#tacticUndoBtn")?.addEventListener("click", undoTacticBoard);
     $("#tacticRedoBtn")?.addEventListener("click", redoTacticBoard);
@@ -5681,6 +5772,7 @@
         }
         selectedTacticElementId = target.dataset.tacticId;
         const element = board.elements.find((item) => item.id === selectedTacticElementId);
+        loadTacticElementOptions(element);
         if (element) rememberTacticBoard(board);
         tacticPointer = element ? { mode: "move", id: element.id, start: point, original: { ...element } } : null;
         event.currentTarget.setPointerCapture?.(event.pointerId);
