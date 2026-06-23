@@ -57,7 +57,7 @@ canvas{display:block}
 .fbtn.active{background:#3d3d8a;color:#fff;border-color:#7070cc}
 #btn-playerview.active{background:#4a2a00;color:#ffaa44;border-color:#aa6600}
 #btn-playerview.active:hover{background:#5a3a00}
-#scale-val{font-size:11px;color:#aaa;min-width:22px;text-align:right}
+#scale-val,#name-scale-val{font-size:11px;color:#aaa;min-width:22px;text-align:right}
 #scene-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:6px;background:#12122aee;border:1px solid #3a3a6a;border-radius:9px;padding:5px 10px;backdrop-filter:blur(4px);white-space:nowrap;z-index:100}
 #scene-bar .sbtn{padding:4px 9px;font-size:11px;border-radius:5px;cursor:pointer;border:1px solid #3a3a6a;background:transparent;color:#bbb;font-weight:600;transition:all .15s}
 #scene-bar .sbtn:hover{background:#2a2a5a;color:#fff}
@@ -107,6 +107,11 @@ canvas{display:block}
     <label>Spielergröße</label>
     <input type="range" id="playerScale" min="0.5" max="6.0" step="0.1" value="2.0" oninput="onScaleChange(this.value)">
     <span id="scale-val">1.0</span>
+  </div>
+  <div class="group">
+    <label>Namen</label>
+    <input type="range" id="nameScale" min="0.5" max="4.0" step="0.1" value="1.0" oninput="onNameScaleChange(this.value)">
+    <span id="name-scale-val">1.0</span>
   </div>
     <button class="btn" onclick="setView('top')"   title="Von oben">Top</button>
     <button class="btn" onclick="setView('iso')"   title="Isometrisch">Iso</button>
@@ -246,9 +251,12 @@ let showNames = false; // Standard: aus
 
 // Spielergröße — aus localStorage laden
 let playerScale = parseFloat(localStorage.getItem('playerScale') || '2.0');
+let nameScale = parseFloat(localStorage.getItem('nameScale') || '1.0');
 (function initScaleUI(){
   const s = document.getElementById('playerScale');
   if(s){ s.value = playerScale; document.getElementById('scale-val').textContent = playerScale.toFixed(2); }
+  const ns = document.getElementById('nameScale');
+  if(ns){ ns.value = nameScale; document.getElementById('name-scale-val').textContent = nameScale.toFixed(2); }
 })();
 
 let kadrivoBoardId = null;
@@ -878,6 +886,7 @@ function createPlayerMesh(team, num, name, pos, vestOverride){
   const nMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.78),
     new THREE.MeshBasicMaterial({map:nTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
   nMesh.position.set(0,2.55,0);
+  nMesh.scale.setScalar(nameScale);
   nMesh.name='namebadge';
   nMesh.visible = showNames;
   g.add(nMesh);
@@ -897,6 +906,29 @@ function onScaleChange(val){
   Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>{
     p.mesh.scale.setScalar(playerScale);
   });
+}
+
+function updateNameScales(){
+  Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>{
+    const badge = p.mesh.getObjectByName('namebadge');
+    if(badge) badge.scale.setScalar(nameScale);
+  });
+}
+
+function onNameScaleChange(val){
+  nameScale = parseFloat(val);
+  document.getElementById('name-scale-val').textContent = nameScale.toFixed(2);
+  localStorage.setItem('nameScale', nameScale);
+  updateNameScales();
+}
+
+function orientPlayerToGoal(mesh){
+  if(!mesh || mesh.userData?.type !== 'player') return;
+  mesh.rotation.y = mesh.position.z > 0 ? Math.PI : 0;
+}
+
+function orientAllPlayersToGoal(){
+  Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>orientPlayerToGoal(p.mesh));
 }
 
 // ============================================================
@@ -1498,7 +1530,7 @@ function placePlayer(pid_str, x, z){
   if(p.mesh){scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);}
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
   m.position.set(x,0,z);
-  m.rotation.y = z > 0 ? Math.PI : 0;
+  orientPlayerToGoal(m);
   m.userData.playerId=pid_str;
   scene.add(m); p.mesh=m; p.onField=true; fieldObjects.push(m);
   updateSidebar(); updateStatus();
@@ -2697,6 +2729,7 @@ function applySnapshot(snap, t=1, fromSnap=null){
       p.mesh.position.x=lerp(fx,s.x,et);
       p.mesh.position.y=lerp(fy,s.y,et);
       p.mesh.position.z=lerp(fz,s.z,et);
+      orientPlayerToGoal(p.mesh);
     }
     if(s.kind==='tool'){
       const tools=fieldObjects.filter(f=>f.userData&&f.userData.type==='tool');
@@ -2948,6 +2981,7 @@ function animate(){
   requestAnimationFrame(animate);
   tickCamera();
   tickMorph();
+  orientAllPlayersToGoal();
   fieldObjects.forEach(obj=>{
     if(obj.userData&&obj.userData.type==='player'){
       const nb=obj.getObjectByName('namebadge');
