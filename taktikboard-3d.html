@@ -956,13 +956,12 @@ function updatePlayerLabels(){
   const width = wrap.clientWidth;
   const height = wrap.clientHeight;
   const labels = Object.values(players).filter(p=>p.onField&&p.mesh).map(p=>{
-    const point = new THREE.Vector3(0, 3.2 * playerScale, 0);
-    p.mesh.localToWorld(point);
+    const point = p.mesh.position.clone();
     point.project(camera);
     const visible = point.z > -1 && point.z < 1;
     const x = (point.x * 0.5 + 0.5) * width;
-    const y = (-point.y * 0.5 + 0.5) * height;
-    if(!visible || x < -240 || x > width + 240 || y < -120 || y > height + 120) return '';
+    const y = (-point.y * 0.5 + 0.5) * height - (28 * nameScale);
+    if(!visible || x < -260 || x > width + 260 || y < -80 || y > height + 80) return '';
     return `<div class="player-screen-label" style="transform:translate(${x}px,${y}px) translate(-50%,-110%)">${escapeHtml(p.name || `#${p.num}`)}</div>`;
   }).join('');
   layer.innerHTML = labels;
