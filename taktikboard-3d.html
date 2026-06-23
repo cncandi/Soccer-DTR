@@ -38,6 +38,8 @@ input[type=color]{width:28px;height:24px;border:1px solid #3a3a6a;background:non
 .tool-item:hover{border-color:#aa7700;background:#2a2200}
 #canvas-wrap{flex:1;position:relative;overflow:hidden}
 canvas{display:block}
+#player-label-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:20}
+.player-screen-label{position:absolute;left:0;top:0;transform:translate(-50%,-110%);padding:.22em .7em;border-radius:3px;background:rgba(0,0,0,.82);color:#fff;font-weight:900;font-size:calc(18px * var(--name-scale, 1));line-height:1.08;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.75);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 #ctxmenu{position:fixed;background:#1e1e3e;border:1px solid #4a4a8a;border-radius:7px;padding:4px;z-index:1000;display:none;min-width:130px;box-shadow:0 8px 24px #000a}
 #ctxmenu div{padding:6px 11px;font-size:11px;cursor:pointer;border-radius:4px;color:#ccc}
 #ctxmenu div:hover{background:#2a2a6a;color:#fff}
@@ -133,6 +135,7 @@ canvas{display:block}
   </div>
   <div id="canvas-wrap">
     <canvas id="c"></canvas>
+    <div id="player-label-layer"></div>
     <canvas id="minimap" width="200" height="130" style="position:absolute;bottom:14px;right:14px;border:1px solid #3a3a6a;border-radius:4px;background:rgba(10,10,20,0.75);pointer-events:none"></canvas>
     <canvas id="ruler" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none"></canvas>
     <!-- SZENEN-LEISTE -->
@@ -888,7 +891,7 @@ function createPlayerMesh(team, num, name, pos, vestOverride){
   nMesh.position.set(0,2.55,0);
   nMesh.scale.setScalar(nameScale);
   nMesh.name='namebadge';
-  nMesh.visible = showNames;
+  nMesh.visible = false;
   g.add(nMesh);
 
   g.userData = {type:'player', team, num, name:name||`#${num}`, pos:pos||'', vestColor:vestOverride||null};
@@ -909,6 +912,7 @@ function onScaleChange(val){
 }
 
 function updateNameScales(){
+  document.getElementById('player-label-layer')?.style.setProperty('--name-scale', String(nameScale));
   Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>{
     const badge = p.mesh.getObjectByName('namebadge');
     if(badge) badge.scale.setScalar(nameScale);
@@ -922,13 +926,46 @@ function onNameScaleChange(val){
   updateNameScales();
 }
 
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[ch]));
+}
+
 function orientPlayerToGoal(mesh){
   if(!mesh || mesh.userData?.type !== 'player') return;
-  mesh.rotation.y = mesh.position.z > 0 ? Math.PI : 0;
+  mesh.rotation.y = Number(mesh.userData.attackDirection || 0);
 }
 
 function orientAllPlayersToGoal(){
   Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>orientPlayerToGoal(p.mesh));
+}
+
+function updatePlayerLabels(){
+  const layer = document.getElementById('player-label-layer');
+  if(!layer) return;
+  layer.style.setProperty('--name-scale', String(nameScale));
+  if(!showNames){
+    layer.innerHTML = '';
+    return;
+  }
+  const width = wrap.clientWidth;
+  const height = wrap.clientHeight;
+  const labels = Object.values(players).filter(p=>p.onField&&p.mesh).map(p=>{
+    const point = new THREE.Vector3(0, 3.2 * playerScale, 0);
+    p.mesh.localToWorld(point);
+    point.project(camera);
+    const visible = point.z > -1 && point.z < 1;
+    const x = (point.x * 0.5 + 0.5) * width;
+    const y = (-point.y * 0.5 + 0.5) * height;
+    if(!visible || x < -240 || x > width + 240 || y < -120 || y > height + 120) return '';
+    return `<div class="player-screen-label" style="transform:translate(${x}px,${y}px) translate(-50%,-110%)">${escapeHtml(p.name || `#${p.num}`)}</div>`;
+  }).join('');
+  layer.innerHTML = labels;
 }
 
 // ============================================================
@@ -1513,7 +1550,8 @@ function setKadrivoRoster(roster){
       pos: item.pos || '',
       onField: false,
       mesh: null,
-      vestColor: item.vestColor || null
+      vestColor: item.vestColor || null,
+      attackDirection: item.team === 'away' ? Math.PI : 0
     };
   });
   if(!Object.keys(players).length) initSquad('home','H');
@@ -1524,12 +1562,14 @@ function setKadrivoRoster(roster){
 // ============================================================
 // FELD-OPERATIONEN
 // ============================================================
-function placePlayer(pid_str, x, z){
+function placePlayer(pid_str, x, z, attackDirection=null){
   const p=players[pid_str];
   if(!p) return;
   if(p.mesh){scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);}
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
   m.position.set(x,0,z);
+  p.attackDirection = Number(attackDirection ?? p.attackDirection ?? (p.team === 'away' ? Math.PI : 0));
+  m.userData.attackDirection = p.attackDirection;
   orientPlayerToGoal(m);
   m.userData.playerId=pid_str;
   scene.add(m); p.mesh=m; p.onField=true; fieldObjects.push(m);
@@ -1550,7 +1590,7 @@ function refreshPlayerMesh(pid_str){
   const pos=p.mesh.position.clone();
   scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
-  m.position.copy(pos); m.userData.playerId=pid_str;
+  m.position.copy(pos); m.userData.playerId=pid_str; m.userData.attackDirection = Number(p.attackDirection ?? (p.team === 'away' ? Math.PI : 0)); orientPlayerToGoal(m);
   scene.add(m); p.mesh=m; fieldObjects.push(m);
 }
 
@@ -1595,10 +1635,11 @@ function applyFormation(btn, name){
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
     const layout=F[team];
     const ids=orderedPlayerIdsForLayout(team, layout);
+    const attackDirection = team === 'away' ? Math.PI : 0;
     let idx=0;
     layout.forEach(group=>{
       group.forEach(pos=>{
-        if(idx<ids.length) placePlayer(ids[idx++],pos[0],pos[1]);
+        if(idx<ids.length) placePlayer(ids[idx++],pos[0],pos[1],attackDirection);
       });
     });
   });
@@ -1609,8 +1650,9 @@ function autoPlace(team){
   const placementTeam = placementPlayerTeam(team);
   Object.values(players).filter(p=>p.team===placementTeam&&p.onField).forEach(p=>removeFromField(p.id));
   const ids=orderedPlayerIdsForLayout(placementTeam, layout);
+  const attackDirection = team === 'away' ? Math.PI : 0;
   let idx=0;
-  layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1]);}));
+  layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1],attackDirection);}));
 }
 
 function placementPlayerTeam(requestedTeam){
@@ -1682,7 +1724,7 @@ function suggestedFieldPosition(pid){
 
 function placePlayerSmart(pid){
   const point = suggestedFieldPosition(pid);
-  placePlayer(pid, point.x, point.z);
+  placePlayer(pid, point.x, point.z, players[pid]?.attackDirection ?? 0);
 }
 
 // ============================================================
@@ -1941,9 +1983,10 @@ function toggleNames(){
   fieldObjects.forEach(obj=>{
     if(obj.userData&&obj.userData.type==='player'){
       const nb = obj.getObjectByName('namebadge');
-      if(nb) nb.visible = showNames;
+      if(nb) nb.visible = false;
     }
   });
+  updatePlayerLabels();
 }
 
 function toggleMode(){
@@ -2700,6 +2743,7 @@ function getSnapshot(){
   Object.values(players).filter(p=>p.onField&&p.mesh).forEach(p=>{
     objs.push({kind:'player',id:p.id,
       x:p.mesh.position.x, y:p.mesh.position.y, z:p.mesh.position.z,
+      attackDirection:p.attackDirection ?? p.mesh.userData.attackDirection ?? 0,
       ry:p.mesh.rotation.y});
   });
   // Tools auf dem Feld (nicht Zeichnungen, nicht Handles)
@@ -2729,6 +2773,10 @@ function applySnapshot(snap, t=1, fromSnap=null){
       p.mesh.position.x=lerp(fx,s.x,et);
       p.mesh.position.y=lerp(fy,s.y,et);
       p.mesh.position.z=lerp(fz,s.z,et);
+      if(Number.isFinite(s.attackDirection)){
+        p.attackDirection = s.attackDirection;
+        p.mesh.userData.attackDirection = s.attackDirection;
+      }
       orientPlayerToGoal(p.mesh);
     }
     if(s.kind==='tool'){
@@ -2869,6 +2917,7 @@ function exportKadrivoState(){
     players: Object.fromEntries(Object.entries(players).map(([id,p])=>[id,{
       id:p.id, team:p.team, num:p.num, name:p.name, pos:p.pos, onField:p.onField,
       vestColor:p.vestColor, x:p.mesh?.position.x || 0, z:p.mesh?.position.z || 0,
+      attackDirection:p.attackDirection ?? p.mesh?.userData.attackDirection ?? 0,
       ry:p.mesh?.rotation.y || 0
     }])),
     scenes,
@@ -2898,6 +2947,10 @@ function importKadrivoState(data, roster){
     document.getElementById('tab-tools').style.display=mode==='training'?'':'none';
     document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
     document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+    const savedPlayers = data?.players ? Object.values(data.players) : [];
+    const fallbackAttackDirection = savedPlayers.some(p=>p.onField)
+      ? (savedPlayers.filter(p=>p.onField).reduce((sum,p)=>sum+Number(p.z || 0),0) >= 0 ? Math.PI : 0)
+      : 0;
     if(data?.players){
       Object.entries(data.players).forEach(([id, saved])=>{
         if(!players[id]) return;
@@ -2905,7 +2958,8 @@ function importKadrivoState(data, roster){
         players[id].name = saved.name || players[id].name;
         players[id].pos = saved.pos || players[id].pos;
         players[id].vestColor = saved.vestColor || null;
-        if(saved.onField) placePlayer(id, Number(saved.x || 0), Number(saved.z || 0));
+        players[id].attackDirection = Number(saved.attackDirection ?? fallbackAttackDirection);
+        if(saved.onField) placePlayer(id, Number(saved.x || 0), Number(saved.z || 0), players[id].attackDirection);
       });
     } else {
       autoPlace('home');
@@ -2982,12 +3036,7 @@ function animate(){
   tickCamera();
   tickMorph();
   orientAllPlayersToGoal();
-  fieldObjects.forEach(obj=>{
-    if(obj.userData&&obj.userData.type==='player'){
-      const nb=obj.getObjectByName('namebadge');
-      if(nb) nb.quaternion.copy(camera.quaternion);
-    }
-  });
+  updatePlayerLabels();
   if(selObj && selWireframe){
     const box=new THREE.Box3().setFromObject(selObj);
     box.getCenter(selWireframe.position);
