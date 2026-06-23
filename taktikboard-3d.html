@@ -92,13 +92,13 @@ canvas{display:block}
     <input type="color" id="homeColorSecond" value="#ffffff" title="Akzentfarbe" onchange="updateColors()">
   </div>
   <div class="group">
-    <label>Auswärts</label>
+    <label>Gegner</label>
     <input type="color" id="awayColor" value="#b71c1c" onchange="updateColors()">
     <input type="color" id="awayColorSecond" value="#ffffff" title="Akzentfarbe" onchange="updateColors()">
   </div>
   <div class="sep"></div>
   <button class="btn" onclick="autoPlace('home')">Heim aufstellen</button>
-  <button class="btn" onclick="autoPlace('away')">Auswärts aufstellen</button>
+  <button class="btn" id="btn-opponents" onclick="toggleOpponents()">Gegner anzeigen</button>
   <button class="btn" onclick="resetField()">Feld leeren</button>
   <div class="sep"></div>
   <div class="sep"></div>
@@ -128,7 +128,7 @@ canvas{display:block}
   <div id="sidebar">
     <div id="sidebar-tabs">
       <div class="stab active" id="tab-home" onclick="showTab('home')">Heim</div>
-      <div class="stab" id="tab-away" onclick="showTab('away')">Auswärts</div>
+      <div class="stab" id="tab-away" onclick="showTab('away')">Gegner</div>
       <div class="stab" id="tab-tools" onclick="showTab('tools')" style="display:none">Tools</div>
     </div>
     <div id="sidebar-content"></div>
@@ -252,6 +252,7 @@ let fieldObjects = [];
 let pid = 0;
 
 let showNames = false; // Standard: aus
+let opponentsVisible = false;
 
 // Spielergröße — aus localStorage laden
 let playerScale = parseFloat(localStorage.getItem('playerScale') || '2.0');
@@ -885,17 +886,20 @@ function createPlayerMesh(team, num, name, pos, vestOverride){
   numM.position.set(0,1.30,0.21); g.add(numM);
 
   // --- NAMENSSCHILD (Billboard) ---
-  const dispName = (name||`#${num}`).substring(0,22);
-  const nTex = makeLabel(dispName, 'rgba(0,0,0,0.82)', '#ffffff', 768, 156, 66);
-  const nMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.78),
-    new THREE.MeshBasicMaterial({map:nTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  nMesh.position.set(0,2.55,0);
-  nMesh.scale.setScalar(nameScale);
-  nMesh.name='namebadge';
-  nMesh.visible = false;
-  g.add(nMesh);
+  const displayName = String(name || '').trim();
+  if(displayName){
+    const dispName = displayName.substring(0,22);
+    const nTex = makeLabel(dispName, 'rgba(0,0,0,0.82)', '#ffffff', 768, 156, 66);
+    const nMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.78),
+      new THREE.MeshBasicMaterial({map:nTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    nMesh.position.set(0,2.55,0);
+    nMesh.scale.setScalar(nameScale);
+    nMesh.name='namebadge';
+    nMesh.visible = false;
+    g.add(nMesh);
+  }
 
-  g.userData = {type:'player', team, num, name:name||`#${num}`, pos:pos||'', vestColor:vestOverride||null};
+  g.userData = {type:'player', team, num, name:displayName, pos:pos||'', vestColor:vestOverride||null};
   g.scale.setScalar(playerScale);
   // Heim schaut in +Z (zum Auswärtstor), Auswärts in -Z
   g.rotation.y = team === 'home' ? 0 : Math.PI;
@@ -956,14 +960,14 @@ function updatePlayerLabels(){
   }
   const width = wrap.clientWidth;
   const height = wrap.clientHeight;
-  const labels = Object.values(players).filter(p=>p.onField&&p.mesh).map(p=>{
+  const labels = Object.values(players).filter(p=>p.onField&&p.mesh&&String(p.name || '').trim()).map(p=>{
     const point = p.mesh.position.clone();
     point.project(camera);
     const visible = point.z > -1 && point.z < 1;
     const x = (point.x * 0.5 + 0.5) * width;
     const y = (-point.y * 0.5 + 0.5) * height - (28 * nameScale);
     if(!visible || x < -260 || x > width + 260 || y < -80 || y > height + 80) return '';
-    return `<div class="player-screen-label" style="transform:translate(${x}px,${y}px) translate(-50%,-110%)">${escapeHtml(p.name || `#${p.num}`)}</div>`;
+    return `<div class="player-screen-label" style="transform:translate(${x}px,${y}px) translate(-50%,-110%)">${escapeHtml(p.name)}</div>`;
   }).join('');
   layer.innerHTML = labels;
 }
@@ -1531,8 +1535,15 @@ function initSquad(team, prefix){
     players[id]={id,team,num:i+1,name:`${prefix}${i+1}`,pos:pos[i],onField:false,mesh:null,vestColor:null};
   }
 }
+function initOpponentSquad(){
+  const pos=['TW','LV','IV','IV','RV','DM','ZM','OM','LA','ST','RA'];
+  for(let i=0;i<11;i++){
+    const id=`away_${i}`;
+    players[id]={id,team:'away',num:i+1,name:'',pos:pos[i],onField:false,mesh:null,vestColor:null,attackDirection:Math.PI};
+  }
+}
 initSquad('home','H');
-initSquad('away','A');
+initOpponentSquad();
 
 function clearPlayerMeshes(){
   Object.values(players).forEach(p=>{
@@ -1563,7 +1574,10 @@ function setKadrivoRoster(roster){
     };
   });
   if(!Object.keys(players).length) initSquad('home','H');
-  if(!Object.values(players).some(p=>p.team==='away')) initSquad('away','A');
+  if(!Object.values(players).some(p=>p.team==='away')) initOpponentSquad();
+  Object.values(players).filter(p=>p.team==='away').forEach(p=>{ p.name = ''; p.attackDirection = Math.PI; });
+  opponentsVisible = Object.values(players).some(p=>p.team==='away'&&p.onField);
+  syncOpponentButton();
   updateSidebar();
   updateStatus();
 }
@@ -1590,6 +1604,10 @@ function removeFromField(pid_str){
   if(!p||!p.mesh) return;
   scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);
   p.mesh=null; p.onField=false;
+  if(p.team === 'away' && !Object.values(players).some(player=>player.team==='away'&&player.onField)){
+    opponentsVisible = false;
+    syncOpponentButton();
+  }
   updateSidebar(); updateStatus();
   scheduleKadrivoSave();
 }
@@ -1640,8 +1658,9 @@ function applyFormation(btn, name){
   btn.classList.add('active');
   const F=FORMATIONS[name]; if(!F) return;
   ['home','away'].forEach(team=>{
-    if(team === 'away' && !Object.values(players).some(p=>p.team==='away')) return;
+    if(team === 'away' && !opponentsVisible) return;
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
+    if(team === 'away') opponentsVisible = true;
     const layout=F[team];
     const ids=orderedPlayerIdsForLayout(team, layout);
     const attackDirection = team === 'away' ? Math.PI : 0;
@@ -1651,16 +1670,39 @@ function applyFormation(btn, name){
         if(idx<ids.length) placePlayer(ids[idx++],pos[0],pos[1],attackDirection);
       });
     });
+    if(team === 'away') syncOpponentButton();
   });
 }
 function autoPlace(team){
   const F=FORMATIONS['4-3-3'];
   const layout=F[team];
+  if(team === 'away') opponentsVisible = true;
   Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
   const ids=orderedPlayerIdsForLayout(team, layout);
   const attackDirection = team === 'away' ? Math.PI : 0;
   let idx=0;
   layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1],attackDirection);}));
+  if(team === 'away') syncOpponentButton();
+}
+
+function syncOpponentButton(){
+  const btn = document.getElementById('btn-opponents');
+  if(!btn) return;
+  btn.textContent = opponentsVisible ? 'Gegner ausblenden' : 'Gegner anzeigen';
+  btn.classList.toggle('active', opponentsVisible);
+}
+
+function toggleOpponents(){
+  if(opponentsVisible){
+    Object.values(players).filter(p=>p.team==='away'&&p.onField).forEach(p=>removeFromField(p.id));
+    opponentsVisible = false;
+  } else {
+    opponentsVisible = true;
+    autoPlace('away');
+  }
+  syncOpponentButton();
+  updateSidebar();
+  scheduleKadrivoSave();
 }
 
 function positionRole(pos){
@@ -1784,10 +1826,11 @@ function updateSidebar(){
   const onBench=Object.values(players).filter(p=>p.team===team&&!p.onField);
   const col=team==='home'?homeColor:awayColor;
   const sec=team==='home'?homeColorSecond:awayColorSecond;
+  const displayName = p=>p.team==='away' ? 'Gegner' : escapeHtml(p.name);
   const pItem=p=>`<div class="player-item ${p.onField?'on-field':'bench'}" data-pid="${p.id}"
     title="${p.onField?'Doppelklick = auf Bank, Rechtsklick = Optionen':'Doppelklick = passend aufs Feld'}">
     <span class="num" style="background:${col};color:${sec}">${p.num}</span>
-    <span class="pname">${p.name}</span>
+    <span class="pname">${displayName(p)}</span>
     <span class="ppos">${p.pos}</span>
   </div>`;
   el.innerHTML=`<div class="section-head">Feld (${onField.length})</div>`+onField.map(pItem).join('')+
@@ -2017,6 +2060,8 @@ function updateColors(){
 function resetField(){
   if(!confirm('Alle Objekte vom Feld entfernen?')) return;
   Object.values(players).filter(p=>p.onField).forEach(p=>removeFromField(p.id));
+  opponentsVisible = false;
+  syncOpponentButton();
   fieldObjects.filter(f=>f.userData.type==='tool').forEach(f=>scene.remove(f));
   fieldObjects=fieldObjects.filter(f=>f.userData.type!=='tool');
   if(ball){ball.position.set(0,0.55,0);}
@@ -2215,7 +2260,7 @@ canvas.addEventListener('mousemove',e=>{
   if(obj){
     canvas.style.cursor = playerViewMode ? ((obj.userData.type==='player'||obj.userData.isTrainingPlayer||obj.userData.type==='tool') ? 'crosshair' : 'not-allowed') : 'grab';
     let lbl='';
-    if(obj.userData.type==='player'){const p=players[obj.userData.playerId];lbl=p?(playerViewMode?`👁 ${p.name} #${p.num}`:`${p.name} #${p.num} (${p.pos})`):'Spieler';}
+    if(obj.userData.type==='player'){const p=players[obj.userData.playerId];lbl=p?(p.team==='away'?'Gegner':(playerViewMode?`👁 ${p.name} #${p.num}`:`${p.name} #${p.num} (${p.pos})`)):'Spieler';}
     else lbl=obj.userData.label||'Objekt';
     tip.style.display='block';
     tip.style.left=(e.clientX+12)+'px';
@@ -2589,7 +2634,7 @@ function loadScenes(input){
       if(data.players){
         Object.entries(data.players).forEach(([id,pd])=>{
           if(players[id]){
-            players[id].num=pd.num; players[id].name=pd.name;
+            players[id].num=pd.num; players[id].name=players[id].team==='away'?'':pd.name;
             players[id].pos=pd.pos; players[id].vestColor=pd.vestColor;
           }
         });
@@ -2971,7 +3016,7 @@ function importKadrivoState(data, roster){
       Object.entries(data.players).forEach(([id, saved])=>{
         if(!players[id]) return;
         players[id].num = saved.num || players[id].num;
-        players[id].name = saved.name || players[id].name;
+        players[id].name = players[id].team === 'away' ? '' : (saved.name || players[id].name);
         players[id].pos = saved.pos || players[id].pos;
         players[id].vestColor = saved.vestColor || null;
         players[id].attackDirection = Number(saved.attackDirection ?? fallbackAttackDirection);
@@ -2980,6 +3025,8 @@ function importKadrivoState(data, roster){
     } else {
       autoPlace('home');
     }
+    opponentsVisible = Object.values(players).some(p=>p.team==='away'&&p.onField);
+    syncOpponentButton();
     scenes = Array.isArray(data?.scenes) ? data.scenes : [];
     currentScene = Number.isInteger(data?.currentScene) ? data.currentScene : (scenes.length ? 0 : -1);
     if(data?.snapshot && Object.values(players).some(p=>p.onField)) applySnapshot(data.snapshot);
