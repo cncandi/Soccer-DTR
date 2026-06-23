@@ -4557,15 +4557,16 @@
     }
 
     function sendTactic3dPayload() {
-      const frame = $("#tactic3dFrame");
       const payload = tactic3dPayload();
       try {
         localStorage.setItem(`kadrivo:tactic:${payload.boardId}`, JSON.stringify(payload));
       } catch (error) {
         console.warn("Taktik-Payload konnte nicht lokal gespeichert werden.", error);
       }
-      if (!frame?.contentWindow) return;
-      frame.contentWindow.postMessage(payload, window.location.origin);
+      ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
+        const frame = $(selector);
+        if (frame?.contentWindow) frame.contentWindow.postMessage(payload, window.location.origin);
+      });
     }
 
     function scheduleTactic3dSave(data) {
@@ -4575,6 +4576,41 @@
       board.updatedAt = new Date().toISOString();
       clearTimeout(tactic3dSaveTimer);
       tactic3dSaveTimer = setTimeout(() => saveState(), 600);
+    }
+
+    function flushTactic3dSave() {
+      if (!tactic3dSaveTimer) return;
+      clearTimeout(tactic3dSaveTimer);
+      tactic3dSaveTimer = null;
+      saveState();
+    }
+
+    function openTactic3dModal() {
+      const modal = $("#tactic3dModal");
+      if (!modal) return;
+      const board = currentTacticBoard();
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const url = `taktikboard-3d.html?v=97&board=${encodeURIComponent(board.id)}`;
+      const frame = $("#tactic3dModalFrame");
+      if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
+      $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
+      $("#tactic3dModalMeta").textContent = eventItem
+        ? `${eventItem.type}: ${eventItem.title} - Aenderungen werden automatisch gespeichert.`
+        : "Bitte zuerst ein Spiel oder Training auswaehlen.";
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-open");
+      requestAnimationFrame(sendTactic3dPayload);
+    }
+
+    function closeTactic3dModal() {
+      const modal = $("#tactic3dModal");
+      if (!modal) return;
+      flushTactic3dSave();
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("modal-open");
+      sendTactic3dPayload();
     }
 
     function defaultTacticPlayers(board) {
@@ -4897,10 +4933,11 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=96&board=${encodeURIComponent(board.id)}`;
-      $("#openTactic3dBtn").href = openUrl;
-      const frame = $("#tactic3dFrame");
-      if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
+      const openUrl = `taktikboard-3d.html?v=97&board=${encodeURIComponent(board.id)}`;
+      ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
+        const frame = $(selector);
+        if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
+      });
       $("#tacticBoardList").innerHTML = state.tacticBoards.map((item) => {
         const linkedEvent = state.events.find((eventItem) => eventItem.id === item.eventId);
         return `<article class="item ${item.id === board.id ? "selected-item" : ""}"><button class="mini" type="button" data-open-tactic="${escapeAttr(item.id)}">${escapeHtml(item.title)}</button><span class="meta">${escapeHtml(linkedEvent ? `${linkedEvent.type}: ${linkedEvent.title}` : "Kein Termin zugeordnet")}</span></article>`;
@@ -5740,6 +5777,17 @@
     });
     $("#tactic3dFrame")?.addEventListener("load", () => {
       sendTactic3dPayload();
+    });
+    $("#tactic3dModalFrame")?.addEventListener("load", () => {
+      sendTactic3dPayload();
+    });
+    $("#openTactic3dBtn")?.addEventListener("click", openTactic3dModal);
+    $("#closeTactic3dModalBtn")?.addEventListener("click", closeTactic3dModal);
+    $("#tactic3dModal")?.addEventListener("click", (event) => {
+      if (event.target.id === "tactic3dModal") closeTactic3dModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && $("#tactic3dModal")?.classList.contains("open")) closeTactic3dModal();
     });
     $("#tacticEventSelect")?.addEventListener("change", () => {
       if (!canManage()) return;

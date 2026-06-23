@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=96">
+  <link rel="stylesheet" href="css/app.css?v=97">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v96</span></h1>
+          <h1>Kadrivo <span class="app-version">v97</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v96</span></h1>
+          <h1>Kadrivo <span class="app-version">v97</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -257,9 +257,9 @@
                   <h3>3D Taktiktafel</h3>
                   <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
                 </div>
-                <a class="mini" id="openTactic3dBtn" href="taktikboard-3d.html?v=96" target="_blank" rel="noopener">Gross oeffnen</a>
+                <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=96" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=97" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -558,6 +558,19 @@ for update using (true);</textarea>
     </main>
   </div>
 
+  <div class="modal-backdrop tactic-modal-backdrop" id="tactic3dModal" aria-hidden="true">
+    <section class="modal-panel tactic-modal-panel" role="dialog" aria-modal="true" aria-labelledby="tactic3dModalTitle">
+      <div class="modal-head tactic-modal-head">
+        <div>
+          <h3 id="tactic3dModalTitle">3D Taktiktafel</h3>
+          <p class="meta" id="tactic3dModalMeta">Aenderungen werden beim Termin gespeichert.</p>
+        </div>
+        <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
+      </div>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=97" title="3D Taktiktafel gross"></iframe>
+    </section>
+  </div>
+
   <div class="modal-backdrop" id="eventModal" aria-hidden="true">
     <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="eventFormTitle">
       <div class="modal-head">
@@ -645,6 +658,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=96" defer></script>
+  <script src="js/app.js?v=97" defer></script>
 </body>
 </html>

@@ -1322,6 +1322,10 @@
       display: flex;
     }
 
+    body.modal-open {
+      overflow: hidden;
+    }
+
     .modal-panel {
       width: min(920px, 100%);
       max-height: min(88vh, 880px);
@@ -1448,6 +1452,40 @@
       border-radius: 8px;
       background: #12122a;
       box-shadow: inset 0 0 0 1px rgba(16,33,25,.12);
+    }
+
+    .tactic-modal-backdrop {
+      z-index: 260;
+      padding: 12px;
+      background: rgba(8, 24, 18, .72);
+      backdrop-filter: blur(8px);
+    }
+
+    .tactic-modal-panel {
+      width: min(1760px, 100%);
+      height: min(94vh, 1040px);
+      max-height: none;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      overflow: hidden;
+      padding: 12px;
+      background: #f6f8f6;
+    }
+
+    .tactic-modal-head {
+      margin-bottom: 0;
+      padding: 2px 2px 4px;
+    }
+
+    .tactic-modal-head .meta {
+      margin: 3px 0 0;
+    }
+
+    .tactic-3d-frame-large {
+      min-height: 0;
+      height: 100%;
+      border: 1px solid rgba(16,33,25,.14);
     }
 
     .tactic-commandbar {
