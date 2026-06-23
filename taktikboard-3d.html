@@ -242,6 +242,7 @@ let dragStart = null;
 let dragOffset = {x:0, z:0};
 let mouseDown = false;
 let lastClickTime = 0;
+let playerLabelsSuppressed = false;
 
 let homeColor = '#1565c0', homeColorSecond = '#ffffff';
 let awayColor = '#b71c1c', awayColorSecond = '#ffffff';
@@ -949,7 +950,7 @@ function updatePlayerLabels(){
   const layer = document.getElementById('player-label-layer');
   if(!layer) return;
   layer.style.setProperty('--name-scale', String(nameScale));
-  if(!showNames){
+  if(!showNames || playerLabelsSuppressed){
     layer.innerHTML = '';
     return;
   }
@@ -965,6 +966,14 @@ function updatePlayerLabels(){
     return `<div class="player-screen-label" style="transform:translate(${x}px,${y}px) translate(-50%,-110%)">${escapeHtml(p.name || `#${p.num}`)}</div>`;
   }).join('');
   layer.innerHTML = labels;
+}
+
+function setPlayerLabelsSuppressed(value){
+  playerLabelsSuppressed = Boolean(value);
+  if(playerLabelsSuppressed){
+    const layer = document.getElementById('player-label-layer');
+    if(layer) layer.innerHTML = '';
+  }
 }
 
 // ============================================================
@@ -1554,6 +1563,7 @@ function setKadrivoRoster(roster){
     };
   });
   if(!Object.keys(players).length) initSquad('home','H');
+  if(!Object.values(players).some(p=>p.team==='away')) initSquad('away','A');
   updateSidebar();
   updateStatus();
 }
@@ -1646,18 +1656,11 @@ function applyFormation(btn, name){
 function autoPlace(team){
   const F=FORMATIONS['4-3-3'];
   const layout=F[team];
-  const placementTeam = placementPlayerTeam(team);
-  Object.values(players).filter(p=>p.team===placementTeam&&p.onField).forEach(p=>removeFromField(p.id));
-  const ids=orderedPlayerIdsForLayout(placementTeam, layout);
+  Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
+  const ids=orderedPlayerIdsForLayout(team, layout);
   const attackDirection = team === 'away' ? Math.PI : 0;
   let idx=0;
   layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1],attackDirection);}));
-}
-
-function placementPlayerTeam(requestedTeam){
-  if(Object.values(players).some(p=>p.team===requestedTeam)) return requestedTeam;
-  if(requestedTeam === 'away' && Object.values(players).some(p=>p.team==='home')) return 'home';
-  return requestedTeam;
 }
 
 function positionRole(pos){
@@ -2137,6 +2140,7 @@ canvas.addEventListener('mousedown',e=>{
       return;
     }
     if(obj){
+      if(obj.userData.type === 'player') setPlayerLabelsSuppressed(true);
       const ptDown = getGroundPoint(e);
       dragOffset = ptDown ? {x: ptDown.x - obj.position.x, z: ptDown.z - obj.position.z} : {x:0, z:0};
       dragObj=obj; dragStart={x:e.clientX,y:e.clientY}; mouseDown=true;
@@ -2244,7 +2248,20 @@ canvas.addEventListener('mouseup',e=>{
     }
     dragHandle = null;
     dragObj=null; isDragging=false; mouseDown=false;
+    setPlayerLabelsSuppressed(false);
+    updatePlayerLabels();
     if(changed) scheduleKadrivoSave();
+  }
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  if(mouseDown){
+    dragHandle = null;
+    dragObj = null;
+    isDragging = false;
+    mouseDown = false;
+    setPlayerLabelsSuppressed(false);
+    updatePlayerLabels();
   }
 });
 
