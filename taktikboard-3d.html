@@ -1560,7 +1560,7 @@ function applyFormation(btn, name){
   ['home','away'].forEach(team=>{
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
     const layout=F[team];
-    const ids=Object.values(players).filter(p=>p.team===team).map(p=>p.id);
+    const ids=orderedPlayerIdsForLayout(team, layout);
     let idx=0;
     layout.forEach(group=>{
       group.forEach(pos=>{
@@ -1573,9 +1573,75 @@ function autoPlace(team){
   const F=FORMATIONS['4-3-3'];
   const layout=F[team];
   Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
-  const ids=Object.values(players).filter(p=>p.team===team).map(p=>p.id);
+  const ids=orderedPlayerIdsForLayout(team, layout);
   let idx=0;
   layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1]);}));
+}
+
+function positionRole(pos){
+  const value = String(pos || '').toLowerCase();
+  if(/tor|keeper|goal|^tw$|^gk$/.test(value)) return 'keeper';
+  if(/abwehr|verteid|def|back|^iv$|^av$|^lv$|^rv$|^cb$|^lb$|^rb$/.test(value)) return 'defense';
+  if(/sturm|angriff|forward|striker|wing|^st$|^ms$|^la$|^ra$|^cf$|^lf$|^rf$/.test(value)) return 'attack';
+  return 'midfield';
+}
+
+function slotRole(groupIndex, groupCount){
+  if(groupIndex === 0) return 'keeper';
+  if(groupIndex === 1) return 'defense';
+  if(groupIndex === groupCount - 1) return 'attack';
+  return 'midfield';
+}
+
+function orderedPlayerIdsForLayout(team, layout){
+  const pool = Object.values(players)
+    .filter(p=>p.team===team)
+    .sort((a,b)=>Number(a.num||99)-Number(b.num||99) || String(a.name).localeCompare(String(b.name)));
+  const remaining = [...pool];
+  const take = (role)=>{
+    const roleIndex = remaining.findIndex(p=>positionRole(p.pos) === role);
+    const index = roleIndex >= 0 ? roleIndex : 0;
+    return remaining.splice(index, 1)[0]?.id;
+  };
+  const ids = [];
+  layout.forEach((group, groupIndex)=>{
+    const role = slotRole(groupIndex, layout.length);
+    group.forEach(()=>ids.push(take(role)));
+  });
+  return ids.filter(Boolean);
+}
+
+function formationSlots(team='home'){
+  const layout = FORMATIONS['4-3-3'][team] || FORMATIONS['4-3-3'].home;
+  return layout.flatMap((group, groupIndex)=>group.map(pos=>({
+    x: pos[0],
+    z: pos[1],
+    role: slotRole(groupIndex, layout.length)
+  })));
+}
+
+function isSlotOccupied(slot, exceptId=''){
+  return Object.values(players).some(p=>
+    p.onField && p.mesh && p.id !== exceptId &&
+    Math.hypot(p.mesh.position.x - slot.x, p.mesh.position.z - slot.z) < 3.5
+  );
+}
+
+function suggestedFieldPosition(pid){
+  const player = players[pid];
+  if(!player) return {x: Math.random()*10-5, z: Math.random()*10-5};
+  const slots = formationSlots(player.team);
+  const role = positionRole(player.pos);
+  const matching = slots.filter(slot=>slot.role === role && !isSlotOccupied(slot, pid));
+  const anyFree = slots.filter(slot=>!isSlotOccupied(slot, pid));
+  const slot = matching[0] || anyFree[0];
+  if(slot) return {x: slot.x, z: slot.z};
+  return {x: Math.random()*10-5, z: Math.random()*10-5};
+}
+
+function placePlayerSmart(pid){
+  const point = suggestedFieldPosition(pid);
+  placePlayer(pid, point.x, point.z);
 }
 
 // ============================================================
@@ -1634,7 +1700,7 @@ function updateSidebar(){
   const col=team==='home'?homeColor:awayColor;
   const sec=team==='home'?homeColorSecond:awayColorSecond;
   const pItem=p=>`<div class="player-item ${p.onField?'on-field':'bench'}" data-pid="${p.id}"
-    title="${p.onField?'Auf dem Feld – Rechtsklick für Optionen':'Doppelklick = aufs Feld'}">
+    title="${p.onField?'Doppelklick = auf Bank, Rechtsklick = Optionen':'Doppelklick = passend aufs Feld'}">
     <span class="num" style="background:${col};color:${sec}">${p.num}</span>
     <span class="pname">${p.name}</span>
     <span class="ppos">${p.pos}</span>
@@ -1642,9 +1708,10 @@ function updateSidebar(){
   el.innerHTML=`<div class="section-head">Feld (${onField.length})</div>`+onField.map(pItem).join('')+
     `<div class="section-head">Bank / Reserve (${onBench.length})</div>`+onBench.map(pItem).join('');
   el.querySelectorAll('.player-item.bench').forEach(item=>{
-    item.addEventListener('dblclick',()=>placePlayer(item.dataset.pid,Math.random()*10-5,Math.random()*10-5));
+    item.addEventListener('dblclick',()=>placePlayerSmart(item.dataset.pid));
   });
   el.querySelectorAll('.player-item.on-field').forEach(item=>{
+    item.addEventListener('dblclick',()=>removeFromField(item.dataset.pid));
     item.addEventListener('click',()=>{
       const p=players[item.dataset.pid];
       if(p&&p.mesh){camera.position.set(p.mesh.position.x,30,p.mesh.position.z+20);
@@ -2079,7 +2146,11 @@ canvas.addEventListener('mouseup',e=>{
     if(dragObj&&!isDragging){
       const now=Date.now();
       if(now-lastClickTime<350){
-        openEdit(dragObj);
+        if(dragObj.userData.type === 'player' && dragObj.userData.playerId){
+          removeFromField(dragObj.userData.playerId);
+        } else {
+          openEdit(dragObj);
+        }
       } else {
         // Einfacher Klick = selektieren
         selectObj(dragObj);
