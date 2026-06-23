@@ -873,11 +873,11 @@ function createPlayerMesh(team, num, name, pos, vestOverride){
   numM.position.set(0,1.30,0.21); g.add(numM);
 
   // --- NAMENSSCHILD (Billboard) ---
-  const dispName = (name||`#${num}`).substring(0,14);
-  const nTex = makeLabel(dispName, 'rgba(0,0,0,0.80)', '#ffffff', 256, 52, 22);
-  const nMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.0,0.26),
+  const dispName = (name||`#${num}`).substring(0,22);
+  const nTex = makeLabel(dispName, 'rgba(0,0,0,0.82)', '#ffffff', 768, 156, 66);
+  const nMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.78),
     new THREE.MeshBasicMaterial({map:nTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  nMesh.position.set(0,2.18,0);
+  nMesh.position.set(0,2.55,0);
   nMesh.name='namebadge';
   nMesh.visible = showNames;
   g.add(nMesh);
@@ -1498,6 +1498,7 @@ function placePlayer(pid_str, x, z){
   if(p.mesh){scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);}
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
   m.position.set(x,0,z);
+  m.rotation.y = z > 0 ? Math.PI : 0;
   m.userData.playerId=pid_str;
   scene.add(m); p.mesh=m; p.onField=true; fieldObjects.push(m);
   updateSidebar(); updateStatus();
@@ -1558,6 +1559,7 @@ function applyFormation(btn, name){
   btn.classList.add('active');
   const F=FORMATIONS[name]; if(!F) return;
   ['home','away'].forEach(team=>{
+    if(team === 'away' && !Object.values(players).some(p=>p.team==='away')) return;
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
     const layout=F[team];
     const ids=orderedPlayerIdsForLayout(team, layout);
@@ -1572,10 +1574,17 @@ function applyFormation(btn, name){
 function autoPlace(team){
   const F=FORMATIONS['4-3-3'];
   const layout=F[team];
-  Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
-  const ids=orderedPlayerIdsForLayout(team, layout);
+  const placementTeam = placementPlayerTeam(team);
+  Object.values(players).filter(p=>p.team===placementTeam&&p.onField).forEach(p=>removeFromField(p.id));
+  const ids=orderedPlayerIdsForLayout(placementTeam, layout);
   let idx=0;
   layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1]);}));
+}
+
+function placementPlayerTeam(requestedTeam){
+  if(Object.values(players).some(p=>p.team===requestedTeam)) return requestedTeam;
+  if(requestedTeam === 'away' && Object.values(players).some(p=>p.team==='home')) return 'home';
+  return requestedTeam;
 }
 
 function positionRole(pos){
