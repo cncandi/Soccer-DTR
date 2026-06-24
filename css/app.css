@@ -927,6 +927,12 @@
       color: #9a3412;
     }
 
+    .attendee.removed {
+      background: #e5e7eb;
+      color: #4b5563;
+      text-decoration: line-through;
+    }
+
     .attendee.transport-self,
     .legend-dot.transport-self {
       background: #e0f2fe;
@@ -987,6 +993,11 @@
     .attendee-x.undo {
       background: rgba(22,101,52,.14);
       color: #166534;
+    }
+
+    .attendee-x.remove {
+      background: rgba(75,85,99,.16);
+      color: #374151;
     }
 
     .table-wrap {

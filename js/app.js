@@ -138,6 +138,7 @@
     let calendarDate = isoDate(new Date());
     let calendarMode = "week";
     let expandedEventId = "";
+    let expandedAdminEventId = "";
     let selectedFamePlayer = "";
     let selectedTacticBoardId = "";
     let selectedTacticElementId = "";
@@ -1306,6 +1307,7 @@
             ...(eventItem.rsvps[playerName] || {}),
             status: rsvp.status,
             note: rsvp.note || "",
+            adminRemoved: rsvp.note === "admin_removed",
             transport: rsvp.transport || "",
             updatedAt: rsvp.updated_at || ""
           };
@@ -1484,7 +1486,7 @@
           event_id: eventItem.id,
           player_id: playerId,
           status: rsvp.status || value || "yes",
-          note: rsvp.note || "",
+          note: rsvp.note || (rsvp.adminRemoved ? "admin_removed" : ""),
           transport: rsvp.transport || "",
           updated_at: rsvp.updatedAt || now
         };
@@ -2691,12 +2693,14 @@
     function rsvpRecord(event, playerName) {
       const raw = (event.rsvps || {})[playerName];
       if (!raw) return null;
-      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", paidComment: "", transport: "" };
+      if (typeof raw === "string") return { status: raw, updatedAt: "", fine: 0, reason: "", noShow: false, noShowAt: "", noShowBy: "", paid: false, paidAt: "", paidComment: "", transport: "", note: "", adminRemoved: false };
       return {
         status: raw.status || "yes",
         updatedAt: raw.updatedAt || "",
         fine: Number(raw.fine || 0),
         reason: raw.reason || "",
+        note: raw.note || "",
+        adminRemoved: Boolean(raw.adminRemoved || raw.note === "admin_removed"),
         noShow: Boolean(raw.noShow),
         noShowAt: raw.noShowAt || "",
         noShowBy: raw.noShowBy || "",
@@ -2782,6 +2786,7 @@
       const yes = [];
       const no = [];
       const absent = [];
+      const removed = [];
       players.forEach((player) => {
         const record = rsvpRecord(event, player.name);
         const unavailable = playerUnavailableForEvent(player, event);
@@ -2790,23 +2795,26 @@
           name: player.name,
           reason: record?.reason || (unavailable ? "Status: nicht verfuegbar" : ""),
           explicit: Boolean(record),
+          adminRemoved: Boolean(record?.adminRemoved),
           noShow: Boolean(record?.noShow),
           noShowBy: record?.noShowBy || "",
           fine: Number(record?.fine || 0),
           transport: record?.transport || ""
         };
         if (entry.noShow) absent.push(entry);
+        else if (entry.adminRemoved) removed.push(entry);
         else if (status === "no") no.push(entry);
         else yes.push(entry);
       });
-      return { yes, no, absent };
+      return { yes, no, absent, removed };
     }
 
     function renderRsvpDetails(event) {
       const details = rsvpDetails(event);
-      const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}</span>`).join("");
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button><button class="attendee-x remove" type="button" data-remove-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Aus dieser Einheit streichen">-</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
       const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
+      const removedItems = details.removed.map((entry) => `<span class="attendee removed">${escapeHtml(entry.name)}${canManage() ? `<button class="attendee-x undo" type="button" data-restore-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Wieder in den Kader aufnehmen">undo</button>` : ""}</span>`).join("");
       return `
         <div class="attendance-panel">
           <div>
@@ -2822,8 +2830,53 @@
             <strong>Angemeldet, nicht da (${details.absent.length})</strong>
             <div class="attendee-list">${absentItems || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
           </div>
+          ${canManage() || details.removed.length ? `<div>
+            <strong>Aus Einheit gestrichen (${details.removed.length})</strong>
+            <div class="attendee-list">${removedItems || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
+          </div>` : ""}
         </div>
       `;
+    }
+
+    function removePlayerFromEvent(eventId, playerName) {
+      const eventItem = state.events.find((item) => item.id === eventId);
+      const player = playerByName(playerName);
+      if (!eventItem || !player || !canManage()) return;
+      const oldRecord = rsvpRecord(eventItem, player.name) || { status: "yes" };
+      eventItem.rsvps = eventItem.rsvps || {};
+      eventItem.rsvps[player.name] = {
+        ...oldRecord,
+        status: "no",
+        updatedAt: new Date().toISOString(),
+        reason: "",
+        note: "admin_removed",
+        adminRemoved: true,
+        noShow: false,
+        noShowAt: "",
+        noShowBy: "",
+        transport: ""
+      };
+      setStatus(`${player.name} wurde aus ${eventItem.title} gestrichen.`);
+    }
+
+    function restorePlayerToEvent(eventId, playerName) {
+      const eventItem = state.events.find((item) => item.id === eventId);
+      const player = playerByName(playerName);
+      if (!eventItem || !player || !canManage()) return;
+      const oldRecord = rsvpRecord(eventItem, player.name) || {};
+      eventItem.rsvps = eventItem.rsvps || {};
+      eventItem.rsvps[player.name] = {
+        ...oldRecord,
+        status: "yes",
+        updatedAt: new Date().toISOString(),
+        reason: "",
+        note: "",
+        adminRemoved: false,
+        noShow: false,
+        noShowAt: "",
+        noShowBy: ""
+      };
+      setStatus(`${player.name} ist wieder im Kader fuer ${eventItem.title}.`);
     }
 
     function playerCalendarStats(player) {
@@ -3020,20 +3073,28 @@
       state.events
         .slice()
         .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
-        .forEach((event) => list.appendChild(item(`
+        .forEach((event) => {
+          const attendance = rsvpDetails(event);
+          const expanded = expandedAdminEventId === event.id;
+          list.appendChild(item(`
           <div class="item-head">
             <div>
               <p class="item-title">${escapeHtml(event.title)}</p>
               <div class="meta"><span>${escapeHtml(event.type)}</span><span>${formatDate(event.date, event.time)}</span><span>${escapeHtml(event.location || "Ort offen")}</span></div>
               ${eventInfoLine(event)}
             </div>
-            <span class="chip">${countRsvp(event, "yes")} / ${countRsvp(event, "no")}</span>
+            <span class="chip">${attendance.yes.length} Kader</span>
           </div>
+          <div class="meta"><span>${attendance.yes.length} angemeldet</span><span>${attendance.no.length} Absagen</span>${attendance.removed.length ? `<span>${attendance.removed.length} gestrichen</span>` : ""}${attendance.absent.length ? `<span>${attendance.absent.length} nicht da</span>` : ""}</div>
           <div class="row-actions">
+            <button class="mini" data-toggle-admin-event-details="${escapeAttr(event.id)}">${expanded ? "Kader ausblenden" : "Kader anzeigen"}</button>
+            ${event.type === "Spiel" ? `<button class="mini yes" data-print-match-squad="${escapeAttr(event.id)}">Kader HTML</button>` : ""}
             <button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>
             <button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>
           </div>
-        `)));
+          ${expanded ? renderRsvpDetails(event) : ""}
+        `));
+        });
     }
 
     function fameEntriesForPlayer(player) {
@@ -4279,6 +4340,80 @@
       URL.revokeObjectURL(url);
     }
 
+    function eventPlainInfo(event) {
+      const items = [];
+      if (event.type === "Spiel" && event.gameVenue) items.push(event.gameVenue === "away" ? "Auswaertsspiel" : "Heimspiel");
+      if (event.type === "Spiel" && event.gameCategory) items.push(event.gameCategory);
+      if (event.location) items.push(`Adresse: ${event.location}`);
+      if (event.meetingPoint) items.push(`Treffpunkt: ${event.meetingPoint}`);
+      if (event.time) items.push(`Treffpunkt Uhrzeit: ${event.time}`);
+      if (event.meetingTime) items.push(`Treffpunkt vor Ort: ${event.meetingTime}`);
+      if (event.remark) items.push(`Bemerkung: ${event.remark}`);
+      return items;
+    }
+
+    function matchSquadRows(event) {
+      const squadNames = rsvpDetails(event).yes.map((entry) => entry.name);
+      const byName = new Map(rosterPlayers().map((player) => [player.name, player]));
+      const players = squadNames
+        .map((name) => byName.get(name) || { name })
+        .sort((a, b) => Number(a.jerseyNumber || 999) - Number(b.jerseyNumber || 999) || a.name.localeCompare(b.name, "de"));
+      const minRows = Math.max(players.length, 22);
+      return Array.from({ length: minRows }, (_, index) => {
+        const player = players[index];
+        return `<tr>
+          <td class="center">${player ? escapeHtml(player.jerseyNumber || "") : ""}</td>
+          <td>${player ? escapeHtml(displayPosition(player)) : ""}</td>
+          <td>${player ? escapeHtml(player.name) : ""}</td>
+          <td></td><td></td><td></td><td></td><td></td>
+        </tr>`;
+      }).join("");
+    }
+
+    function printMatchSquad(eventId) {
+      const event = state.events.find((item) => item.id === eventId);
+      if (!event || event.type !== "Spiel" || !canManage()) return;
+      const details = rsvpDetails(event);
+      const infoRows = eventPlainInfo(event).map((line) => `<div>${escapeHtml(line)}</div>`).join("");
+      const html = `<!doctype html>
+        <html lang="de"><head><meta charset="utf-8"><title>Kader ${escapeHtml(event.title)}</title>
+        <style>
+          body{font-family:Arial,sans-serif;color:#111;margin:18px;font-size:12px}
+          .no-print{margin-bottom:12px}.sheet{max-width:820px;margin:0 auto}
+          table{width:100%;border-collapse:collapse}td,th{border:2px solid #555;padding:6px;text-align:left;vertical-align:middle}
+          th{background:#f1f1f1}.top td{height:28px}.label{font-weight:700;background:#f7f7f7}.center{text-align:center}
+          .squad th{font-size:11px}.squad td{height:24px}.name-col{width:58%}.small-col{width:6%;text-align:center}
+          .meta{margin:10px 0 14px;display:grid;grid-template-columns:repeat(2,1fr);gap:4px;color:#333}
+          h1{font-size:18px;margin:0 0 10px}.summary{margin:10px 0;font-weight:700}
+          @media print{body{margin:10mm}.no-print{display:none}td,th{border-color:#333}.sheet{max-width:none}}
+        </style></head><body>
+          <button class="no-print" onclick="window.print()">Drucken</button>
+          <div class="sheet">
+            <h1>${escapeHtml(currentClub().name)} - Spieltagskader</h1>
+            <table class="top">
+              <tr><td class="label">MATCH Spielnr.</td><td>${escapeHtml(event.gameCategory || "")}</td><td class="label">GEGNER</td><td>${escapeHtml(event.title || "")}</td></tr>
+              <tr><td class="label">Datum</td><td>${escapeHtml(formatShortDate(event.date))}</td><td class="label">Halbzeitstand</td><td></td></tr>
+              <tr><td class="label">Zeit</td><td>${escapeHtml(event.time || "")}</td><td class="label">Endstand</td><td></td></tr>
+            </table>
+            <div class="meta">${infoRows}</div>
+            <div class="summary">Kader: ${details.yes.length} Spieler &nbsp; | &nbsp; Absagen: ${details.no.length} &nbsp; | &nbsp; Gestrichen: ${details.removed.length}</div>
+            <table class="squad">
+              <thead><tr><th class="small-col">#</th><th>POS</th><th class="name-col">SPIELER NAME</th><th class="small-col">T</th><th class="small-col">V</th><th class="small-col">W</th><th class="small-col">G</th><th class="small-col">R</th></tr></thead>
+              <tbody>${matchSquadRows(event)}</tbody>
+            </table>
+          </div>
+        </body></html>`;
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        window.alert("Kaderfenster konnte nicht geoeffnet werden. Bitte Pop-up-Blocker pruefen.");
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+    }
+
     function trainerReportRows(events) {
       return events
         .slice()
@@ -4590,7 +4725,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=105&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=106&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -4933,7 +5068,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=105&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=106&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5589,10 +5724,14 @@
       const deleteBonusPointId = target.dataset.deleteBonusPoint;
       const markNoShowId = target.dataset.markNoshow;
       const clearNoShowId = target.dataset.clearNoshow;
+      const removeEventPlayerId = target.dataset.removeEventPlayer;
+      const restoreEventPlayerId = target.dataset.restoreEventPlayer;
+      const printMatchSquadId = target.dataset.printMatchSquad;
       const returnTransferId = target.dataset.returnTransfer;
       const attendancePlayer = target.dataset.player;
       const transportEventId = target.dataset.transport;
       const toggleEventDetailsId = target.closest("[data-toggle-event-details]")?.dataset.toggleEventDetails;
+      const toggleAdminEventDetailsId = target.closest("[data-toggle-admin-event-details]")?.dataset.toggleAdminEventDetails;
       const calendarEventId = target.closest("[data-calendar-event]")?.dataset.calendarEvent;
 
       if (playerId) {
@@ -5634,9 +5773,28 @@
         saveState();
         return;
       }
+      if (removeEventPlayerId && attendancePlayer && canManage()) {
+        removePlayerFromEvent(removeEventPlayerId, attendancePlayer);
+        saveState();
+        return;
+      }
+      if (restoreEventPlayerId && attendancePlayer && canManage()) {
+        restorePlayerToEvent(restoreEventPlayerId, attendancePlayer);
+        saveState();
+        return;
+      }
+      if (printMatchSquadId && canManage()) {
+        printMatchSquad(printMatchSquadId);
+        return;
+      }
       if (toggleEventDetailsId) {
         expandedEventId = expandedEventId === toggleEventDetailsId ? "" : toggleEventDetailsId;
         renderEvents();
+        return;
+      }
+      if (toggleAdminEventDetailsId && canManage()) {
+        expandedAdminEventId = expandedAdminEventId === toggleAdminEventDetailsId ? "" : toggleAdminEventDetailsId;
+        renderAllEventsList();
         return;
       }
       if (calendarEventId) {
