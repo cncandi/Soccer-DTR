@@ -891,6 +891,11 @@
       return activeRole() === "Superadmin";
     }
 
+    function canManageEventRoster() {
+      const player = playerByName(activeUser());
+      return canManage() || Boolean(player && hasMemberRole(player, "Trainer"));
+    }
+
     function canAccess(minRole) {
       const normalizedRole = String(minRole || "Spieler").toLowerCase();
       const requiredRole = {
@@ -2380,6 +2385,9 @@
       $$(".admin-only").forEach((el) => {
         el.style.display = canManage() ? "" : "none";
       });
+      $$(".event-roster-manage").forEach((el) => {
+        el.style.display = canManageEventRoster() ? "" : "none";
+      });
       $$(".superadmin-only").forEach((el) => {
         el.style.display = isSuperadmin() ? "" : "none";
       });
@@ -2809,16 +2817,34 @@
       return { yes, no, absent, removed };
     }
 
+    function eventRosterLabel(event) {
+      return event?.type === "Spiel" ? "Kader" : "Teilnehmer";
+    }
+
+    function eventRosterCountLabel(event, count) {
+      return event?.type === "Spiel" ? `${count} Kader` : `${count} Teilnehmer`;
+    }
+
+    function eventRosterInLabel(event) {
+      return event?.type === "Spiel" ? "im Kader" : "Teilnehmer";
+    }
+
+    function eventRosterFromLabel(event) {
+      return event?.type === "Spiel" ? "aus dem Kader" : "aus den Teilnehmern";
+    }
+
     function renderRsvpDetails(event) {
       const details = rsvpDetails(event);
-      const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button><button class="attendee-x remove" type="button" data-remove-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Aus dieser Einheit streichen">-</button>` : ""}</span>`).join("");
+      const canRoster = canManageEventRoster();
+      const rosterLabel = eventRosterLabel(event);
+      const yesItems = details.yes.map((entry) => `<span class="attendee yes ${transportClass(entry.transport)}">${escapeHtml(entry.name)}${entry.explicit ? "" : " (automatisch)"}${entry.transport ? ` - ${escapeHtml(transportLabel(entry.transport))}` : ""}${canManage() ? `<button class="attendee-x" type="button" data-mark-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Angemeldet, aber nicht da">x</button>` : ""}${canRoster ? `<button class="attendee-x remove" type="button" data-remove-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Aus ${escapeAttr(rosterLabel)} streichen">-</button>` : ""}</span>`).join("");
       const noItems = details.no.map((entry) => `<span class="attendee no">${escapeHtml(entry.name)}${entry.reason ? ` - ${escapeHtml(entry.reason)}` : ""}</span>`).join("");
       const absentItems = details.absent.map((entry) => `<span class="attendee absent">${escapeHtml(entry.name)}${canManage() ? `<button class="attendee-x undo" type="button" data-clear-noshow="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Markierung entfernen">undo</button>` : ""}</span>`).join("");
-      const removedItems = details.removed.map((entry) => `<span class="attendee removed">${escapeHtml(entry.name)}${canManage() ? `<button class="attendee-x undo" type="button" data-restore-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Wieder in den Kader aufnehmen">undo</button>` : ""}</span>`).join("");
+      const removedItems = details.removed.map((entry) => `<span class="attendee removed">${escapeHtml(entry.name)}${canRoster ? `<button class="attendee-x undo" type="button" data-restore-event-player="${escapeAttr(event.id)}" data-player="${escapeAttr(entry.name)}" title="Wieder aufnehmen">undo</button>` : ""}</span>`).join("");
       return `
         <div class="attendance-panel">
           <div>
-            <strong>Zusagen (${details.yes.length})</strong>
+            <strong>${escapeHtml(rosterLabel)} (${details.yes.length})</strong>
             <div class="attendee-list">${yesItems || "<span class=\"meta\">Keine Zusagen.</span>"}</div>
             ${renderTransportLegend(event)}
           </div>
@@ -2830,8 +2856,8 @@
             <strong>Angemeldet, nicht da (${details.absent.length})</strong>
             <div class="attendee-list">${absentItems || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
           </div>
-          ${canManage() || details.removed.length ? `<div>
-            <strong>Aus Einheit gestrichen (${details.removed.length})</strong>
+          ${canRoster || details.removed.length ? `<div>
+            <strong>Aus ${escapeHtml(rosterLabel)} gestrichen (${details.removed.length})</strong>
             <div class="attendee-list">${removedItems || "<span class=\"meta\">Keine Eintraege.</span>"}</div>
           </div>` : ""}
         </div>
@@ -2841,7 +2867,7 @@
     function removePlayerFromEvent(eventId, playerName) {
       const eventItem = state.events.find((item) => item.id === eventId);
       const player = playerByName(playerName);
-      if (!eventItem || !player || !canManage()) return;
+      if (!eventItem || !player || !canManageEventRoster()) return;
       const oldRecord = rsvpRecord(eventItem, player.name) || { status: "yes" };
       eventItem.rsvps = eventItem.rsvps || {};
       eventItem.rsvps[player.name] = {
@@ -2856,13 +2882,13 @@
         noShowBy: "",
         transport: ""
       };
-      setStatus(`${player.name} wurde aus ${eventItem.title} gestrichen.`);
+      setStatus(`${player.name} wurde ${eventRosterFromLabel(eventItem)} gestrichen.`);
     }
 
     function restorePlayerToEvent(eventId, playerName) {
       const eventItem = state.events.find((item) => item.id === eventId);
       const player = playerByName(playerName);
-      if (!eventItem || !player || !canManage()) return;
+      if (!eventItem || !player || !canManageEventRoster()) return;
       const oldRecord = rsvpRecord(eventItem, player.name) || {};
       eventItem.rsvps = eventItem.rsvps || {};
       eventItem.rsvps[player.name] = {
@@ -2876,7 +2902,7 @@
         noShowAt: "",
         noShowBy: ""
       };
-      setStatus(`${player.name} ist wieder im Kader fuer ${eventItem.title}.`);
+      setStatus(`${player.name} wurde wieder aufgenommen.`);
     }
 
     function playerCalendarStats(player) {
@@ -3038,6 +3064,7 @@
           const myRecord = player ? rsvpRecord(event, player.name) : null;
           const deadline = eventSupportsRsvp(event) ? eventDeadline(event).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
           const expanded = expandedEventId === event.id;
+          const rosterLabel = eventRosterLabel(event);
           const statusChip = myStatus === "no" ? `<span class="chip red">Abgesagt${myRecord?.reason ? `: ${escapeHtml(myRecord.reason)}` : ""}</span>` : `<span class="chip blue">Zugesagt</span>`;
           list.appendChild(item(`
             <div class="item-head" data-toggle-event-details="${event.id}">
@@ -3055,7 +3082,7 @@
                 <button class="mini yes" data-rsvp="${event.id}" data-status="yes" ${myStatus === "yes" ? "disabled" : ""}>Zusage</button>
                 <button class="mini no" data-rsvp="${event.id}" data-status="no">Absage</button>
               ` : ""}
-              ${eventSupportsRsvp(event) ? `<button class="mini" data-toggle-event-details="${event.id}">${expanded ? "Teilnehmer ausblenden" : "Teilnehmer anzeigen"}</button>` : ""}
+              ${eventSupportsRsvp(event) ? `<button class="mini" data-toggle-event-details="${event.id}">${escapeHtml(rosterLabel)} ${expanded ? "ausblenden" : "anzeigen"}</button>` : ""}
               ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
               ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
             </div>
@@ -3076,6 +3103,7 @@
         .forEach((event) => {
           const attendance = rsvpDetails(event);
           const expanded = expandedAdminEventId === event.id;
+          const rosterLabel = eventRosterLabel(event);
           list.appendChild(item(`
           <div class="item-head">
             <div>
@@ -3083,14 +3111,14 @@
               <div class="meta"><span>${escapeHtml(event.type)}</span><span>${formatDate(event.date, event.time)}</span><span>${escapeHtml(event.location || "Ort offen")}</span></div>
               ${eventInfoLine(event)}
             </div>
-            <span class="chip">${attendance.yes.length} Kader</span>
+            <span class="chip">${escapeHtml(eventRosterCountLabel(event, attendance.yes.length))}</span>
           </div>
-          <div class="meta"><span>${attendance.yes.length} angemeldet</span><span>${attendance.no.length} Absagen</span>${attendance.removed.length ? `<span>${attendance.removed.length} gestrichen</span>` : ""}${attendance.absent.length ? `<span>${attendance.absent.length} nicht da</span>` : ""}</div>
+          <div class="meta"><span>${attendance.yes.length} ${escapeHtml(eventRosterInLabel(event))}</span><span>${attendance.no.length} Absagen</span>${attendance.removed.length ? `<span>${attendance.removed.length} gestrichen</span>` : ""}${attendance.absent.length ? `<span>${attendance.absent.length} nicht da</span>` : ""}</div>
           <div class="row-actions">
-            <button class="mini" data-toggle-admin-event-details="${escapeAttr(event.id)}">${expanded ? "Kader ausblenden" : "Kader anzeigen"}</button>
+            <button class="mini" data-toggle-admin-event-details="${escapeAttr(event.id)}">${escapeHtml(rosterLabel)} ${expanded ? "ausblenden" : "anzeigen"}</button>
             ${event.type === "Spiel" ? `<button class="mini yes" data-print-match-squad="${escapeAttr(event.id)}">Kader HTML</button>` : ""}
-            <button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>
-            <button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>
+            ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
+            ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
           </div>
           ${expanded ? renderRsvpDetails(event) : ""}
         `));
@@ -4372,7 +4400,7 @@
 
     function printMatchSquad(eventId) {
       const event = state.events.find((item) => item.id === eventId);
-      if (!event || event.type !== "Spiel" || !canManage()) return;
+      if (!event || event.type !== "Spiel" || !canManageEventRoster()) return;
       const details = rsvpDetails(event);
       const infoRows = eventPlainInfo(event).map((line) => `<div>${escapeHtml(line)}</div>`).join("");
       const html = `<!doctype html>
@@ -4725,7 +4753,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=107&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=108&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5065,7 +5093,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=107&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=108&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5778,17 +5806,17 @@
         saveState();
         return;
       }
-      if (removeEventPlayerId && attendancePlayer && canManage()) {
+      if (removeEventPlayerId && attendancePlayer && canManageEventRoster()) {
         removePlayerFromEvent(removeEventPlayerId, attendancePlayer);
         saveState();
         return;
       }
-      if (restoreEventPlayerId && attendancePlayer && canManage()) {
+      if (restoreEventPlayerId && attendancePlayer && canManageEventRoster()) {
         restorePlayerToEvent(restoreEventPlayerId, attendancePlayer);
         saveState();
         return;
       }
-      if (printMatchSquadId && canManage()) {
+      if (printMatchSquadId && canManageEventRoster()) {
         printMatchSquad(printMatchSquadId);
         return;
       }
@@ -5797,7 +5825,7 @@
         renderEvents();
         return;
       }
-      if (toggleAdminEventDetailsId && canManage()) {
+      if (toggleAdminEventDetailsId && canManageEventRoster()) {
         expandedAdminEventId = expandedAdminEventId === toggleAdminEventDetailsId ? "" : toggleAdminEventDetailsId;
         renderAllEventsList();
         return;

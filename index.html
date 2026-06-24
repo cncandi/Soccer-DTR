@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=107">
+  <link rel="stylesheet" href="css/app.css?v=108">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v107</span></h1>
+          <h1>Kadrivo <span class="app-version">v108</span></h1>
           <p>Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v107</span></h1>
+          <h1>Kadrivo <span class="app-version">v108</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -212,12 +212,12 @@
           <div class="meta" style="margin-bottom: 10px;"><span>Training: Absage bis 6 Stunden vorher frei.</span><span>Spiel: Absage bis 48 Stunden vorher frei.</span></div>
           <div class="list" id="eventList"></div>
         </section>
-        <section class="panel staff-panel admin-only">
+        <section class="panel staff-panel event-roster-manage">
           <div class="item-head">
             <h3>Alle Termine</h3>
             <div class="row-actions">
-              <button class="mini" type="button" id="printTrainerReportBtn">Ausdrucken</button>
-              <button class="mini" type="button" id="exportEventsBtn">Termine exportieren</button>
+              <button class="mini admin-only" type="button" id="printTrainerReportBtn">Ausdrucken</button>
+              <button class="mini admin-only" type="button" id="exportEventsBtn">Termine exportieren</button>
             </div>
           </div>
           <div class="list" id="allEventsList"></div>
@@ -254,7 +254,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=107" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=108" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -562,7 +562,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=107" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=108" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -653,6 +653,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=107" defer></script>
+  <script src="js/app.js?v=108" defer></script>
 </body>
 </html>
