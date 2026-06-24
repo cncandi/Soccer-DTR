@@ -508,6 +508,33 @@
       display: none !important;
     }
 
+    .rich-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .rich-field {
+      min-height: 120px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .rich-field:focus {
+      outline: 2px solid rgba(22,101,52,.18);
+      border-color: rgba(22,101,52,.45);
+    }
+
+    .rich-field:empty::before {
+      content: "Bemerkungen zur Einheit...";
+      color: var(--muted);
+    }
+
     .check-row {
       display: flex;
       align-items: center;

@@ -147,6 +147,7 @@
     let tacticRedoStack = [];
     let tacticClipboard = null;
     let tactic3dSaveTimer = null;
+    let tacticNotesSaveTimer = null;
     let deferredInstallPrompt = null;
     let syncTimer = null;
     let syncInProgress = false;
@@ -718,6 +719,7 @@
         title: board.title || "Neue Taktik",
         eventId: board.eventId || "",
         teamColor: board.teamColor || currentClub()?.color || "#155e3b",
+        notesHtml: sanitizeRichText(board.notesHtml || board.notes || ""),
         elements: Array.isArray(board.elements) ? board.elements : [],
         threeData: board.threeData || null,
         createdAt: board.createdAt || new Date().toISOString(),
@@ -3841,6 +3843,26 @@
       return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
     }
 
+    function sanitizeRichText(html) {
+      const template = document.createElement("template");
+      template.innerHTML = String(html || "");
+      const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "DIV", "UL", "OL", "LI"]);
+      const walk = (node) => {
+        [...node.childNodes].forEach((child) => {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            if (!allowedTags.has(child.tagName)) {
+              child.replaceWith(document.createTextNode(child.textContent || ""));
+              return;
+            }
+            [...child.attributes].forEach((attr) => child.removeAttribute(attr.name));
+          }
+          walk(child);
+        });
+      };
+      walk(template.content);
+      return template.innerHTML.trim();
+    }
+
     function escapeAttr(value) {
       return escapeHtml(value).replace(/"/g, "&quot;");
     }
@@ -4753,7 +4775,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=108&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=109&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5085,15 +5107,18 @@
       if (!$("#tacticBoardForm")) return;
       const board = currentTacticBoard();
       $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
-      $("#tacticBoardHint").textContent = board.eventId ? "Beim Termin gespeichert" : "Termin auswaehlen";
       $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title)}</option>`).join("");
       $("#tacticBoardSelect").value = board.id;
+      $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
+      $("#tacticEventSelect").value = board.eventId || "";
+      const notes = $("#tacticBoardNotes");
+      if (notes && document.activeElement !== notes) notes.innerHTML = sanitizeRichText(board.notesHtml || "");
       const eventItem = state.events.find((item) => item.id === board.eventId);
       const tacticPlayers = tacticPlayersForBoard(board);
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=108&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=109&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5113,6 +5138,28 @@
       state.tacticBoards.unshift(board);
       selectedTacticBoardId = board.id;
       selectedTacticElementId = "";
+      saveState();
+    }
+
+    function assignEventToCurrentTactic(eventId) {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      const eventItem = state.events.find((item) => item.id === eventId);
+      board.eventId = eventItem?.id || "";
+      board.title = eventItem ? `${eventItem.type}: ${eventItem.title}` : "Freie Taktik";
+      board.threeData = null;
+      board.updatedAt = new Date().toISOString();
+      selectedTacticElementId = "";
+      tacticUndoStack = [];
+      tacticRedoStack = [];
+      saveState();
+    }
+
+    function updateCurrentTacticNotes() {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
+      board.updatedAt = new Date().toISOString();
       saveState();
     }
 
@@ -5966,6 +6013,22 @@
       tacticUndoStack = [];
       tacticRedoStack = [];
       renderTacticBoard();
+    });
+    $("#tacticEventSelect")?.addEventListener("change", () => {
+      assignEventToCurrentTactic($("#tacticEventSelect").value || "");
+    });
+    $("#tacticBoardNotes")?.addEventListener("input", () => {
+      clearTimeout(tacticNotesSaveTimer);
+      tacticNotesSaveTimer = setTimeout(updateCurrentTacticNotes, 500);
+    });
+    $("#tacticBoardNotes")?.addEventListener("blur", updateCurrentTacticNotes);
+    $("#tacticBoardForm")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rich-command]");
+      if (!button) return;
+      event.preventDefault();
+      $("#tacticBoardNotes")?.focus();
+      document.execCommand(button.dataset.richCommand, false, null);
+      updateCurrentTacticNotes();
     });
     $("#tactic3dFrame")?.addEventListener("load", () => {
       sendTactic3dPayload();
