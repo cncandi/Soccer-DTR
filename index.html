@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=115">
+  <link rel="stylesheet" href="css/app.css?v=116">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,28 +23,29 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v115</span></h1>
-          <p>Mit Namen anmelden und Verein auswaehlen.</p>
+          <h1>Kadrivo <span class="app-version">v116</span></h1>
+          <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
-      <div class="field">
+      <p class="meta public-login-hint" id="publicLoginHint" hidden>Zum Anmelden bitte den Vereinslink deines Vereins nutzen. Wenn du neu bist, registriere zuerst deinen Verein.</p>
+      <div class="field login-existing">
         <label for="loginUser">Name</label>
         <select id="loginUser"></select>
       </div>
-      <div class="field">
+      <div class="field login-existing">
         <label for="loginClubSelect">Verein</label>
         <select id="loginClubSelect"></select>
       </div>
-      <div class="field">
+      <div class="field login-existing">
         <label for="loginPassword">Passwort</label>
         <input id="loginPassword" type="password" autocomplete="current-password" required>
       </div>
-      <label class="check-row">
+      <label class="check-row login-existing">
         <input id="rememberLogin" type="checkbox">
         Lokal angemeldet bleiben
       </label>
       <p class="meta" id="loginError" aria-live="polite"></p>
-      <button class="btn-primary" type="submit">Anmelden</button>
+      <button class="btn-primary login-existing" type="submit">Anmelden</button>
       <button class="btn-secondary" id="showClubSignupBtn" type="button">Neuen Verein registrieren</button>
       <section class="install-panel login-install" id="installPanel" hidden>
         <div>
@@ -72,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v115</span></h1>
+          <h1>Kadrivo <span class="app-version">v116</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -275,7 +276,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=115" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=116" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -583,7 +584,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=115" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=116" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -674,6 +675,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=115" defer></script>
+  <script src="js/app.js?v=116" defer></script>
 </body>
 </html>

@@ -370,6 +370,24 @@
       return clubs.filter((club) => normalizeLicenseStatus(club.licenseStatus) !== "blocked");
     }
 
+    function storedClubId() {
+      return localStorage.getItem(CURRENT_CLUB_KEY) || "";
+    }
+
+    function loginClubContextIds() {
+      const selectable = selectableClubs();
+      if (requestedClubId) {
+        return selectable.some((club) => club.id === requestedClubId) ? [requestedClubId] : [];
+      }
+      const stored = storedClubId();
+      if (stored && selectable.some((club) => club.id === stored)) return [stored];
+      return [];
+    }
+
+    function hasLoginClubContext() {
+      return loginClubContextIds().length > 0;
+    }
+
     function stateKey(clubId = currentClubId) {
       return `${STORE_KEY}:${clubId}`;
     }
@@ -747,7 +765,7 @@
 
     function saveClubs(options = {}) {
       localStorage.setItem(CLUBS_KEY, JSON.stringify(clubs));
-      localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+      if (options.storeCurrent !== false) localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       renderClubSelect();
       if (options.sync !== false) queueCloudSync();
     }
@@ -1045,9 +1063,19 @@
     async function refreshLoginDirectory() {
       const client = getSupabaseClient();
       if (!client) return;
-      const { data, error } = await client
+      const contextIds = loginClubContextIds();
+      if (!contextIds.length && !superadminOverrideActive()) {
+        loginDirectory = [];
+        loginDirectoryLoaded = true;
+        renderClubSelect();
+        renderLoginUsers();
+        return;
+      }
+      let query = client
         .from("players")
         .select("id,club_id,name,password,role,data");
+      if (!superadminOverrideActive()) query = query.in("club_id", contextIds);
+      const { data, error } = await query;
       if (error) {
         if (!normalizedSchemaUnavailable(error)) throw error;
         return;
@@ -1901,6 +1929,8 @@
     async function syncClubs(client, options = {}) {
       const previousClubId = currentClubId;
       const previousClubs = clubs.map(normalizeClub);
+      const stored = storedClubId();
+      let canSelectClub = Boolean(stored || isLoggedIn() || superadminOverrideActive());
       const [tableClubs, documentResult] = await Promise.all([
         loadRemoteClubsFromTable(client),
         client.from(settings.table).select("document,updated_at").eq("id", clubsDocumentId()).maybeSingle()
@@ -1915,13 +1945,18 @@
       const remoteClubs = tableClubs.length ? tableClubs : documentClubs;
       if (remoteClubs.length) {
         clubs = options.preferLocal ? mergeClubs(remoteClubs, clubs) : remoteClubs;
-        if (clubs.length && !clubs.some((club) => club.id === currentClubId)) {
-          currentClubId = clubs[0].id;
-        }
         if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) {
           currentClubId = requestedClubId;
+          canSelectClub = true;
+        } else if (requestedClubId) {
+          currentClubId = DEFAULT_CLUB_ID;
+          canSelectClub = false;
+        } else if (stored && clubs.some((club) => club.id === stored)) {
+          currentClubId = stored;
+        } else if (canSelectClub && clubs.length && !clubs.some((club) => club.id === currentClubId)) {
+          currentClubId = clubs[0].id;
         }
-        saveClubs({ sync: false });
+        saveClubs({ sync: false, storeCurrent: canSelectClub });
       } else {
         clubs = previousClubs;
       }
@@ -1994,7 +2029,7 @@
       if (!panel) return;
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
       const hint = installHintText();
-      panel.hidden = standalone || !hint;
+      panel.hidden = standalone || !hint || !hasLoginClubContext();
       $("#installHint").textContent = hint;
       $("#installAppBtn").hidden = !deferredInstallPrompt;
       $("#installAppBtn").parentElement.hidden = !deferredInstallPrompt;
@@ -2359,6 +2394,7 @@
       applyPermissions();
       renderClubSelect();
       renderLoginUsers();
+      renderPublicLoginState();
       renderClubDesignForm();
       renderPlayerCreateFormOptions();
       renderInstallPanel();
@@ -2426,8 +2462,9 @@
 
     function renderClubSelect() {
       const visibleClubs = selectableClubs();
-      if (visibleClubs.length && !visibleClubs.some((club) => club.id === currentClubId)) {
-        currentClubId = visibleClubs[0].id;
+      const contextIds = loginClubContextIds();
+      if (contextIds.length && !visibleClubs.some((club) => club.id === currentClubId)) {
+        currentClubId = contextIds[0];
         localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       }
       const options = visibleClubs
@@ -2446,21 +2483,47 @@
       if (!select) return;
       const visibleClubs = selectableClubs();
       const selectedUser = $("#loginUser")?.value || loginPrefillFor().user;
-      let allowedClubIds = new Set(visibleClubs.map((club) => club.id));
+      let allowedClubIds = new Set(loginClubContextIds());
       if (loginDirectoryLoaded && selectedUser && !loginUserIsSuperadmin(selectedUser)) {
-        allowedClubIds = new Set(loginDirectoryRowsForUser(selectedUser).map((row) => row.club_id));
+        const contextIds = new Set(loginClubContextIds());
+        allowedClubIds = new Set(loginDirectoryRowsForUser(selectedUser)
+          .map((row) => row.club_id)
+          .filter((clubId) => contextIds.has(clubId)));
+      }
+      if (loginDirectoryLoaded && selectedUser && loginUserIsSuperadmin(selectedUser)) {
+        allowedClubIds = new Set(visibleClubs.map((club) => club.id));
       }
       const options = visibleClubs.filter((club) => allowedClubIds.has(club.id));
-      const fallback = options.length ? options : visibleClubs.filter((club) => club.id === currentClubId);
-      const loginClubs = fallback.length ? fallback : visibleClubs;
+      const fallback = options.length ? options : visibleClubs.filter((club) => loginClubContextIds().includes(club.id));
+      const loginClubs = fallback;
       select.innerHTML = loginClubs
         .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
         .join("");
       if (!loginClubs.some((club) => club.id === currentClubId)) {
-        currentClubId = loginClubs[0]?.id || currentClubId;
-        localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+        if (loginClubs[0]) {
+          currentClubId = loginClubs[0].id;
+          localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
+        }
       }
       select.value = currentClubId;
+    }
+
+    function renderPublicLoginState() {
+      const publicOnly = !hasLoginClubContext();
+      $$(".login-existing").forEach((el) => {
+        el.hidden = publicOnly;
+      });
+      const hint = $("#publicLoginHint");
+      if (hint) hint.hidden = !publicOnly;
+      const intro = $("#loginIntro");
+      if (intro) {
+        intro.textContent = publicOnly
+          ? "Neuen Verein registrieren oder Vereinslink vom Verein nutzen."
+          : "Mit Namen anmelden.";
+      }
+      if (publicOnly) {
+        $("#loginError").textContent = requestedClubId ? "Dieser Vereinslink wurde nicht gefunden oder ist nicht mehr aktiv." : "";
+      }
     }
 
     function renderClubDesignForm() {
@@ -2488,9 +2551,11 @@
 
     function renderLoginUsers() {
       const selected = loginPrefillFor().user;
-      const sourceNames = loginDirectoryLoaded && loginDirectory.length
-        ? loginDirectory.map((row) => row.name)
-        : state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name);
+      const contextIds = new Set(loginClubContextIds());
+      const directoryRows = loginDirectory.filter((row) => contextIds.has(row.club_id));
+      const sourceNames = loginDirectoryLoaded
+        ? directoryRows.map((row) => row.name)
+        : (hasLoginClubContext() ? state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name) : []);
       const names = [...new Set(sourceNames)]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
@@ -4818,7 +4883,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=115&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=116&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5161,7 +5226,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=115&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=116&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -6345,6 +6410,7 @@
 
     $("#clubSelect").addEventListener("change", () => changeClub($("#clubSelect").value));
     $("#loginClubSelect").addEventListener("change", () => {
+      if (!$("#loginClubSelect").value) return;
       currentClubId = $("#loginClubSelect").value;
       requestedClubId = currentClubId;
       state = loadState();
@@ -6359,6 +6425,10 @@
     });
     $("#loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!hasLoginClubContext() || !$("#loginClubSelect").value || !$("#loginUser").value) {
+        $("#loginError").textContent = "Bitte den Vereinslink deines Vereins nutzen oder einen neuen Verein registrieren.";
+        return;
+      }
       currentClubId = $("#loginClubSelect").value;
       state = loadState();
       if (!clubLicenseAllowsAccess()) {
