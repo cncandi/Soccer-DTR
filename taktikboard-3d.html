@@ -31,9 +31,12 @@ input[type=color]{width:28px;height:24px;border:1px solid #3a3a6a;background:non
 .stab:active{transform:translateY(1px);background:#292966}
 .stab.active{color:#fff;border-bottom-color:#7070cc;background:#1a1a3e}
 #sidebar-content{flex:1;overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#2a2a4a transparent}
-.player-item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid #2a2a4a;background:#1a1a3e;font-size:11px;transition:all .15s}
-.player-item:hover{border-color:#5050aa;background:#22225a}
-.player-item.on-field{border-color:#2a4a2a;background:#152015}
+.player-item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid #2a2a4a;background:#1a1a3e;font-size:11px;transition:background .14s,border-color .14s,color .14s,box-shadow .14s,transform .08s}
+.player-item:hover{border-color:#7676d8;background:#25255f;color:#fff;box-shadow:0 0 0 2px rgba(112,112,204,.14)}
+.player-item:active{transform:translateY(1px) scale(.99);background:#34347a;border-color:#9999ff;box-shadow:inset 0 2px 7px rgba(0,0,0,.32)}
+.player-item.on-field{border-color:#2f8f4e;background:#132719;box-shadow:inset 3px 0 0 #46d479}
+.player-item.on-field:hover{border-color:#46d479;background:#17351f;box-shadow:inset 3px 0 0 #46d479,0 0 0 2px rgba(70,212,121,.16)}
+.player-item.on-field:active{background:#1e482b;border-color:#69f29a}
 .player-item .num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0}
 .player-item .pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc}
 .player-item .ppos{font-size:9px;color:#666;flex-shrink:0}
@@ -1771,6 +1774,13 @@ function playerSort(a,b){
     || String(a.name || '').localeCompare(String(b.name || ''), 'de');
 }
 
+function lineupListSort(a,b){
+  const roleOrder = {keeper:0, defense:1, midfield:2, attack:3};
+  return (roleOrder[positionRole(a.pos)] ?? 9) - (roleOrder[positionRole(b.pos)] ?? 9)
+    || Number(a.num || 999) - Number(b.num || 999)
+    || String(a.name || '').localeCompare(String(b.name || ''), 'de');
+}
+
 function assignPlayerToSlot(slots, player, preferRole=true){
   if(!player) return false;
   const role = positionRole(player.pos);
@@ -1889,8 +1899,8 @@ function updateSidebar(){
     return;
   }
   const team=activeTab;
-  const onField=Object.values(players).filter(p=>p.team===team&&p.onField);
-  const onBench=Object.values(players).filter(p=>p.team===team&&!p.onField);
+  const onField=Object.values(players).filter(p=>p.team===team&&p.onField).sort(lineupListSort);
+  const onBench=Object.values(players).filter(p=>p.team===team&&!p.onField).sort(lineupListSort);
   const col=team==='home'?homeColor:awayColor;
   const sec=team==='home'?homeColorSecond:awayColorSecond;
   const displayName = p=>p.team==='away' ? 'Gegner' : escapeHtml(p.name);
