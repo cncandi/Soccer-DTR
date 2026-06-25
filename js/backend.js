@@ -139,8 +139,12 @@ async function sha256Hex(value) {
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function fetchTable(table, select = "*") {
-  const { data, error } = await client.from(table).select(select);
+async function fetchTable(table, select = "*", label = table) {
+  const { data, error } = await withTimeout(
+    client.from(table).select(select),
+    8000,
+    `${label} konnte nicht geladen werden.`
+  );
   if (error) {
     if ((error.message || "").includes("Could not find") || (error.message || "").includes("schema cache")) return [];
     throw error;
@@ -149,9 +153,13 @@ async function fetchTable(table, select = "*") {
 }
 
 async function fetchClubs() {
-  const withLicense = await client
-    .from("clubs")
-    .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+  const withLicense = await withTimeout(
+    client
+      .from("clubs")
+      .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at"),
+    8000,
+    "Vereine konnten nicht geladen werden."
+  );
   if (!withLicense.error) {
     backend.licenseColumnsReady = true;
     return withLicense.data || [];
@@ -162,9 +170,13 @@ async function fetchClubs() {
   if (!missingOptionalClubColumn) {
     throw withLicense.error;
   }
-  const fallback = await client
-    .from("clubs")
-    .select("id,name,slug,color,logo,license_key,license_status,created_at,updated_at");
+  const fallback = await withTimeout(
+    client
+      .from("clubs")
+      .select("id,name,slug,color,logo,license_key,license_status,created_at,updated_at"),
+    8000,
+    "Vereine konnten nicht geladen werden."
+  );
   if (fallback.error) throw fallback.error;
   backend.licenseColumnsReady = false;
   return (fallback.data || []).map((club) => ({
@@ -179,14 +191,14 @@ async function loadBackendData() {
   $("#backendStatus").textContent = "Daten werden geladen ...";
   const [clubs, players, events, rsvps, cash, messages, polls, fame, paypal] = await Promise.all([
     fetchClubs(),
-    fetchTable("players"),
-    fetchTable("events"),
-    fetchTable("event_rsvps"),
-    fetchTable("cash_entries"),
-    fetchTable("messages"),
-    fetchTable("polls"),
-    fetchTable("hall_of_fame_entries"),
-    fetchTable("club_paypal_settings", "club_id,paypal_enabled,paypal_mode,paypal_client_id,paypal_receiver_email,paypal_webhook_id,updated_at")
+    fetchTable("players", "id,club_id,name,password,role,groups,updated_at", "Spieler"),
+    fetchTable("events", "id,club_id,date,type,title", "Termine"),
+    fetchTable("event_rsvps", "event_id,player_id,status,updated_at", "Zu-/Absagen"),
+    fetchTable("cash_entries", "id,club_id,player_id,player_name,paid,amount,date", "Kasse"),
+    fetchTable("messages", "id,club_id,created_at", "Mitteilungen"),
+    fetchTable("polls", "id,club_id", "Abstimmungen"),
+    fetchTable("hall_of_fame_entries", "id,club_id,player_id,player_name,category,value", "Hall of Fame"),
+    fetchTable("club_paypal_settings", "club_id,paypal_enabled,paypal_mode,paypal_receiver_email,updated_at", "PayPal")
   ]);
   backend = {
     ...backend,
