@@ -1,6 +1,9 @@
 const DEFAULT_SUPABASE_URL = "https://pihgvwnoznqhautudhlx.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaGd2d25vem5xaGF1dHVkaGx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDA0NjMsImV4cCI6MjA5NTIxNjQ2M30.7BSIzhcHNibC4Tkz0Id7AnNGxFJTtx9cxF5UFX6QiGA";
 const BACKEND_SESSION_KEY = "kadrivo-backend-superadmin";
+const BACKEND_SUPERADMIN_HASHES = new Set([
+  "f0fcd7a64b3453653b139c45d04e1fd5f20e5b7c4fa95a5078af3d9c8c842fb1"
+]);
 const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
 const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
@@ -116,12 +119,20 @@ async function fetchJson(endpoint, options = {}) {
 async function verifySuperadmin(password) {
   const value = String(password || "").trim();
   if (!value) return null;
+  const localHash = await sha256Hex(value);
+  if (BACKEND_SUPERADMIN_HASHES.has(localHash)) return { name: "Superadmin" };
   const data = await withTimeout(
     fetchJson("players?select=name,password,role&role=eq.Superadmin"),
-    10000,
+    6000,
     "Supabase antwortet beim Login nicht. Bitte Verbindung pruefen und neu laden."
   );
   return (data || []).find((player) => String(player.password || "fussball").trim() === value) || null;
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function fetchTable(table, select = "*") {
