@@ -2364,6 +2364,7 @@
       renderInstallPanel();
       renderStatus();
       renderStats();
+      renderSelfProfileForm();
       renderMessageGroups();
       renderPlayers();
       renderStaff();
@@ -2506,6 +2507,48 @@
       $("#statInjured").textContent = roster.filter((player) => statusActiveToday(player, "injured")).length;
       $("#statUnavailable").textContent = roster.filter((player) => statusActiveToday(player, "unavailable")).length;
       $("#statVacation").textContent = roster.filter((player) => statusActiveToday(player, "vacation")).length;
+    }
+
+    function renderSelfProfileForm() {
+      const panel = $("#selfProfilePanel");
+      const form = $("#selfProfileForm");
+      if (!panel || !form) return;
+      const player = playerByName(activeUser());
+      const canEditSelf = Boolean(player && hasMemberRole(player, "Spieler"));
+      panel.hidden = !canEditSelf;
+      if (!canEditSelf) {
+        form.innerHTML = "";
+        return;
+      }
+      if (form.contains(document.activeElement)) return;
+      const availability = normalizeAvailability(player.availability);
+      const vacation = availability.vacation || {};
+      form.dataset.playerId = player.id;
+      form.innerHTML = `
+        <div class="self-profile-photo">
+          <div class="player-photo">${player.photo ? `<img src="${escapeAttr(player.photo)}" alt="${escapeAttr(player.name)}">` : escapeHtml(initials(player.name))}</div>
+          <div>
+            <strong>${escapeHtml(player.name)}</strong>
+            <p class="meta">${escapeHtml(displayPosition(player))}${player.jerseyNumber ? ` · Nr. ${escapeHtml(player.jerseyNumber)}` : ""}</p>
+          </div>
+        </div>
+        <div class="field"><label>Geboren am</label><input name="birthDate" type="date" value="${escapeAttr(player.birthDate || "")}"></div>
+        <div class="field"><label>Nationalitaet</label><select name="nationality">${nationalityOptions(player.nationality || "")}</select></div>
+        <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
+        <div class="field"><label>Im Verein seit</label><input name="memberSince" type="date" value="${escapeAttr(player.memberSince || "")}"></div>
+        <div class="field"><label>Neues Passwort</label><input name="password" type="password" autocomplete="new-password" placeholder="leer lassen = unveraendert"></div>
+        <div class="field"><label>Passwort wiederholen</label><input name="passwordRepeat" type="password" autocomplete="new-password"></div>
+        <div class="field"><label>Spielerbild setzen</label><input name="photoFile" type="file" accept="image/*"></div>
+        <div class="field"><label>Bild</label><button class="mini" id="clearSelfPhotoBtn" type="button" ${player.photo ? "" : "disabled"}>Bild entfernen</button></div>
+        <div class="field full self-vacation-box">
+          <label class="check-row"><input name="vacationActive" type="checkbox" ${vacation.active ? "checked" : ""}> Urlaub</label>
+          <div class="form-grid">
+            <div class="field"><label>Von</label><input name="vacationFrom" type="date" value="${escapeAttr(vacation.from || "")}"></div>
+            <div class="field"><label>Bis</label><input name="vacationTo" type="date" value="${escapeAttr(vacation.to || "")}"></div>
+          </div>
+        </div>
+        <div class="field full"><button class="btn-primary" type="submit">Meine Daten speichern</button></div>
+      `;
     }
 
     function renderPlayers() {
@@ -4775,7 +4818,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=114&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=115&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5118,7 +5161,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=114&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=115&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5477,6 +5520,56 @@
       }));
       form.reset();
       setStatus("Eigentraining eingereicht. Punkte werden nach Bestaetigung gutgeschrieben.");
+      saveState();
+    });
+
+    $("#selfProfileForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const player = playerByName(activeUser());
+      if (!player || !hasMemberRole(player, "Spieler")) return;
+      const values = formValues(form);
+      const password = (values.password || "").trim();
+      const passwordRepeat = (values.passwordRepeat || "").trim();
+      if (password || passwordRepeat) {
+        if (password.length < 4) {
+          setStatus("Das Passwort muss mindestens 4 Zeichen haben.");
+          return;
+        }
+        if (password !== passwordRepeat) {
+          setStatus("Die Passwoerter stimmen nicht ueberein.");
+          return;
+        }
+        player.password = password;
+        saveLoginPrefill(currentClubId, player.name, player.password);
+      }
+      player.birthDate = values.birthDate || "";
+      player.nationality = values.nationality || "";
+      player.phone = (values.phone || "").trim();
+      player.memberSince = values.memberSince || "";
+      const availability = normalizeAvailability(player.availability);
+      availability.vacation = {
+        active: values.vacationActive === "on",
+        from: values.vacationFrom || "",
+        to: values.vacationTo || ""
+      };
+      player.availability = availability;
+      const photoFile = form.elements.photoFile?.files?.[0];
+      if (photoFile) player.photo = await readFileAsDataUrl(photoFile);
+      form.elements.password.value = "";
+      form.elements.passwordRepeat.value = "";
+      setStatus("Meine Daten wurden gespeichert.");
+      document.activeElement?.blur?.();
+      saveState();
+    });
+
+    $("#selfProfileForm")?.addEventListener("click", (event) => {
+      if (event.target.id !== "clearSelfPhotoBtn") return;
+      const player = playerByName(activeUser());
+      if (!player || !hasMemberRole(player, "Spieler")) return;
+      player.photo = "";
+      setStatus("Spielerbild wurde entfernt.");
+      document.activeElement?.blur?.();
       saveState();
     });
 

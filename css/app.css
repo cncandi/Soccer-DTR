@@ -564,6 +564,28 @@
       margin-top: 18px;
     }
 
+    .self-profile-panel {
+      align-self: start;
+    }
+
+    .self-profile-photo {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbf9;
+    }
+
+    .self-vacation-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fbf9;
+    }
+
     .field.full { grid-column: 1 / -1; }
 
     label {
