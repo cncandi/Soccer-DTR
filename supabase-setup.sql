@@ -41,6 +41,7 @@ create table if not exists public.clubs (
 alter table public.clubs add column if not exists license_activated_at timestamptz default now();
 alter table public.clubs add column if not exists license_expires_at timestamptz default (now() + interval '21 days');
 alter table public.clubs add column if not exists license_auto_renew boolean not null default false;
+alter table public.clubs add column if not exists slug text unique;
 alter table public.clubs add column if not exists league text not null default '';
 alter table public.clubs add column if not exists federal_state text not null default '';
 

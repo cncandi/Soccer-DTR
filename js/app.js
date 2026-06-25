@@ -248,12 +248,15 @@
     }
 
     function normalizeClub(club) {
+      const id = club.id || crypto.randomUUID();
       const status = normalizeLicenseStatus(club.licenseStatus || club.license_status);
       const activatedAt = validIsoDateTime(club.licenseActivatedAt || club.license_activated_at) || new Date().toISOString();
       const expiresAt = validIsoDateTime(club.licenseExpiresAt || club.license_expires_at) || defaultLicenseExpiresAt(status, activatedAt);
+      const name = club.name || "Mein Verein";
       return {
-        id: club.id || crypto.randomUUID(),
-        name: club.name || "Mein Verein",
+        id,
+        name,
+        slug: club.slug || `${slugifyClubName(name) || "verein"}-${id.slice(0, 8)}`,
         color: club.color || "#155e3b",
         logo: club.logo || "",
         league: club.league || club.liga || "",
@@ -265,6 +268,15 @@
         licenseAutoRenew: Boolean(club.licenseAutoRenew ?? club.license_auto_renew),
         updatedAt: club.updatedAt || ""
       };
+    }
+
+    function clubMatchesIdentifier(club, identifier) {
+      const value = String(identifier || "").trim();
+      return Boolean(value && club && (club.id === value || club.slug === value));
+    }
+
+    function clubByIdentifier(identifier) {
+      return clubs.find((club) => clubMatchesIdentifier(club, identifier)) || null;
     }
 
     function generateLicenseKey() {
@@ -360,7 +372,8 @@
     }
 
     function loadCurrentClubId() {
-      if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) return requestedClubId;
+      const requestedClub = clubByIdentifier(requestedClubId);
+      if (requestedClub) return requestedClub.id;
       const stored = localStorage.getItem(CURRENT_CLUB_KEY);
       const selectable = selectableClubs();
       return selectable.some((club) => club.id === stored) ? stored : (selectable[0] || clubs[0]).id;
@@ -377,7 +390,8 @@
     function loginClubContextIds() {
       const selectable = selectableClubs();
       if (requestedClubId) {
-        return selectable.some((club) => club.id === requestedClubId) ? [requestedClubId] : [];
+        const requestedClub = selectable.find((club) => clubMatchesIdentifier(club, requestedClubId));
+        return requestedClub ? [requestedClub.id] : [];
       }
       const stored = storedClubId();
       if (stored && selectable.some((club) => club.id === stored)) return [stored];
@@ -1103,6 +1117,7 @@
       return normalizeClub({
         id: row.id,
         name: row.name,
+        slug: row.slug,
         color: row.color,
         logo: row.logo,
         league: row.league,
@@ -1119,11 +1134,11 @@
     async function loadRemoteClubsFromTable(client) {
       const withLicense = await client
         .from("clubs")
-        .select("id,name,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+        .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
       if (!withLicense.error) return (withLicense.data || []).map(clubFromRow);
 
       const message = withLicense.error.message || "";
-      const missingOptionalClubColumn = ["license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+      const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
         .some((column) => message.includes(column));
       if (!missingOptionalClubColumn) {
         if (normalizedSchemaUnavailable(withLicense.error)) return [];
@@ -1422,6 +1437,7 @@
       const clubRows = normalizedClubs.map((club) => ({
         id: club.id,
         name: club.name,
+        slug: club.slug || `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
         color: normalizeHexColor(club.color || "#155e3b"),
         logo: club.logo || "",
         league: club.league || "",
@@ -1434,8 +1450,8 @@
         updated_at: club.updatedAt || now
       }));
       let clubUpsert = await client.from("clubs").upsert(clubRows);
-      if (clubUpsert.error && ["league", "federal_state"].some((column) => (clubUpsert.error.message || "").includes(column))) {
-        const legacyClubRows = clubRows.map(({ league, federal_state, ...row }) => row);
+      if (clubUpsert.error && ["slug", "league", "federal_state"].some((column) => (clubUpsert.error.message || "").includes(column))) {
+        const legacyClubRows = clubRows.map(({ slug, league, federal_state, ...row }) => row);
         clubUpsert = await client.from("clubs").upsert(legacyClubRows);
       }
       if (clubUpsert.error) throw clubUpsert.error;
@@ -1727,6 +1743,7 @@
       const club = touchClub({
         id: crypto.randomUUID(),
         name: clubName,
+        slug: "",
         color: "#155e3b",
         logo: "",
         league: "",
@@ -1737,6 +1754,7 @@
         licenseExpiresAt: addDaysIso(now, TRIAL_DAYS),
         licenseAutoRenew: false
       });
+      club.slug = `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`;
       const player = normalizePlayer({
         id: crypto.randomUUID(),
         name: adminName,
@@ -1759,7 +1777,7 @@
       const clubPayload = {
         id: club.id,
         name: club.name,
-        slug: `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
+        slug: club.slug,
         color: club.color,
         logo: club.logo,
         league: club.league || "",
@@ -1776,8 +1794,8 @@
         const { license_activated_at, license_expires_at, license_auto_renew, ...legacyClubPayload } = clubPayload;
         clubInsert = await client.from("clubs").insert(legacyClubPayload);
       }
-      if (clubInsert.error && ["league", "federal_state"].some((column) => (clubInsert.error.message || "").includes(column))) {
-        const { league, federal_state, ...legacyClubPayload } = clubPayload;
+      if (clubInsert.error && ["slug", "league", "federal_state"].some((column) => (clubInsert.error.message || "").includes(column))) {
+        const { slug, league, federal_state, ...legacyClubPayload } = clubPayload;
         clubInsert = await client.from("clubs").insert(legacyClubPayload);
       }
       if (clubInsert.error) throw clubInsert.error;
@@ -1945,8 +1963,9 @@
       const remoteClubs = tableClubs.length ? tableClubs : documentClubs;
       if (remoteClubs.length) {
         clubs = options.preferLocal ? mergeClubs(remoteClubs, clubs) : remoteClubs;
-        if (requestedClubId && clubs.some((club) => club.id === requestedClubId)) {
-          currentClubId = requestedClubId;
+        const requestedClub = clubByIdentifier(requestedClubId);
+        if (requestedClub) {
+          currentClubId = requestedClub.id;
           canSelectClub = true;
         } else if (requestedClubId) {
           currentClubId = DEFAULT_CLUB_ID;
@@ -2038,7 +2057,8 @@
 
     function clubInstallUrl(clubId = currentClubId) {
       const url = new URL(PUBLIC_APP_URL);
-      url.searchParams.set(CLUB_URL_PARAM, clubId);
+      const club = clubs.find((item) => item.id === clubId) || currentClub();
+      url.searchParams.set(CLUB_URL_PARAM, club?.slug || club?.id || clubId);
       return url.toString();
     }
 
@@ -4883,7 +4903,7 @@
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=117&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=118&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5226,7 +5246,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=117&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=118&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -6400,7 +6420,7 @@
     });
     function changeClub(clubId) {
       currentClubId = clubId;
-      requestedClubId = clubId;
+      requestedClubId = clubs.find((club) => club.id === clubId)?.slug || clubId;
       localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
       state = loadState();
       render();
@@ -6412,7 +6432,7 @@
     $("#loginClubSelect").addEventListener("change", () => {
       if (!$("#loginClubSelect").value) return;
       currentClubId = $("#loginClubSelect").value;
-      requestedClubId = currentClubId;
+      requestedClubId = clubs.find((club) => club.id === currentClubId)?.slug || currentClubId;
       state = loadState();
       renderClubSelect();
       renderLoginUsers();

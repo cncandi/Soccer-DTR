@@ -220,6 +220,18 @@ input, select, textarea {
   background: #fff;
 }
 
+.copy-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.copy-field input {
+  font-size: .9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 textarea {
   min-height: 88px;
   resize: vertical;

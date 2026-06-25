@@ -5,6 +5,8 @@ const BACKEND_SUPERADMIN_HASHES = new Set([
   "f0fcd7a64b3453653b139c45d04e1fd5f20e5b7c4fa95a5078af3d9c8c842fb1"
 ]);
 const BACKEND_SUPERADMIN_PASSWORD_FALLBACK = "RiMjI21pbGw1NQ==";
+const PUBLIC_APP_URL = "https://cncandi.github.io/Soccer-DTR/";
+const CLUB_URL_PARAM = "club";
 const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
 const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
@@ -83,6 +85,12 @@ function licenseLabel(club) {
   if (days === null) return status;
   if (days < 0) return `${status}, abgelaufen`;
   return `${status}, ${days} Tage`;
+}
+
+function clubLink(club) {
+  const url = new URL(PUBLIC_APP_URL);
+  url.searchParams.set(CLUB_URL_PARAM, club.slug || club.id);
+  return url.toString();
 }
 
 function formValues(form) {
@@ -165,7 +173,7 @@ async function fetchClubs() {
     return withLicense.data || [];
   }
   const message = withLicense.error.message || "";
-  const missingOptionalClubColumn = ["license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+  const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
     .some((column) => message.includes(column));
   if (!missingOptionalClubColumn) {
     throw withLicense.error;
@@ -173,7 +181,7 @@ async function fetchClubs() {
   const fallback = await withTimeout(
     client
       .from("clubs")
-      .select("id,name,slug,color,logo,license_key,license_status,created_at,updated_at"),
+      .select("id,name,color,logo,license_key,license_status,created_at,updated_at"),
     8000,
     "Vereine konnten nicht geladen werden."
   );
@@ -310,6 +318,13 @@ function renderDetails() {
         <form id="licenseForm" class="form-grid">
           <input type="hidden" name="clubId" value="${escapeHtml(club.id)}">
           <div class="field full"><label>Lizenznummer</label><input name="licenseKey" value="${escapeHtml(club.license_key || "")}" readonly></div>
+          <div class="field full">
+            <label>Vereinslink</label>
+            <div class="copy-field">
+              <input value="${escapeHtml(clubLink(club))}" readonly>
+              <button class="btn-secondary" type="button" data-copy-club-link="${escapeHtml(club.id)}">Kopieren</button>
+            </div>
+          </div>
           <div class="field"><label>Lizenzstatus</label><select name="licenseStatus">
             ${["trial", "active", "blocked"].map((status) => `<option value="${status}" ${club.license_status === status ? "selected" : ""}>${escapeHtml({ trial: "Testlizenz", active: "Vollversion", blocked: "Gesperrt" }[status])}</option>`).join("")}
           </select></div>
@@ -411,6 +426,7 @@ async function updateClubDocument(club) {
   const clubs = existing.map((item) => item.id === club.id ? {
     ...item,
     name: club.name,
+    slug: club.slug || item.slug || "",
     color: club.color,
     logo: club.logo,
     league: club.league || "",
@@ -425,6 +441,7 @@ async function updateClubDocument(club) {
     clubs.push({
       id: club.id,
       name: club.name,
+      slug: club.slug || "",
       color: club.color,
       logo: club.logo,
       league: club.league || "",
@@ -560,6 +577,17 @@ document.addEventListener("click", async (event) => {
     } finally {
       licenseButton.disabled = false;
     }
+    return;
+  }
+  const copyButton = event.target.closest("[data-copy-club-link]");
+  if (copyButton) {
+    const club = backend.clubs.find((item) => item.id === copyButton.dataset.copyClubLink);
+    if (!club) return;
+    await navigator.clipboard?.writeText(clubLink(club)).catch(() => {});
+    copyButton.textContent = "Kopiert";
+    window.setTimeout(() => {
+      copyButton.textContent = "Kopieren";
+    }, 1200);
   }
 });
 
