@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=119">
+  <link rel="stylesheet" href="css/app.css?v=120">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,11 +23,11 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v119</span></h1>
+          <h1>Kadrivo <span class="app-version">v120</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
-      <p class="meta public-login-hint" id="publicLoginHint" hidden>Zum Anmelden bitte den Vereinslink deines Vereins nutzen. Wenn du neu bist, registriere zuerst deinen Verein.</p>
+      <p class="meta public-login-hint" id="publicLoginHint" hidden>Starte kostenfrei: Die Registrierung kostet nichts und die meisten Funktionen koennen direkt ohne Zahlung genutzt werden. Wenn du neu bist, registriere zuerst deinen Verein.</p>
       <div class="field login-existing">
         <label for="loginUser">Name</label>
         <select id="loginUser"></select>
@@ -46,7 +46,7 @@
       </label>
       <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary login-existing" type="submit">Anmelden</button>
-      <button class="btn-secondary" id="showClubSignupBtn" type="button">Neuen Verein registrieren</button>
+      <button class="btn-secondary" id="showClubSignupBtn" type="button">Kostenfrei neuen Verein registrieren</button>
       <section class="install-panel login-install" id="installPanel" hidden>
         <div>
           <h3>Kadrivo installieren</h3>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v119</span></h1>
+          <h1>Kadrivo <span class="app-version">v120</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -276,7 +276,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=119" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=120" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -584,7 +584,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=119" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=120" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -622,6 +622,7 @@ for update using (true);</textarea>
         <h3 id="clubSignupTitle">Neuen Verein registrieren</h3>
         <button class="mini" id="closeClubSignupBtn" type="button">Schliessen</button>
       </div>
+      <p class="signup-benefit">Die Anmeldung ist komplett kostenfrei. Du kannst Kadrivo direkt starten und die meisten Funktionen ohne Zahlung nutzen.</p>
       <form id="clubSignupForm" class="form-grid">
         <div class="field full"><label>Vereinsname</label><input name="clubName" required autocomplete="organization"></div>
         <div class="field"><label>Ansprechpartner</label><input name="adminName" required autocomplete="name"></div>
@@ -675,6 +676,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=119" defer></script>
+  <script src="js/app.js?v=120" defer></script>
 </body>
 </html>
