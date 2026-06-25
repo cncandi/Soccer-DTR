@@ -4933,7 +4933,6 @@
       const modalOpen = $("#tactic3dModal")?.classList.contains("open");
       const frame = modalOpen ? $("#tactic3dModalFrame") : $("#tactic3dFrame");
       if (!frame?.contentWindow) return null;
-      sendTactic3dPayload();
       return new Promise((resolve) => {
         if (tactic3dSaveRequest) {
           window.clearTimeout(tactic3dSaveRequest.timer);
@@ -4958,7 +4957,7 @@
       await requestTactic3dState(board);
       flushTactic3dSave();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=131&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=132&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5302,7 +5301,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=131&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=132&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
