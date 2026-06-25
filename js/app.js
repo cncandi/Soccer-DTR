@@ -147,6 +147,7 @@
     let tacticRedoStack = [];
     let tacticClipboard = null;
     let tactic3dSaveTimer = null;
+    let tactic3dSaveRequest = null;
     let tacticNotesSaveTimer = null;
     let deferredInstallPrompt = null;
     let syncTimer = null;
@@ -4891,6 +4892,12 @@
       if (!board || data.boardId !== board.id) return;
       board.threeData = data.state || null;
       board.updatedAt = new Date().toISOString();
+      if (tactic3dSaveRequest && tactic3dSaveRequest.boardId === data.boardId) {
+        const pending = tactic3dSaveRequest;
+        tactic3dSaveRequest = null;
+        window.clearTimeout(pending.timer);
+        pending.resolve(board.threeData);
+      }
       clearTimeout(tactic3dSaveTimer);
       tactic3dSaveTimer = setTimeout(() => saveState(), 600);
     }
@@ -4902,12 +4909,34 @@
       saveState();
     }
 
+    async function requestTactic3dState(board = currentTacticBoard()) {
+      const modalOpen = $("#tactic3dModal")?.classList.contains("open");
+      const frame = modalOpen ? $("#tactic3dModalFrame") : $("#tactic3dFrame");
+      if (!frame?.contentWindow) return null;
+      sendTactic3dPayload();
+      return new Promise((resolve) => {
+        if (tactic3dSaveRequest) {
+          window.clearTimeout(tactic3dSaveRequest.timer);
+          tactic3dSaveRequest.resolve(null);
+        }
+        const timer = window.setTimeout(() => {
+          if (tactic3dSaveRequest?.boardId === board.id) tactic3dSaveRequest = null;
+          resolve(null);
+        }, 1200);
+        tactic3dSaveRequest = { boardId: board.id, resolve, timer };
+        frame.contentWindow.postMessage({
+          type: "kadrivo:tactic-export-request",
+          boardId: board.id
+        }, window.location.origin);
+      });
+    }
+
     function openTactic3dModal() {
       const modal = $("#tactic3dModal");
       if (!modal) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=121&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=122&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5250,7 +5279,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=121&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=122&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5293,6 +5322,37 @@
       board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
       board.updatedAt = new Date().toISOString();
       saveState();
+    }
+
+    async function saveCurrentTacticBoardExplicitly() {
+      if (!canManage()) return;
+      const board = currentTacticBoard();
+      const status = $("#tacticSaveStatus");
+      const button = $("#saveTacticBoardBtn");
+      if (!board) return;
+      if (button) button.disabled = true;
+      if (status) status.textContent = "Taktik wird gespeichert ...";
+      try {
+        const eventId = $("#tacticEventSelect")?.value || "";
+        const eventItem = state.events.find((item) => item.id === eventId);
+        board.eventId = eventItem?.id || "";
+        board.title = eventItem ? `${eventItem.type}: ${eventItem.title}` : (board.title || "Freie Taktik");
+        board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
+        board.teamColor = board.teamColor || currentClub().color || "#155e3b";
+        board.updatedAt = new Date().toISOString();
+        await requestTactic3dState(board);
+        flushTactic3dSave();
+        saveState();
+        syncWithSupabase({ silent: true });
+        renderTacticBoard();
+        if (status) status.textContent = eventItem
+          ? `Gespeichert fuer ${eventItem.type}: ${eventItem.title}.`
+          : "Freie Taktik gespeichert.";
+      } catch (error) {
+        if (status) status.textContent = "Speichern fehlgeschlagen: " + (error.message || String(error));
+      } finally {
+        if (button) button.disabled = false;
+      }
     }
 
     function deleteCurrentTacticBoard() {
@@ -6200,6 +6260,7 @@
     $("#tacticEventSelect")?.addEventListener("change", () => {
       assignEventToCurrentTactic($("#tacticEventSelect").value || "");
     });
+    $("#saveTacticBoardBtn")?.addEventListener("click", saveCurrentTacticBoardExplicitly);
     $("#tacticBoardNotes")?.addEventListener("input", () => {
       clearTimeout(tacticNotesSaveTimer);
       tacticNotesSaveTimer = setTimeout(updateCurrentTacticNotes, 500);

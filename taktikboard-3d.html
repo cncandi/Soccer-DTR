@@ -3042,17 +3042,26 @@ function scheduleKadrivoSave(){
   if(!kadrivoReady || kadrivoHydrating || !kadrivoBoardId || !window.parent || window.parent === window) return;
   clearTimeout(kadrivoSaveTimer);
   kadrivoSaveTimer = setTimeout(()=>{
-    window.parent.postMessage({
-      type: 'kadrivo:tactic-save',
-      boardId: kadrivoBoardId,
-      state: exportKadrivoState()
-    }, window.location.origin);
+    postKadrivoSave();
   }, 400);
+}
+
+function postKadrivoSave(){
+  if(!kadrivoReady || !kadrivoBoardId || !window.parent || window.parent === window) return;
+  window.parent.postMessage({
+    type: 'kadrivo:tactic-save',
+    boardId: kadrivoBoardId,
+    state: exportKadrivoState()
+  }, window.location.origin);
 }
 
 window.addEventListener('message', (event)=>{
   if(event.origin !== window.location.origin) return;
   const data = event.data || {};
+  if(data.type === 'kadrivo:tactic-export-request'){
+    if(!data.boardId || data.boardId === kadrivoBoardId) postKadrivoSave();
+    return;
+  }
   if(data.type !== 'kadrivo:tactic-load') return;
   kadrivoBoardId = data.boardId || null;
   kadrivoReady = true;
