@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=125">
+  <link rel="stylesheet" href="css/app.css?v=126">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v125</span></h1>
+          <h1>Kadrivo <span class="app-version">v126</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v125</span></h1>
+          <h1>Kadrivo <span class="app-version">v126</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -144,6 +144,7 @@
               <div class="field"><label>Name</label><input name="name" required></div>
               <div class="field"><label>Position</label><select name="position"><option>Tor</option><option>Abwehr</option><option>Mittelfeld</option><option>Sturm</option><option>Trainer</option><option>Betreuer</option></select></div>
               <div class="field"><label>Rueckennummer</label><input name="jerseyNumber" type="number" min="0" max="999" inputmode="numeric"></div>
+              <div class="field"><label>Stammplatz Faktor</label><select name="starterFactor"><option value="1">1 - fester Stammspieler</option><option value="2" selected>2 - spielt positionsgetreu</option><option value="3">3 - Auswechselspieler</option></select></div>
               <div class="field"><label>Geboren am</label><input name="birthDate" type="date"></div>
               <div class="field"><label>Nationalitaet</label><select name="nationality"></select></div>
               <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
@@ -280,7 +281,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=125" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=126" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -588,7 +589,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=125" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=126" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -680,6 +681,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=125" defer></script>
+  <script src="js/app.js?v=126" defer></script>
 </body>
 </html>

@@ -233,6 +233,7 @@ const CORNER_R = 1.0;
 // ============================================================
 let mode = 'spiel';
 let activeTab = 'home';
+let currentFormation = '4-3-3';
 let selectedObj = null;
 let ctxTarget = null;
 let editTarget = null;
@@ -1583,6 +1584,8 @@ function setKadrivoRoster(roster){
       num: Number(item.num || index + 1),
       name: item.name || `Spieler ${index + 1}`,
       pos: item.pos || '',
+      starterFactor: normalizeStarterFactor(item.starterFactor),
+      fameRank: Number(item.fameRank || 9999),
       onField: false,
       mesh: null,
       vestColor: item.vestColor || null,
@@ -1670,9 +1673,10 @@ const FORMATIONS = {
 };
 
 function applyFormation(btn, name){
+  currentFormation = FORMATIONS[name] ? name : '4-3-3';
   document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const F=FORMATIONS[name]; if(!F) return;
+  const F=FORMATIONS[currentFormation]; if(!F) return;
   ['home','away'].forEach(team=>{
     if(team === 'away' && !opponentsVisible) return;
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
@@ -1690,7 +1694,7 @@ function applyFormation(btn, name){
   });
 }
 function autoPlace(team){
-  const F=FORMATIONS['4-3-3'];
+  const F=FORMATIONS[currentFormation] || FORMATIONS['4-3-3'];
   const layout=F[team];
   if(team === 'away') opponentsVisible = true;
   Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
@@ -1729,6 +1733,11 @@ function positionRole(pos){
   return 'midfield';
 }
 
+function normalizeStarterFactor(value){
+  const factor = Number(value);
+  return [1,2,3].includes(factor) ? factor : 2;
+}
+
 function slotRole(groupIndex, groupCount){
   if(groupIndex === 0) return 'keeper';
   if(groupIndex === 1) return 'defense';
@@ -1736,31 +1745,62 @@ function slotRole(groupIndex, groupCount){
   return 'midfield';
 }
 
-function orderedPlayerIdsForLayout(team, layout){
-  const pool = Object.values(players)
-    .filter(p=>p.team===team)
-    .sort((a,b)=>Number(a.num||99)-Number(b.num||99) || String(a.name).localeCompare(String(b.name)));
-  const remaining = [...pool];
-  const take = (role)=>{
-    const roleIndex = remaining.findIndex(p=>positionRole(p.pos) === role);
-    const index = roleIndex >= 0 ? roleIndex : 0;
-    return remaining.splice(index, 1)[0]?.id;
-  };
-  const ids = [];
-  layout.forEach((group, groupIndex)=>{
-    const role = slotRole(groupIndex, layout.length);
-    group.forEach(()=>ids.push(take(role)));
-  });
-  return ids.filter(Boolean);
-}
-
-function formationSlots(team='home'){
-  const layout = FORMATIONS['4-3-3'][team] || FORMATIONS['4-3-3'].home;
+function slotListForLayout(layout){
   return layout.flatMap((group, groupIndex)=>group.map(pos=>({
     x: pos[0],
     z: pos[1],
-    role: slotRole(groupIndex, layout.length)
+    role: slotRole(groupIndex, layout.length),
+    playerId: ''
   })));
+}
+
+function playerSort(a,b){
+  return Number(a.fameRank || 9999) - Number(b.fameRank || 9999)
+    || Number(a.num || 999) - Number(b.num || 999)
+    || String(a.name || '').localeCompare(String(b.name || ''), 'de');
+}
+
+function assignPlayerToSlot(slots, player, preferRole=true){
+  if(!player) return false;
+  const role = positionRole(player.pos);
+  const preferred = preferRole ? slots.find(slot=>!slot.playerId && slot.role === role) : null;
+  const fallback = slots.find(slot=>!slot.playerId);
+  const slot = preferred || fallback;
+  if(!slot) return false;
+  slot.playerId = player.id;
+  return true;
+}
+
+function orderedPlayerIdsForLayout(team, layout){
+  const slots = slotListForLayout(layout);
+  const pool = Object.values(players)
+    .filter(p=>p.team===team)
+    .map(p=>({...p, starterFactor: normalizeStarterFactor(p.starterFactor)}))
+    .sort(playerSort);
+  const selected = new Set();
+
+  pool.filter(p=>p.starterFactor === 1).forEach(player=>{
+    if(assignPlayerToSlot(slots, player, true)) selected.add(player.id);
+  });
+
+  slots.forEach(slot=>{
+    if(slot.playerId) return;
+    const factorTwo = pool.find(p=>!selected.has(p.id) && p.starterFactor === 2 && positionRole(p.pos) === slot.role);
+    const factorThree = pool.find(p=>!selected.has(p.id) && p.starterFactor === 3 && positionRole(p.pos) === slot.role);
+    const player = factorTwo || factorThree;
+    if(player){
+      slot.playerId = player.id;
+      selected.add(player.id);
+    }
+  });
+
+  return slots.map(slot=>slot.playerId).filter(Boolean);
+}
+
+function formationSlots(team='home'){
+  const formation = FORMATIONS[currentFormation] || FORMATIONS['4-3-3'];
+  const layout = formation[team] || formation.home;
+  return slotListForLayout(layout).map(({x,z,role})=>({x,z,role}));
 }
 
 function isSlotOccupied(slot, exceptId=''){
@@ -3063,9 +3103,11 @@ function exportKadrivoState(){
   return {
     version: 2,
     mode,
+    formation: currentFormation,
     colors: { homeColor, homeColorSecond, awayColor, awayColorSecond },
     players: Object.fromEntries(Object.entries(players).map(([id,p])=>[id,{
       id:p.id, team:p.team, num:p.num, name:p.name, pos:p.pos, onField:p.onField,
+      starterFactor:p.starterFactor, fameRank:p.fameRank,
       vestColor:p.vestColor, x:p.mesh?.position.x || 0, z:p.mesh?.position.z || 0,
       attackDirection:p.attackDirection ?? p.mesh?.userData.attackDirection ?? 0,
       ry:p.mesh?.rotation.y || 0
@@ -3092,6 +3134,8 @@ function importKadrivoState(data, roster){
       document.getElementById('awayColorSecond').value = awayColorSecond;
     }
     mode = data?.mode || mode;
+    currentFormation = FORMATIONS[data?.formation] ? data.formation : currentFormation;
+    document.querySelectorAll('.fbtn').forEach(btn=>btn.classList.toggle('active', btn.textContent.trim() === currentFormation));
     const badge=document.getElementById('modebadge');
     badge.textContent=mode==='spiel'?'SPIEL':'TRAINING';
     badge.className='modebadge '+(mode==='spiel'?'spiel':'training');
@@ -3108,6 +3152,8 @@ function importKadrivoState(data, roster){
         players[id].num = saved.num || players[id].num;
         players[id].name = players[id].team === 'away' ? '' : (saved.name || players[id].name);
         players[id].pos = saved.pos || players[id].pos;
+        players[id].starterFactor = normalizeStarterFactor(saved.starterFactor ?? players[id].starterFactor);
+        players[id].fameRank = Number(saved.fameRank || players[id].fameRank || 9999);
         players[id].vestColor = saved.vestColor || null;
         players[id].attackDirection = Number(saved.attackDirection ?? fallbackAttackDirection);
         if(saved.onField) placePlayer(id, Number(saved.x || 0), Number(saved.z || 0), players[id].attackDirection);

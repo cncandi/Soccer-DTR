@@ -431,6 +431,7 @@
         group: normalizeGroups(player)[0],
         photo: player.photo || "",
         jerseyNumber: player.jerseyNumber || "",
+        starterFactor: normalizeStarterFactor(player.starterFactor),
         birthDate: player.birthDate || "",
         nationality: player.nationality || "",
         memberSince: player.memberSince || "",
@@ -445,6 +446,20 @@
         transfer: player.transfer && typeof player.transfer === "object" ? player.transfer : null,
         transferHistory: Array.isArray(player.transferHistory) ? player.transferHistory : []
       };
+    }
+
+    function normalizeStarterFactor(value) {
+      const factor = Number(value);
+      return [1, 2, 3].includes(factor) ? factor : 2;
+    }
+
+    function starterFactorOptions(selected) {
+      const value = normalizeStarterFactor(selected);
+      return [
+        [1, "1 - fester Stammspieler"],
+        [2, "2 - spielt positionsgetreu"],
+        [3, "3 - Auswechselspieler"]
+      ].map(([factor, label]) => `<option value="${factor}" ${factor === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
     }
 
     function mergePlayersByName(a = [], b = []) {
@@ -531,6 +546,7 @@
         groups: ["Mannschaft"],
         group: "Mannschaft",
         position: player.position || "",
+        starterFactor: normalizeStarterFactor(player.starterFactor),
         phone: player.phone || "",
         notes: "",
         photo: player.photo || "",
@@ -4325,6 +4341,7 @@
         <div class="field"><label>Name</label><input name="name" value="${escapeAttr(player.name)}" required></div>
         ${isRosterPlayer ? `<div class="field"><label>Position</label><select name="position">${positionOptions(player.position)}</select></div>` : ""}
         ${isRosterPlayer ? `<div class="field"><label>Rueckennummer</label><input name="jerseyNumber" type="number" min="0" max="999" value="${escapeAttr(player.jerseyNumber || "")}" inputmode="numeric"></div>` : ""}
+        ${isRosterPlayer && fullAccess ? `<div class="field"><label>Stammplatz Faktor</label><select name="starterFactor">${starterFactorOptions(player.starterFactor)}</select></div>` : ""}
         ${isRosterPlayer ? `<div class="field"><label>Geboren am</label><input name="birthDate" type="date" value="${escapeAttr(player.birthDate || "")}"></div>` : ""}
         ${isRosterPlayer ? `<div class="field"><label>Nationalitaet</label><select name="nationality">${nationalityOptions(player.nationality || "")}</select></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
@@ -4841,12 +4858,15 @@
     }
 
     function tactic3dPlayersForBoard(board) {
+      const fameRank = new Map(fameRows().map((row, index) => [playerNameKey(row.player.name), index + 1]));
       return tacticPlayersForBoard(board).map((player, index) => ({
         id: tacticPlayerId(player, index),
         team: "home",
         num: Number(player.number || player.jerseyNumber || player.shirtNumber || index + 1),
         name: player.name,
         pos: player.position || "",
+        starterFactor: normalizeStarterFactor(player.starterFactor),
+        fameRank: fameRank.get(playerNameKey(player.name)) || 9999,
         onField: index < 11,
         vestColor: null
       }));
@@ -4938,7 +4958,7 @@
       await requestTactic3dState(board);
       flushTactic3dSave();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=125&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=126&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5281,7 +5301,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=125&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=126&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5457,6 +5477,7 @@
         name: values.name,
         position: isPlayer ? values.position : "",
         jerseyNumber: isPlayer ? (values.jerseyNumber || "") : "",
+        starterFactor: isPlayer ? normalizeStarterFactor(values.starterFactor) : 2,
         birthDate: isPlayer ? (values.birthDate || "") : "",
         nationality: isPlayer ? (values.nationality || "") : "",
         phone: values.phone,
@@ -5980,6 +6001,7 @@
       // (nach memberRoles-Update, damit Rollenwechsel sofort greift)
       player.position = hasMemberRole(player, "Spieler") ? values.position : "";
       player.jerseyNumber = hasMemberRole(player, "Spieler") ? (values.jerseyNumber || "") : "";
+      player.starterFactor = hasMemberRole(player, "Spieler") ? normalizeStarterFactor(values.starterFactor) : 2;
       player.birthDate = hasMemberRole(player, "Spieler") ? (values.birthDate || "") : "";
       player.nationality = hasMemberRole(player, "Spieler") ? (values.nationality || "") : "";
       if (canManage()) {
