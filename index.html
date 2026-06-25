@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=132">
+  <link rel="stylesheet" href="css/app.css?v=134">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v132</span></h1>
+          <h1>Kadrivo <span class="app-version">v134</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v132</span></h1>
+          <h1>Kadrivo <span class="app-version">v134</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -242,10 +242,15 @@
               <h3>Gespeicherte Einheiten</h3>
               <div class="row-actions">
                 <button class="mini" id="newTacticBoardBtn" type="button">Neu</button>
+                <button class="mini" id="renameTacticBoardBtn" type="button">Umbenennen</button>
                 <button class="mini no" id="deleteTacticBoardBtn" type="button">Loeschen</button>
               </div>
             </div>
             <form id="tacticBoardForm" class="form-grid">
+              <div class="field full">
+                <label for="tacticBoardName">Name der Taktik</label>
+                <input id="tacticBoardName" name="tacticBoardName" placeholder="z.B. Pressing links, Ecke Variante 1">
+              </div>
               <div class="field full">
                 <label for="tacticBoardSelect">Gespeicherte Einheiten</label>
                 <select id="tacticBoardSelect"></select>
@@ -281,7 +286,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=132" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=134" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -589,7 +594,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=132" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=134" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -681,6 +686,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=132" defer></script>
+  <script src="js/app.js?v=134" defer></script>
 </body>
 </html>
