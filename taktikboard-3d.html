@@ -129,7 +129,7 @@ canvas{display:block}
     <div id="sidebar-tabs">
       <div class="stab active" id="tab-home" onclick="showTab('home')">Heim</div>
       <div class="stab" id="tab-away" onclick="showTab('away')">Gegner</div>
-      <div class="stab" id="tab-tools" onclick="showTab('tools')" style="display:none">Tools</div>
+      <div class="stab" id="tab-tools" onclick="showTab('tools')">Tools</div>
     </div>
     <div id="sidebar-content"></div>
   </div>
@@ -1898,6 +1898,7 @@ function updatePlacePreview(pt){
   if(!placeToolId || !pt) return;
   const def = TOOLS_DEF.find(t=>t.id===placeToolId); if(!def) return;
   placePreview = def.build();
+  if(placePreview) placePreview.userData = {...placePreview.userData, toolId: placeToolId};
   const sx = snapVal(pt.x, snapGrid), sz = snapVal(pt.z, snapGrid);
   placePreview.position.set(sx, 0, sz);
   // Ghost: halb transparent
@@ -2032,6 +2033,79 @@ function addTool(id){
   activatePlaceTool(id);
 }
 
+function inferToolId(obj){
+  const data = obj?.userData || {};
+  if(data.toolId) return data.toolId;
+  const label = String(data.label || '').toLowerCase();
+  if(label === 'ball') return 'ball';
+  if(label === 'medizinball') return 'medball';
+  if(label === 'huetchen' || label === 'hütchen') return 'cone_custom';
+  if(label === 'stange') return 'pole_v';
+  if(label === 'tor') return 'goal_mid';
+  if(label === 'koordinationsleiter') return 'ladder';
+  return '';
+}
+
+function serializeBoardObjects(){
+  return fieldObjects
+    .filter(obj => obj?.userData && (obj.userData.type === 'tool' || obj.userData.type === 'drawing'))
+    .filter(obj => obj.userData.type !== 'handle')
+    .map(obj => ({
+      type: obj.userData.type,
+      toolId: inferToolId(obj),
+      data: {...obj.userData},
+      x: obj.position.x || 0,
+      y: obj.position.y || 0,
+      z: obj.position.z || 0,
+      ry: obj.rotation.y || 0
+    }));
+}
+
+function clearBoardObjects(){
+  clearHandles();
+  fieldObjects
+    .filter(obj => obj?.userData && (obj.userData.type === 'tool' || obj.userData.type === 'drawing'))
+    .forEach(obj => scene.remove(obj));
+  fieldObjects = fieldObjects.filter(obj => !obj?.userData || !['tool','drawing','handle'].includes(obj.userData.type));
+  drawObjects = [];
+}
+
+function drawingFromData(data = {}){
+  const col = Number(data.col ?? hexToInt(drawColor));
+  const w = Number(data.w || drawWidth || 2);
+  if(data.drawType === 'line') return makeLineMesh(data.x1, data.z1, data.x2, data.z2, col, w, false);
+  if(data.drawType === 'arrow') return makeLineMesh(data.x1, data.z1, data.x2, data.z2, col, w, true);
+  if(data.drawType === 'dribble') return makeDribbleMesh(data.x1, data.z1, data.x2, data.z2, col, w);
+  if(data.drawType === 'rect') return makeRectMesh(data.x1, data.z1, data.x2, data.z2, col, w);
+  if(data.drawType === 'circle') return makeCircleMesh(data.cx ?? data.x1, data.cz ?? data.z1, data.r || 2, col, w);
+  if(data.drawType === 'arc') return makeArcMesh(data.x1, data.z1, data.xm, data.zm, data.x2, data.z2, col, w, false);
+  if(data.drawType === 'arc-arrow') return makeArcMesh(data.x1, data.z1, data.xm, data.zm, data.x2, data.z2, col, w, true);
+  if(data.drawType === 'text') return makeTextMesh(data.x1 ?? 0, data.z1 ?? 0, data.text || data.label || 'Text', data.col || '#000000', w || 5);
+  return null;
+}
+
+function toolFromData(item = {}){
+  const toolId = item.toolId || item.data?.toolId || inferToolId({userData:item.data || {}});
+  if(toolId === 'cone_custom') return buildCone3D(Number(item.data?.color || 0xff5500));
+  if(toolId === 'tp_custom') return buildTrainingPlayer('home', item.data?.shirt || '#ffffff', item.data?.accent || '#000000');
+  const def = TOOLS_DEF.find(tool => tool.id === toolId && !['tp_custom','cone_custom'].includes(tool.id));
+  return def?.build?.() || null;
+}
+
+function restoreBoardObjects(items = []){
+  clearBoardObjects();
+  items.forEach(item => {
+    const obj = item.type === 'drawing' ? drawingFromData(item.data) : toolFromData(item);
+    if(!obj) return;
+    obj.userData = {...obj.userData, ...(item.data || {}), toolId: item.toolId || item.data?.toolId || obj.userData.toolId};
+    obj.position.set(Number(item.x || 0), Number(item.y || 0), Number(item.z || 0));
+    obj.rotation.y = Number(item.ry || 0);
+    scene.add(obj);
+    fieldObjects.push(obj);
+    if(obj.userData.type === 'drawing') drawObjects.push(obj);
+  });
+}
+
 // ============================================================
 // MODE
 // ============================================================
@@ -2056,9 +2130,7 @@ function toggleMode(){
   b.textContent=mode==='spiel'?'SPIEL':'TRAINING';
   b.className='modebadge '+(mode==='spiel'?'spiel':'training');
   const tt=document.getElementById('tab-tools');
-  tt.style.display=mode==='training'?'':'none';
-  if(mode==='training') showTab('tools');
-  else if(activeTab==='tools') showTab('home');
+  tt.style.display='';
   document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
   document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
   scheduleKadrivoSave();
@@ -2138,6 +2210,7 @@ canvas.addEventListener('mousedown',e=>{
         const def=TOOLS_DEF.find(t=>t.id===placeToolId);
         if(def){
           const m=def.build();
+          m.userData = {...m.userData, toolId: placeToolId};
           m.position.set(snapVal(pt.x,snapGrid), 0, snapVal(pt.z,snapGrid));
           scene.add(m); fieldObjects.push(m);
           // Text/Zeichnungs-Objekte auch in drawObjects tracken
@@ -2997,6 +3070,7 @@ function exportKadrivoState(){
       attackDirection:p.attackDirection ?? p.mesh?.userData.attackDirection ?? 0,
       ry:p.mesh?.rotation.y || 0
     }])),
+    boardObjects: serializeBoardObjects(),
     scenes,
     currentScene,
     snapshot: getSnapshot()
@@ -3021,7 +3095,7 @@ function importKadrivoState(data, roster){
     const badge=document.getElementById('modebadge');
     badge.textContent=mode==='spiel'?'SPIEL':'TRAINING';
     badge.className='modebadge '+(mode==='spiel'?'spiel':'training');
-    document.getElementById('tab-tools').style.display=mode==='training'?'':'none';
+    document.getElementById('tab-tools').style.display='';
     document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
     document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
     const savedPlayers = data?.players ? Object.values(data.players) : [];
@@ -3041,6 +3115,7 @@ function importKadrivoState(data, roster){
     } else {
       autoPlace('home');
     }
+    if(Array.isArray(data?.boardObjects)) restoreBoardObjects(data.boardObjects);
     opponentsVisible = Object.values(players).some(p=>p.team==='away'&&p.onField);
     syncOpponentButton();
     scenes = Array.isArray(data?.scenes) ? data.scenes : [];
