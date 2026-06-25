@@ -1202,6 +1202,29 @@
       color: var(--text);
       font-weight: 750;
       font-size: .86rem;
+      border: 1px solid transparent;
+      box-shadow: 0 1px 0 rgba(15, 35, 27, .04), inset 0 -1px 0 rgba(15, 35, 27, .05);
+      transition: background .14s ease, color .14s ease, border-color .14s ease, box-shadow .14s ease, transform .08s ease;
+    }
+
+    .mini:hover {
+      background: #e1ebe6;
+      border-color: #c5d8ce;
+      box-shadow: 0 3px 10px rgba(15, 35, 27, .10), inset 0 -1px 0 rgba(15, 35, 27, .08);
+      transform: translateY(-1px);
+    }
+
+    .mini:active {
+      background: #d5e3dc;
+      border-color: #aebfb6;
+      box-shadow: inset 0 2px 6px rgba(15, 35, 27, .16);
+      transform: translateY(1px) scale(.985);
+    }
+
+    .mini:focus-visible {
+      outline: none;
+      border-color: var(--club-color);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--club-color) 22%, transparent);
     }
 
     .mini.active {
@@ -1210,6 +1233,15 @@
     }
 
     .mini.yes { background: #dcfce7; color: #166534; }
+    .mini.yes:hover {
+      background: #bbf7d0;
+      border-color: #86efac;
+      color: #14532d;
+    }
+    .mini.yes:active {
+      background: #a7f3c2;
+      border-color: #4ade80;
+    }
     .mini.no { background: #fee2e2; color: #991b1b; }
     .mini.maybe { background: #fef3c7; color: #92400e; }
     .mini:disabled {
