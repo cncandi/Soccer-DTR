@@ -324,27 +324,33 @@ function updateCamera(){
 updateCamera();
 
 // Tastatursteuerung
+function cancelActiveMode(){
+  if(placeToolId) cancelPlaceTool();
+  if(drawMode){
+    drawMode=null;
+    drawStart=null;
+    drawMid=null;
+    document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('active'));
+    if(drawStartMarker){ scene.remove(drawStartMarker); drawStartMarker=null; }
+    if(drawMidMarker){ scene.remove(drawMidMarker); drawMidMarker=null; }
+    if(drawPreview){ scene.remove(drawPreview); drawPreview=null; }
+  }
+  canvas.style.cursor='default';
+  updatePlacePreview(null);
+  updateStatus();
+}
+
 document.addEventListener('keydown', e => {
+  if(e.key==='Escape' || e.key==='Esc'){
+    cancelActiveMode();
+    deselectObj();
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
   // Nicht feuern wenn in einem Input-Feld
   if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   keys[e.key] = true;
-  if(e.key==='Escape'){
-    if(placeToolId){ cancelPlaceTool(); return; }
-    if(drawMode){
-      if(drawStart){
-        drawStart=null; drawMid=null;
-        if(drawStartMarker){ scene.remove(drawStartMarker); drawStartMarker=null; }
-        if(drawMidMarker){ scene.remove(drawMidMarker); drawMidMarker=null; }
-        if(drawPreview){ scene.remove(drawPreview); drawPreview=null; }
-      } else {
-        drawMode=null;
-        document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('active'));
-        canvas.style.cursor='default';
-      }
-      return;
-    }
-    deselectObj(); return;
-  }
   // Löschen des selektierten Objekts
   if(e.key==='Delete' || e.key==='Backspace'){
     if(selObj){ deleteSelected(); e.preventDefault(); return; }
@@ -1105,6 +1111,7 @@ let drawStartMarker = null;
 let drawMidMarker = null;
 
 const DRAW_Y = 0.06; // leicht über Rasen
+const TEXT_DRAW_Y = 0.34; // Text muss deutlich über dem Rasen liegen, sonst verschluckt die Perspektive Buchstaben.
 
 function setDrawMode(m){
   if(placeToolId) cancelPlaceTool();
@@ -1310,21 +1317,26 @@ let textDrawSize=5;
 function makeTextMesh(x,z,text,col,size){
   const g=new THREE.Group();
   const c=document.createElement('canvas');
-  const fs=size*20; c.width=512; c.height=256;
+  const safeText=String(text || 'Text');
+  const fs=Math.max(28,size*20);
+  c.width=Math.max(512,safeText.length*fs*0.72+120);
+  c.height=Math.max(256,fs*2.4);
   const ctx=c.getContext('2d');
-  ctx.clearRect(0,0,512,256);
+  ctx.clearRect(0,0,c.width,c.height);
   ctx.fillStyle=col;
   ctx.font=`bold ${fs}px Arial`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(text,256,128);
+  ctx.fillText(safeText,c.width/2,c.height/2);
   const tex=new THREE.CanvasTexture(c);
-  const worldW=size*1.2, worldH=size*0.6;
+  const worldH=size*0.62;
+  const worldW=Math.max(size*1.2,worldH*(c.width/c.height));
   const m=new THREE.Mesh(new THREE.PlaneGeometry(worldW,worldH),
     new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
-  m.position.set(x,DRAW_Y+0.02,z);
+  m.position.set(x,TEXT_DRAW_Y,z);
   m.rotation.order='YXZ'; m.rotation.x=-Math.PI/2;
+  m.renderOrder=200;
   g.add(m);
-  g.userData={type:'drawing',drawType:'text',col,w:size,x1:x,z1:z,x2:x,z2:z,text};
+  g.userData={type:'drawing',drawType:'text',col,w:size,x1:x,z1:z,x2:x,z2:z,text:safeText};
   return g;
 }
 
@@ -1376,19 +1388,23 @@ function confirmText(){
     build:()=>{
       const g=new THREE.Group();
       const c2=document.createElement('canvas');
-      const fs=size*20; c2.width=512; c2.height=256;
+      const fs=Math.max(28,size*20);
+      c2.width=Math.max(512,String(val).length*fs*0.72+120);
+      c2.height=Math.max(256,fs*2.4);
       const ctx2=c2.getContext('2d');
-      ctx2.clearRect(0,0,512,256);
+      ctx2.clearRect(0,0,c2.width,c2.height);
       ctx2.fillStyle=col;
       ctx2.font=`bold ${fs}px Arial`;
       ctx2.textAlign='center'; ctx2.textBaseline='middle';
-      ctx2.fillText(val,256,128);
+      ctx2.fillText(val,c2.width/2,c2.height/2);
       const tex=new THREE.CanvasTexture(c2);
-      const worldW=size*1.2, worldH=size*0.6;
+      const worldH=size*0.62;
+      const worldW=Math.max(size*1.2,worldH*(c2.width/c2.height));
       const m=new THREE.Mesh(new THREE.PlaneGeometry(worldW,worldH),
         new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
-      m.position.set(0,DRAW_Y+0.02,0);
+      m.position.set(0,TEXT_DRAW_Y,0);
       m.rotation.order='YXZ'; m.rotation.x=-Math.PI/2;
+      m.renderOrder=200;
       g.add(m);
       g.userData={type:'drawing',drawType:'text',label:val,col,w:size,text:val};
       return g;
