@@ -4701,6 +4701,19 @@
       return state.tacticBoards.find((board) => board.id === selectedTacticBoardId);
     }
 
+    function tacticBoardDisplayTitle(board = {}) {
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      if (!eventItem) return board.title || "Freie Taktik";
+      const date = eventItem.date ? `${formatShortDate(eventItem.date)} ` : "";
+      const time = eventItem.time ? `${eventItem.time} - ` : "";
+      return `${date}${time}${eventItem.type}: ${eventItem.title || "Termin"}`.trim();
+    }
+
+    function syncTacticBoardTitle(board = currentTacticBoard()) {
+      if (!board) return;
+      board.title = tacticBoardDisplayTitle(board);
+    }
+
     function tacticElementsSnapshot(board = currentTacticBoard()) {
       return JSON.stringify(board.elements || []);
     }
@@ -5289,9 +5302,9 @@
     function renderTacticBoard() {
       if (!$("#tacticBoardForm")) return;
       const board = currentTacticBoard();
-      $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
-      if ($("#tacticBoardName") && document.activeElement !== $("#tacticBoardName")) $("#tacticBoardName").value = board.title || "";
-      $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title)}</option>`).join("");
+      syncTacticBoardTitle(board);
+      $("#tacticBoardTitle").textContent = tacticBoardDisplayTitle(board) || "Taktikboard";
+      $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(tacticBoardDisplayTitle(item))}</option>`).join("");
       $("#tacticBoardSelect").value = board.id;
       $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
       $("#tacticEventSelect").value = board.eventId || "";
@@ -5311,39 +5324,19 @@
     }
 
     function addTacticBoard() {
-      const fallbackTitle = `Taktik ${state.tacticBoards.length + 1}`;
-      const title = (window.prompt("Name der neuen Taktik:", fallbackTitle) || "").trim();
-      if (!title) return;
       const nextEvent = state.events
         .filter((eventItem) => eventItem.type === "Spiel" || eventItem.type === "Training")
         .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
       const board = normalizeTacticBoard({
-        title,
+        title: "Freie Taktik",
         eventId: nextEvent?.id || "",
         teamColor: currentClub().color || "#155e3b"
       });
+      syncTacticBoardTitle(board);
       state.tacticBoards.unshift(board);
       selectedTacticBoardId = board.id;
       selectedTacticElementId = "";
       saveState();
-    }
-
-    function renameCurrentTacticBoard(nextTitle = "") {
-      if (!canManage()) return;
-      const board = currentTacticBoard();
-      const title = String(nextTitle || "").trim();
-      if (!board || !title || title === board.title) return;
-      board.title = title;
-      board.updatedAt = new Date().toISOString();
-      saveState();
-      renderTacticBoard();
-    }
-
-    function promptRenameCurrentTacticBoard() {
-      const board = currentTacticBoard();
-      if (!board || !canManage()) return;
-      const title = (window.prompt("Neuer Name der Taktik:", board.title || "Taktik") || "").trim();
-      if (title) renameCurrentTacticBoard(title);
     }
 
     function assignEventToCurrentTactic(eventId) {
@@ -5351,6 +5344,7 @@
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === eventId);
       board.eventId = eventItem?.id || "";
+      syncTacticBoardTitle(board);
       board.threeData = null;
       board.updatedAt = new Date().toISOString();
       selectedTacticElementId = "";
@@ -5378,9 +5372,8 @@
       try {
         const eventId = $("#tacticEventSelect")?.value || "";
         const eventItem = state.events.find((item) => item.id === eventId);
-        const title = ($("#tacticBoardName")?.value || "").trim();
         board.eventId = eventItem?.id || "";
-        board.title = title || board.title || "Freie Taktik";
+        syncTacticBoardTitle(board);
         board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
         board.teamColor = board.teamColor || currentClub().color || "#155e3b";
         board.updatedAt = new Date().toISOString();
@@ -6296,7 +6289,6 @@
       if (canManage()) printTrainerReport();
     });
     $("#newTacticBoardBtn")?.addEventListener("click", addTacticBoard);
-    $("#renameTacticBoardBtn")?.addEventListener("click", promptRenameCurrentTacticBoard);
     $("#deleteTacticBoardBtn")?.addEventListener("click", deleteCurrentTacticBoard);
     $("#tacticBoardSelect")?.addEventListener("change", () => {
       selectedTacticBoardId = $("#tacticBoardSelect").value;
@@ -6309,9 +6301,6 @@
       assignEventToCurrentTactic($("#tacticEventSelect").value || "");
     });
     $("#saveTacticBoardBtn")?.addEventListener("click", saveCurrentTacticBoardExplicitly);
-    $("#tacticBoardName")?.addEventListener("change", () => {
-      renameCurrentTacticBoard($("#tacticBoardName").value || "");
-    });
     $("#tacticBoardNotes")?.addEventListener("input", () => {
       clearTimeout(tacticNotesSaveTimer);
       tacticNotesSaveTimer = setTimeout(updateCurrentTacticNotes, 500);
