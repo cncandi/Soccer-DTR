@@ -2086,19 +2086,31 @@ function inferToolId(obj){
   return '';
 }
 
+function ensureBoardObjectId(obj){
+  if(!obj?.userData) return '';
+  if(!obj.userData.objectId){
+    obj.userData.objectId = (crypto?.randomUUID?.() || `obj_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  }
+  return obj.userData.objectId;
+}
+
 function serializeBoardObjects(){
   return fieldObjects
     .filter(obj => obj?.userData && (obj.userData.type === 'tool' || obj.userData.type === 'drawing'))
     .filter(obj => obj.userData.type !== 'handle')
-    .map(obj => ({
-      type: obj.userData.type,
-      toolId: inferToolId(obj),
-      data: {...obj.userData},
-      x: obj.position.x || 0,
-      y: obj.position.y || 0,
-      z: obj.position.z || 0,
-      ry: obj.rotation.y || 0
-    }));
+    .map(obj => {
+      ensureBoardObjectId(obj);
+      return {
+        id: obj.userData.objectId,
+        type: obj.userData.type,
+        toolId: inferToolId(obj),
+        data: {...obj.userData},
+        x: obj.position.x || 0,
+        y: obj.position.y || 0,
+        z: obj.position.z || 0,
+        ry: obj.rotation.y || 0
+      };
+    });
 }
 
 function clearBoardObjects(){
@@ -2138,6 +2150,7 @@ function restoreBoardObjects(items = []){
     const obj = item.type === 'drawing' ? drawingFromData(item.data) : toolFromData(item);
     if(!obj) return;
     obj.userData = {...obj.userData, ...(item.data || {}), toolId: item.toolId || item.data?.toolId || obj.userData.toolId};
+    obj.userData.objectId = item.id || item.data?.objectId || ensureBoardObjectId(obj);
     obj.position.set(Number(item.x || 0), Number(item.y || 0), Number(item.z || 0));
     obj.rotation.y = Number(item.ry || 0);
     scene.add(obj);
@@ -2251,10 +2264,12 @@ canvas.addEventListener('mousedown',e=>{
         if(def){
           const m=def.build();
           m.userData = {...m.userData, toolId: placeToolId};
+          ensureBoardObjectId(m);
           m.position.set(snapVal(pt.x,snapGrid), 0, snapVal(pt.z,snapGrid));
           scene.add(m); fieldObjects.push(m);
           // Text/Zeichnungs-Objekte auch in drawObjects tracken
           if(m.userData.type==='drawing') drawObjects.push(m);
+          scheduleKadrivoSave();
         }
       }
       return; // nicht draggen, Modus bleibt aktiv
@@ -2474,7 +2489,8 @@ function ctxAction(action){
     const def = TOOLS_DEF.find(t=>t.id===obj.userData.toolId);
     const cl = obj.clone();
     cl.position.x += 2; cl.position.z += 2;
-    cl.userData = {...obj.userData};
+    cl.userData = {...obj.userData, objectId: ''};
+    ensureBoardObjectId(cl);
     scene.add(cl); fieldObjects.push(cl);
   } else if(action==='bench'){
     removeFromField(obj.userData.playerId);
@@ -2938,7 +2954,7 @@ function getSnapshot(){
   });
   // Tools auf dem Feld (nicht Zeichnungen, nicht Handles)
   fieldObjects.filter(f=>f.userData&&f.userData.type==='tool').forEach((f,i)=>{
-    objs.push({kind:'tool',idx:i,
+    objs.push({kind:'tool',idx:i,id:ensureBoardObjectId(f),toolId:inferToolId(f),
       x:f.position.x, y:f.position.y, z:f.position.z,
       ry:f.rotation.y});
   });
@@ -2971,9 +2987,9 @@ function applySnapshot(snap, t=1, fromSnap=null){
     }
     if(s.kind==='tool'){
       const tools=fieldObjects.filter(f=>f.userData&&f.userData.type==='tool');
-      const f=tools[s.idx];
+      const f=(s.id ? tools.find(tool=>tool.userData?.objectId===s.id) : null) || tools[s.idx];
       if(!f) return;
-      const from=fromSnap?fromSnap.objects.find(o=>o.kind==='tool'&&o.idx===s.idx):null;
+      const from=fromSnap?fromSnap.objects.find(o=>o.kind==='tool'&&((s.id && o.id===s.id) || (!s.id && o.idx===s.idx))):null;
       const fx=from?from.x:s.x, fy=from?from.y:s.y, fz=from?from.z:s.z;
       f.position.x=lerp(fx,s.x,et);
       f.position.y=lerp(fy,s.y,et);
