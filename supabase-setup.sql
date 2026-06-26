@@ -519,3 +519,31 @@ for insert with check (true);
 
 create policy "penalty payments update" on public.penalty_payments
 for update using (true);
+
+create table if not exists public.kadrivo_subscriptions (
+  club_id text primary key references public.clubs(id) on delete cascade,
+  club_name text not null default '',
+  package_key text not null default 'pro' check (package_key in ('amateur', 'pro')),
+  package_label text not null default '',
+  paypal_subscription_id text not null default '',
+  status text not null default 'pending' check (status in ('pending', 'active', 'cancelled', 'suspended', 'expired')),
+  requested_modules jsonb not null default '[]'::jsonb,
+  requested_by text not null default '',
+  requested_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.kadrivo_subscriptions enable row level security;
+
+drop policy if exists "kadrivo subscriptions read" on public.kadrivo_subscriptions;
+drop policy if exists "kadrivo subscriptions write" on public.kadrivo_subscriptions;
+drop policy if exists "kadrivo subscriptions update" on public.kadrivo_subscriptions;
+
+create policy "kadrivo subscriptions read" on public.kadrivo_subscriptions
+for select using (true);
+
+create policy "kadrivo subscriptions write" on public.kadrivo_subscriptions
+for insert with check (true);
+
+create policy "kadrivo subscriptions update" on public.kadrivo_subscriptions
+for update using (true);

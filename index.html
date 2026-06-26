@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=142">
+  <link rel="stylesheet" href="css/app.css?v=143">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v142</span></h1>
+          <h1>Kadrivo <span class="app-version">v143</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v142</span></h1>
+          <h1>Kadrivo <span class="app-version">v143</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -349,7 +349,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=142" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=143" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -547,6 +547,21 @@ Nein</textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
             </form>
           </section>
+          <section class="panel admin-only" id="kadrivoSubscriptionPanel">
+            <h3>Kadrivo Abo</h3>
+            <div class="pro-card">
+              <div>
+                <strong>Erweiterte Funktionen freischalten</strong>
+                <p class="meta">Amateur: Taktikboard, Abstimmungen und Hall of Fame. Pro: zusaetzlich Mitteilungen und Kasse.</p>
+              </div>
+              <div class="subscription-choice">
+                <label><input type="radio" name="kadrivo_subscription_package" value="pro" checked> Kadrivo Pro</label>
+                <label><input type="radio" name="kadrivo_subscription_package" value="amateur"> Kadrivo Amateur</label>
+              </div>
+              <div id="kadrivoSubscriptionPaypalButton"></div>
+              <p class="meta" id="kadrivoSubscriptionStatus">PayPal Abo wird geladen ...</p>
+            </div>
+          </section>
           <section class="panel admin-only">
             <h3>PayPal-Zahlungen</h3>
             <div class="safety-note">
@@ -671,7 +686,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=142" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=143" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -774,6 +789,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=142" defer></script>
+  <script src="js/app.js?v=143" defer></script>
 </body>
 </html>

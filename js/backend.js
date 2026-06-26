@@ -40,6 +40,7 @@ let backend = {
   polls: [],
   fame: [],
   paypal: [],
+  subscriptions: [],
   licenseColumnsReady: true,
   selectedClubId: ""
 };
@@ -225,7 +226,7 @@ async function fetchClubs() {
 
 async function loadBackendData() {
   $("#backendStatus").textContent = "Daten werden geladen ...";
-  const [clubs, players, events, rsvps, cash, messages, polls, fame, paypal] = await Promise.all([
+  const [clubs, players, events, rsvps, cash, messages, polls, fame, paypal, subscriptions] = await Promise.all([
     fetchClubs(),
     fetchTable("players", "id,club_id,name,password,role,groups,updated_at", "Spieler"),
     fetchTable("events", "id,club_id,date,type,title", "Termine"),
@@ -234,7 +235,8 @@ async function loadBackendData() {
     fetchTable("messages", "id,club_id,created_at", "Mitteilungen"),
     fetchTable("polls", "id,club_id", "Abstimmungen"),
     fetchTable("hall_of_fame_entries", "id,club_id,player_id,player_name,category,value", "Hall of Fame"),
-    fetchTable("club_paypal_settings", "club_id,paypal_enabled,paypal_mode,paypal_receiver_email,updated_at", "PayPal")
+    fetchTable("club_paypal_settings", "club_id,paypal_enabled,paypal_mode,paypal_receiver_email,updated_at", "PayPal"),
+    fetchTable("kadrivo_subscriptions", "club_id,package_key,package_label,paypal_subscription_id,status,requested_at,updated_at", "Kadrivo Abos")
   ]);
   backend = {
     ...backend,
@@ -248,7 +250,8 @@ async function loadBackendData() {
     messages,
     polls,
     fame,
-    paypal
+    paypal,
+    subscriptions
   };
   if (!backend.selectedClubId && backend.clubs[0]) backend.selectedClubId = backend.clubs[0].id;
   renderBackend();
@@ -323,6 +326,7 @@ function renderDetails() {
   const admins = backend.players.filter((player) => player.club_id === club.id && ["Admin", "Superadmin"].includes(player.role));
   const players = backend.players.filter((player) => player.club_id === club.id);
   const paypal = backend.paypal.find((item) => item.club_id === club.id);
+  const subscription = backend.subscriptions.find((item) => item.club_id === club.id);
   const licenseWarning = backend.licenseColumnsReady ? "" : `
     <div class="warning-box">
       Die Lizenzspalten fehlen noch in Supabase. Vereine und Nutzung werden angezeigt, Lizenz-Aenderungen sind bis zur Migration gesperrt.
@@ -386,6 +390,8 @@ function renderDetails() {
         </form>
         <div class="meta">
           PayPal: ${paypal ? `${paypal.paypal_enabled ? "aktiv" : "inaktiv"} · ${escapeHtml(paypal.paypal_mode || "sandbox")} · ${escapeHtml(paypal.paypal_receiver_email || "keine E-Mail")}` : "nicht eingerichtet"}
+          <br>
+          Kadrivo Abo: ${subscription ? `${escapeHtml(subscription.package_label || subscription.package_key || "Abo")} · ${escapeHtml(subscription.status || "pending")} · ${escapeHtml(subscription.paypal_subscription_id || "")}` : "keine Anfrage"}
         </div>
       </section>
 

@@ -13,6 +13,23 @@
     const PAYPAL_SETTINGS_FUNCTION = "paypal-settings";
     const PAYPAL_CREATE_ORDER_FUNCTION = "paypal-create-order";
     const PAYPAL_CAPTURE_ORDER_FUNCTION = "paypal-capture-order";
+    const KADRIVO_PAYPAL_CLIENT_ID = "AWfxrPGLIbqrihvp1jnmVHyAJgbeJTOG4wAn3LhgjJusOgEzEuwHbTAKN9yionKc7DD8z-20E_dMMhY_";
+    const KADRIVO_SUBSCRIPTION_PACKAGES = {
+      amateur: {
+        label: "Kadrivo Amateur",
+        planId: "P-3PY537404L8812239NI7OEYA",
+        shape: "rect",
+        modules: ["tactics", "polls", "fame"],
+        description: "Alle Pro-Funktionen ohne Mitteilungen und Kasse."
+      },
+      pro: {
+        label: "Kadrivo Pro",
+        planId: "P-36V89937TU7917709NI7OBUA",
+        shape: "pill",
+        modules: ["tactics", "messages", "polls", "cash", "fame"],
+        description: "Alle kostenpflichtigen Module: Taktikboard, Mitteilungen, Abstimmungen, Kasse und Hall of Fame."
+      }
+    };
     const DOC_ID = "club-state";
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
@@ -164,6 +181,7 @@
     let paypalSettings = null;
     let paypalSdkKey = "";
     let paypalLoading = null;
+    let subscriptionRenderedFor = "";
     let calendarDate = isoDate(new Date());
     let calendarMode = "week";
     let expandedEventId = "";
@@ -2441,6 +2459,120 @@
       await paypalLoading;
     }
 
+    async function loadKadrivoSubscriptionPaypalSdk(packageKey) {
+      const planId = KADRIVO_SUBSCRIPTION_PACKAGES[packageKey]?.planId || "";
+      if (!planId) throw new Error("Fuer dieses Paket ist noch keine PayPal Plan-ID hinterlegt.");
+      const key = `kadrivo-subscription:${KADRIVO_PAYPAL_CLIENT_ID}:${planId}`;
+      if (window.paypal && paypalSdkKey === key) return;
+      if (paypalLoading) return paypalLoading;
+      delete window.paypal;
+      paypalSdkKey = key;
+      paypalLoading = new Promise((resolve, reject) => {
+        const existing = $("#paypalSdkScript");
+        if (existing) existing.remove();
+        const script = document.createElement("script");
+        script.id = "paypalSdkScript";
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(KADRIVO_PAYPAL_CLIENT_ID)}&vault=true&intent=subscription`;
+        script.dataset.sdkIntegrationSource = "button-factory";
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("PayPal SDK konnte nicht geladen werden."));
+        document.head.appendChild(script);
+      }).finally(() => { paypalLoading = null; });
+      await paypalLoading;
+    }
+
+    async function recordKadrivoSubscription(packageKey, subscriptionId) {
+      const subscriptionPackage = KADRIVO_SUBSCRIPTION_PACKAGES[packageKey] || KADRIVO_SUBSCRIPTION_PACKAGES.pro;
+      const club = currentClub();
+      const now = new Date().toISOString();
+      club.proSubscriptionId = subscriptionId;
+      club.proSubscriptionPackage = packageKey;
+      club.proSubscriptionStatus = "pending";
+      club.proSubscriptionRequestedAt = now;
+      const client = getSupabaseClient();
+      if (client) {
+        const result = await client.from("kadrivo_subscriptions").upsert({
+          club_id: currentClubId,
+          club_name: club.name,
+          package_key: packageKey,
+          package_label: subscriptionPackage.label,
+          paypal_subscription_id: subscriptionId,
+          status: "pending",
+          requested_modules: subscriptionPackage.modules,
+          requested_by: activeUser(),
+          requested_at: now,
+          updated_at: now
+        }, { onConflict: "club_id" });
+        if (result.error) throw result.error;
+      }
+      saveState();
+    }
+
+    function renderKadrivoSubscriptionButton() {
+      const panel = $("#kadrivoSubscriptionPanel");
+      const host = $("#kadrivoSubscriptionPaypalButton");
+      const status = $("#kadrivoSubscriptionStatus");
+      if (!panel || !host || !status) return;
+      if (!$("#settings")?.classList.contains("active")) return;
+      panel.hidden = !canManage();
+      if (panel.hidden) return;
+      const club = currentClub();
+      if (normalizeLicenseStatus(club.licenseStatus) === "active" && club.licenseAutoRenew) {
+        host.innerHTML = "";
+        status.textContent = "Ein Kadrivo Abo ist fuer diesen Verein bereits aktiv.";
+        subscriptionRenderedFor = "";
+        return;
+      }
+      const packageKey = document.querySelector("input[name='kadrivo_subscription_package']:checked")?.value || "pro";
+      const subscriptionPackage = KADRIVO_SUBSCRIPTION_PACKAGES[packageKey] || KADRIVO_SUBSCRIPTION_PACKAGES.pro;
+      const renderKey = `${currentClubId}:${packageKey}:${club.proSubscriptionId || ""}`;
+      if (subscriptionRenderedFor === renderKey) return;
+      subscriptionRenderedFor = renderKey;
+      host.innerHTML = "";
+      if (!subscriptionPackage.planId) {
+        status.textContent = `${subscriptionPackage.label} ist vorbereitet. Bitte zuerst die PayPal Plan-ID hinterlegen.`;
+        return;
+      }
+      status.textContent = club.proSubscriptionId
+        ? `Abo-Anfrage gespeichert: ${club.proSubscriptionId}. Die Freischaltung erfolgt nach Zahlungspruefung.`
+        : `${subscriptionPackage.label} wird geladen ...`;
+      loadKadrivoSubscriptionPaypalSdk(packageKey)
+        .then(() => {
+          if (!window.paypal || !host.isConnected) return;
+          window.paypal.Buttons({
+            style: {
+              shape: subscriptionPackage.shape || "pill",
+              color: "gold",
+              layout: "vertical",
+              label: "subscribe"
+            },
+            createSubscription: (data, actions) => actions.subscription.create({
+              plan_id: subscriptionPackage.planId
+            }),
+            onApprove: async (data) => {
+              const subscriptionId = data.subscriptionID || "";
+              status.textContent = "Abo wurde angelegt. Subscription-ID wird gespeichert ...";
+              try {
+                await recordKadrivoSubscription(packageKey, subscriptionId);
+                status.textContent = `Abo-Anfrage gespeichert: ${subscriptionId}. ${subscriptionPackage.label} wird nach Zahlungspruefung freigeschaltet.`;
+                setStatus(`${subscriptionPackage.label}-Abo gespeichert. Freischaltung steht zur Pruefung bereit.`);
+              } catch (error) {
+                status.textContent = "Abo angelegt, aber Speichern fehlgeschlagen: " + (error.message || String(error));
+              }
+            },
+            onCancel: () => {
+              status.textContent = "Abo wurde abgebrochen. Es wurde nichts freigeschaltet.";
+            },
+            onError: (error) => {
+              status.textContent = "PayPal-Fehler: " + (error.message || String(error));
+            }
+          }).render(host);
+        })
+        .catch((error) => {
+          status.textContent = "PayPal Abo ist nicht verfuegbar: " + (error.message || String(error));
+        });
+    }
+
     function renderPaypalButtons() {
       if (!paypalConfigured()) return;
       $$(".paypal-box").forEach(async (box) => {
@@ -2630,6 +2762,7 @@
       renderNotificationBadges();
       renderPushPanel();
       renderPaypalSettingsForm();
+      renderKadrivoSubscriptionButton();
     }
 
     function applyPermissions() {
@@ -5403,7 +5536,7 @@
       await requestTactic3dState(board);
       flushTactic3dSave();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=138&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=143&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5756,7 +5889,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=138&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=143&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5894,6 +6027,7 @@
         renderNotificationBadges();
       }
       if (viewName === "messages") scrollMessagesToBottom();
+      if (viewName === "settings") renderKadrivoSubscriptionButton();
     }
 
     setupNavLabels();
@@ -6266,6 +6400,12 @@
     $("#paypalSettingsForm")?.addEventListener("submit", savePaypalSettings);
     $("#paypalSettingsForm")?.addEventListener("change", updatePaypalSafetyUi);
     $("#paypalSettingsForm")?.addEventListener("input", updatePaypalSafetyUi);
+    $$("input[name='kadrivo_subscription_package']").forEach((input) => {
+      input.addEventListener("change", () => {
+        subscriptionRenderedFor = "";
+        renderKadrivoSubscriptionButton();
+      });
+    });
     $("#paypalTestBtn")?.addEventListener("click", async () => {
       await loadPaypalSettings();
       $("#paypalStatus").textContent = paypalConfigured()
