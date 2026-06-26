@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v140</span></h1>
+          <h1>Kadrivo <span class="app-version">v141</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v140</span></h1>
+          <h1>Kadrivo <span class="app-version">v141</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -549,13 +549,22 @@ Nein</textarea></div>
           </section>
           <section class="panel admin-only">
             <h3>PayPal-Zahlungen</h3>
+            <div class="safety-note">
+              <strong>Wichtig bei mehreren Vereinen:</strong>
+              Jeder Verein nutzt eigene PayPal-Daten. Live-Zahlungen erst aktivieren, wenn Client ID, Secret, Empfaenger-E-Mail und Webhook sicher zu diesem Verein gehoeren.
+            </div>
             <form id="paypalSettingsForm" class="form-grid">
               <div class="field full"><label class="check-row"><input type="checkbox" name="paypal_enabled"> PayPal aktivieren</label></div>
               <div class="field"><label>Modus</label><select name="paypal_mode"><option value="sandbox">Sandbox</option><option value="live">Live</option></select></div>
               <div class="field full"><label>Client ID</label><input name="paypal_client_id" autocomplete="off"></div>
               <div class="field full"><label>Client Secret</label><input name="paypal_client_secret" type="password" autocomplete="new-password" placeholder="Leer lassen, um Secret beizubehalten"></div>
-              <div class="field full"><label>PayPal Empfaenger-E-Mail optional</label><input name="paypal_receiver_email" type="email" placeholder="verein@example.de"></div>
-              <div class="field full"><label>Webhook ID optional</label><input name="paypal_webhook_id" autocomplete="off"></div>
+              <div class="field full"><label>PayPal Empfaenger-E-Mail</label><input name="paypal_receiver_email" type="email" placeholder="verein@example.de"></div>
+              <div class="field full"><label>Webhook ID</label><input name="paypal_webhook_id" autocomplete="off"></div>
+              <div class="field full paypal-live-confirm" id="paypalLiveConfirmField" hidden>
+                <label>Live-Bestaetigung</label>
+                <input name="paypal_live_confirm" autocomplete="off" placeholder="LIVE AKTIVIEREN eintippen">
+                <p class="meta">Live speichert echte Zahlungsdaten. Bitte exakt <strong>LIVE AKTIVIEREN</strong> eingeben.</p>
+              </div>
               <div class="field full"><button class="btn-primary" type="submit">PayPal speichern</button></div>
               <div class="field full"><button class="btn-secondary" id="paypalTestBtn" type="button">Testzahlung vorbereiten</button></div>
             </form>

@@ -15,7 +15,7 @@ In Supabase muss fuer die Edge Function gesetzt werden:
 ```bash
 supabase secrets set VAPID_PUBLIC_KEY="BMzLO4YI3nJQ2J6OPpj22v7-S8XOuMTq7Ftm5L62CihAq-gNemRJPWAqhn3xzolyq97jJZ6x5KIrrgpdur7Hb8E"
 supabase secrets set VAPID_PRIVATE_KEY="$(cat vapid-private-key.txt)"
-supabase secrets set VAPID_SUBJECT="mailto:reitz@cnc-technik.de"
+supabase secrets set VAPID_SUBJECT="mailto:admin@example.com"
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY="DEIN_SERVICE_ROLE_KEY"
 ```
 

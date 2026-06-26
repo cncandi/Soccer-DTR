@@ -2351,9 +2351,21 @@
       form.elements.paypal_client_secret.value = "";
       form.elements.paypal_receiver_email.value = data.paypal_receiver_email || "";
       form.elements.paypal_webhook_id.value = data.paypal_webhook_id || "";
+      if (form.elements.paypal_live_confirm) form.elements.paypal_live_confirm.value = "";
+      updatePaypalSafetyUi();
       status.textContent = data.paypal_enabled && data.paypal_client_id
         ? `Verbunden (${data.paypal_mode === "live" ? "Live" : "Sandbox"})`
         : "PayPal ist nicht verbunden.";
+    }
+
+    function updatePaypalSafetyUi() {
+      const form = $("#paypalSettingsForm");
+      const confirmField = $("#paypalLiveConfirmField");
+      if (!form || !confirmField) return;
+      const values = formValues(form);
+      const liveEnabled = values.paypal_enabled === "on" && values.paypal_mode === "live";
+      confirmField.hidden = !liveEnabled;
+      form.classList.toggle("paypal-live-mode", liveEnabled);
     }
 
     async function savePaypalSettings(event) {
@@ -2363,12 +2375,28 @@
         return;
       }
       const values = formValues(event.currentTarget);
+      const paypalEnabled = values.paypal_enabled === "on";
+      const paypalMode = values.paypal_mode || "sandbox";
+      if (paypalEnabled && paypalMode === "live") {
+        if (!values.paypal_receiver_email?.trim()) {
+          $("#paypalStatus").textContent = "Live-PayPal braucht eine Empfaenger-E-Mail des Vereins.";
+          return;
+        }
+        if (!values.paypal_webhook_id?.trim()) {
+          $("#paypalStatus").textContent = "Live-PayPal braucht eine Webhook ID, damit Zahlungen sicher bestaetigt werden.";
+          return;
+        }
+        if ((values.paypal_live_confirm || "").trim() !== "LIVE AKTIVIEREN") {
+          $("#paypalStatus").textContent = "Live-Modus wurde nicht gespeichert. Bitte LIVE AKTIVIEREN exakt eingeben.";
+          return;
+        }
+      }
       const response = await fetch(`${edgeFunctionUrl(PAYPAL_SETTINGS_FUNCTION)}?clubId=${encodeURIComponent(currentClubId)}`, {
         method: "POST",
         headers: edgeHeaders(),
         body: JSON.stringify({
-          paypal_enabled: values.paypal_enabled === "on",
-          paypal_mode: values.paypal_mode,
+          paypal_enabled: paypalEnabled,
+          paypal_mode: paypalMode,
           paypal_client_id: values.paypal_client_id,
           paypal_client_secret: values.paypal_client_secret,
           paypal_receiver_email: values.paypal_receiver_email,
@@ -6229,10 +6257,12 @@
     });
 
     $("#paypalSettingsForm")?.addEventListener("submit", savePaypalSettings);
+    $("#paypalSettingsForm")?.addEventListener("change", updatePaypalSafetyUi);
+    $("#paypalSettingsForm")?.addEventListener("input", updatePaypalSafetyUi);
     $("#paypalTestBtn")?.addEventListener("click", async () => {
       await loadPaypalSettings();
       $("#paypalStatus").textContent = paypalConfigured()
-        ? "Sandbox-Test bereit: Eine offene Strafe kann jetzt mit PayPal getestet werden."
+        ? `${paypalSettings.paypal_mode === "live" ? "Live" : "Sandbox"}-Test bereit: Eine offene Strafe kann jetzt mit PayPal getestet werden.`
         : "PayPal ist noch nicht vollstaendig konfiguriert.";
     });
 

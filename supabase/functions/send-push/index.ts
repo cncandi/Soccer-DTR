@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:reitz@cnc-technik.de";
+  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@example.com";
 
   if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
     return Response.json({ error: "Push secrets are not configured." }, { status: 500, headers: corsHeaders });
