@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v139</span></h1>
+          <h1>Kadrivo <span class="app-version">v140</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v139</span></h1>
+          <h1>Kadrivo <span class="app-version">v140</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -91,16 +91,16 @@
       </section>
 
       <nav class="nav" aria-label="Hauptnavigation">
-        <button class="active" data-view="dashboard" data-min-role="admin">Uebersicht</button>
-        <button data-view="players" data-min-role="admin">Spieler</button>
-        <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
-        <button data-view="tactics" data-min-role="admin">Taktikboard</button>
-        <button data-view="scouting" data-min-role="player" data-staff-view="true">Scouting</button>
-        <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
-        <button data-view="polls" data-min-role="player">Abstimmungen</button>
-        <button data-view="cash" data-min-role="player">Kasse</button>
-        <button data-view="fame" data-min-role="player">Hall of Fame</button>
-        <button data-view="settings" data-min-role="admin">Einstellungen</button>
+        <button class="active" data-view="dashboard" data-min-role="admin" data-icon="⌂"><span class="nav-icon">⌂</span><span class="nav-label">Uebersicht</span></button>
+        <button data-view="players" data-min-role="admin" data-icon="👤"><span class="nav-icon">👤</span><span class="nav-label">Spieler</span></button>
+        <button data-view="events" data-min-role="player" data-icon="▦"><span class="nav-icon">▦</span><span class="nav-label">Training & Spiele</span><span class="nav-badge" data-nav-badge="events" hidden></span></button>
+        <button data-view="tactics" data-min-role="admin" data-icon="◎"><span class="nav-icon">◎</span><span class="nav-label">Taktikboard</span></button>
+        <button data-view="scouting" data-min-role="player" data-staff-view="true" data-icon="◌"><span class="nav-icon">◌</span><span class="nav-label">Scouting</span></button>
+        <button data-view="messages" data-min-role="player" data-icon="✉"><span class="nav-icon">✉</span><span class="nav-label">Mitteilungen</span><span class="nav-badge" data-nav-badge="messages" hidden></span></button>
+        <button data-view="polls" data-min-role="player" data-icon="✓"><span class="nav-icon">✓</span><span class="nav-label">Abstimmungen</span></button>
+        <button data-view="cash" data-min-role="player" data-icon="€"><span class="nav-icon">€</span><span class="nav-label">Kasse</span></button>
+        <button data-view="fame" data-min-role="player" data-icon="★"><span class="nav-icon">★</span><span class="nav-label">Hall of Fame</span></button>
+        <button data-view="settings" data-min-role="admin" data-icon="⚙"><span class="nav-icon">⚙</span><span class="nav-label">Einstellungen</span></button>
       </nav>
 
       <div class="sync-status" id="syncStatus">Lokale Daten aktiv.</div>
@@ -703,7 +703,17 @@ for update using (true);</textarea>
       <p class="signup-benefit">Die Anmeldung ist komplett kostenfrei. Du kannst Kadrivo direkt starten und die meisten Funktionen ohne Zahlung nutzen.</p>
       <form id="clubSignupForm" class="form-grid">
         <div class="field full"><label>Vereinsname</label><input name="clubName" required autocomplete="organization"></div>
-        <div class="field full"><label>Sportart</label><select name="sport" id="clubSignupSport"></select></div>
+        <div class="field full">
+          <label>Sportart</label>
+          <div class="sport-card-grid">
+            <label class="sport-card"><input type="radio" name="sport" value="Fussball" checked><span>⚽</span><strong>Fussball</strong></label>
+            <label class="sport-card"><input type="radio" name="sport" value="Basketball"><span>🏀</span><strong>Basketball</strong></label>
+            <label class="sport-card"><input type="radio" name="sport" value="Eishockey"><span>🏒</span><strong>Eishockey</strong></label>
+            <label class="sport-card"><input type="radio" name="sport" value="Handball"><span>🤾</span><strong>Handball</strong></label>
+            <label class="sport-card"><input type="radio" name="sport" value="Volleyball"><span>🏐</span><strong>Volleyball</strong></label>
+            <label class="sport-card"><input type="radio" name="sport" value="Andere Sportart"><span>✳</span><strong>Andere</strong></label>
+          </div>
+        </div>
         <div class="field"><label>Ansprechpartner</label><input name="adminName" required autocomplete="name"></div>
         <div class="field"><label>E-Mail optional</label><input name="adminEmail" type="email" autocomplete="email"></div>
         <div class="field"><label>Passwort</label><input name="adminPassword" type="password" required minlength="4" autocomplete="new-password"></div>
