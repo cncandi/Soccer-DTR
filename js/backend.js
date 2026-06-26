@@ -11,6 +11,15 @@ const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
 const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
 const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
+const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
+const SPORT_DEFAULTS = {
+  Fussball: { fieldPlayers: 11, benchPlayers: 9 },
+  Basketball: { fieldPlayers: 5, benchPlayers: 7 },
+  Eishockey: { fieldPlayers: 6, benchPlayers: 14 },
+  Handball: { fieldPlayers: 7, benchPlayers: 9 },
+  Volleyball: { fieldPlayers: 6, benchPlayers: 6 },
+  "Andere Sportart": { fieldPlayers: 10, benchPlayers: 10 }
+};
 const FREE_MODULE_KEYS = new Set(["dashboard", "players", "events", "settings"]);
 const PAID_MODULE_KEYS = new Set(["tactics", "messages", "polls", "cash", "fame"]);
 const CLUB_MODULES = [
@@ -118,6 +127,12 @@ function optionListWithEmpty(options, selected) {
     .join("");
 }
 
+function optionList(options, selected) {
+  return options
+    .map((option) => `<option value="${escapeHtml(option)}" ${option === selected ? "selected" : ""}>${escapeHtml(option)}</option>`)
+    .join("");
+}
+
 function normalizeModules(value) {
   const raw = value && typeof value === "object" ? value : {};
   return Object.fromEntries(CLUB_MODULES.map(([key]) => [key, raw[key] !== false]));
@@ -192,7 +207,7 @@ async function fetchClubs() {
   const withLicense = await withTimeout(
     client
       .from("clubs")
-      .select("id,name,slug,color,logo,sport,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at"),
+      .select("id,name,slug,color,logo,sport,max_field_players,max_bench_players,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at"),
     8000,
     "Vereine konnten nicht geladen werden."
   );
@@ -201,7 +216,7 @@ async function fetchClubs() {
     return withLicense.data || [];
   }
   const message = withLicense.error.message || "";
-  const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "league", "federal_state", "modules"]
+  const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "max_field_players", "max_bench_players", "league", "federal_state", "modules"]
     .some((column) => message.includes(column));
   if (!missingOptionalClubColumn) {
     throw withLicense.error;
@@ -382,6 +397,9 @@ function renderDetails() {
         <form id="clubSettingsForm" class="form-grid">
           <input type="hidden" name="clubId" value="${escapeHtml(club.id)}">
           <div class="field full"><label>Vereinsname</label><input name="name" value="${escapeHtml(club.name || "")}" required></div>
+          <div class="field"><label>Sportart</label><select name="sport" data-backend-sport-select>${optionList(SPORTS, club.sport || "Fussball")}</select></div>
+          <div class="field"><label>Max. Spieler auf dem Feld</label><input name="maxFieldPlayers" type="number" min="1" max="30" value="${escapeHtml(club.max_field_players || SPORT_DEFAULTS[club.sport || "Fussball"]?.fieldPlayers || 11)}"></div>
+          <div class="field"><label>Max. Spieler auf der Bank</label><input name="maxBenchPlayers" type="number" min="0" max="50" value="${escapeHtml(club.max_bench_players ?? SPORT_DEFAULTS[club.sport || "Fussball"]?.benchPlayers ?? 9)}"></div>
           <div class="field"><label>Liga</label><select name="league">${optionListWithEmpty(CLUB_LEAGUES, club.league || "")}</select></div>
           <div class="field"><label>Bundesland</label><select name="federalState">${optionListWithEmpty(FEDERAL_STATES, club.federal_state || "")}</select></div>
           <div class="field"><label>Farbe</label><input name="color" type="color" value="${escapeHtml(club.color || "#155e3b")}"></div>
@@ -487,6 +505,9 @@ async function updateClubDocument(club) {
     slug: club.slug || item.slug || "",
     color: club.color,
     logo: club.logo,
+    sport: club.sport || "Fussball",
+    maxFieldPlayers: club.max_field_players || SPORT_DEFAULTS[club.sport || "Fussball"]?.fieldPlayers || 11,
+    maxBenchPlayers: club.max_bench_players ?? SPORT_DEFAULTS[club.sport || "Fussball"]?.benchPlayers ?? 9,
     league: club.league || "",
     federalState: club.federal_state || "",
     modules: normalizeModules(club.modules),
@@ -503,6 +524,9 @@ async function updateClubDocument(club) {
       slug: club.slug || "",
       color: club.color,
       logo: club.logo,
+      sport: club.sport || "Fussball",
+      maxFieldPlayers: club.max_field_players || SPORT_DEFAULTS[club.sport || "Fussball"]?.fieldPlayers || 11,
+      maxBenchPlayers: club.max_bench_players ?? SPORT_DEFAULTS[club.sport || "Fussball"]?.benchPlayers ?? 9,
       league: club.league || "",
       federalState: club.federal_state || "",
       modules: normalizeModules(club.modules),
@@ -566,8 +590,13 @@ async function setLicense(clubId, status) {
 }
 
 async function saveClubSettings(values) {
+  const sport = SPORTS.includes(values.sport) ? values.sport : "Fussball";
+  const defaults = SPORT_DEFAULTS[sport] || SPORT_DEFAULTS.Fussball;
   const payload = {
     name: values.name.trim(),
+    sport,
+    max_field_players: Math.max(1, Number(values.maxFieldPlayers || defaults.fieldPlayers)),
+    max_bench_players: Math.max(0, Number(values.maxBenchPlayers || defaults.benchPlayers)),
     league: values.league || "",
     federal_state: values.federalState || "",
     color: values.color || "#155e3b",
@@ -575,8 +604,8 @@ async function saveClubSettings(values) {
     updated_at: new Date().toISOString()
   };
   let result = await client.from("clubs").update(payload).eq("id", values.clubId).select().single();
-  if (result.error && ["league", "federal_state"].some((column) => (result.error.message || "").includes(column))) {
-    const { league, federal_state, ...legacyPayload } = payload;
+  if (result.error && ["sport", "max_field_players", "max_bench_players", "league", "federal_state"].some((column) => (result.error.message || "").includes(column))) {
+    const { sport, max_field_players, max_bench_players, league, federal_state, ...legacyPayload } = payload;
     result = await client.from("clubs").update(legacyPayload).eq("id", values.clubId).select().single();
   }
   const { data, error } = result;
@@ -661,6 +690,14 @@ document.addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveClubSettings(formValues(event.target));
   }
+});
+
+document.addEventListener("change", (event) => {
+  if (!event.target.matches("[data-backend-sport-select]")) return;
+  const form = event.target.closest("form");
+  const defaults = SPORT_DEFAULTS[event.target.value] || SPORT_DEFAULTS.Fussball;
+  if (form?.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = defaults.fieldPlayers;
+  if (form?.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = defaults.benchPlayers;
 });
 
 if (sessionStorage.getItem(BACKEND_SESSION_KEY)) {

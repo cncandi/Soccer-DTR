@@ -267,6 +267,16 @@ let awayColor = '#b71c1c', awayColorSecond = '#ffffff';
 
 let players = {};
 let fieldObjects = [];
+const SPORT_DEFAULTS = {
+  Fussball: {fieldPlayers: 11, benchPlayers: 9},
+  Basketball: {fieldPlayers: 5, benchPlayers: 7},
+  Eishockey: {fieldPlayers: 6, benchPlayers: 14},
+  Handball: {fieldPlayers: 7, benchPlayers: 9},
+  Volleyball: {fieldPlayers: 6, benchPlayers: 6},
+  'Andere Sportart': {fieldPlayers: 10, benchPlayers: 10}
+};
+let currentSport = 'Fussball';
+let boardLimits = {...SPORT_DEFAULTS.Fussball};
 let pid = 0;
 
 let showNames = false; // Standard: aus
@@ -512,6 +522,12 @@ scene.add(fill);
 // FIELD BUILDER — exakte FIFA-Maße
 // ============================================================
 function buildField() {
+  clearStaticField();
+  if(currentSport !== 'Fussball') {
+    buildSportField(currentSport);
+    if(mode === 'spiel') buildBall(); else removeGameBall();
+    return;
+  }
   const lineMat = new THREE.MeshLambertMaterial({color: 0xffffff});
   const LW = 0.25; // Linienbreite dicker für bessere Sichtbarkeit
 
@@ -674,7 +690,82 @@ function buildField() {
   buildGoal(0,  HFW, -1);
 
   // ---- BALL ----
-  buildBall();
+  if(mode === 'spiel') buildBall(); else removeGameBall();
+}
+
+function clearStaticField(){
+  const removeNames = new Set(['grass','line','goal']);
+  const remove = [];
+  scene.traverse(obj => {
+    if(obj?.name && removeNames.has(obj.name)) remove.push(obj);
+  });
+  remove.forEach(obj => {
+    if(obj.parent) obj.parent.remove(obj);
+  });
+  removeGameBall();
+}
+
+function buildSportField(sport){
+  const lineMat = new THREE.MeshLambertMaterial({color: 0xffffff});
+  const LW = 0.25;
+  const isOther = sport === 'Andere Sportart';
+  const baseA = isOther ? 0x6b7280 : ({Basketball:0xb8793a,Eishockey:0xe7f3ff,Handball:0x1f7a55,Volleyball:0xd9b867}[sport] || 0x6b7280);
+  const baseB = isOther ? 0x7b8491 : ({Basketball:0xc58a46,Eishockey:0xf7fbff,Handball:0x258d62,Volleyball:0xe2c37a}[sport] || 0x7b8491);
+  const N_STRIPES = sport === 'Eishockey' ? 5 : 8;
+  const SZ = FW / N_STRIPES;
+  for(let i=0;i<N_STRIPES;i++){
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(FH, SZ),
+      new THREE.MeshLambertMaterial({color: i % 2 ? baseB : baseA})
+    );
+    m.rotation.x = -Math.PI/2;
+    m.position.set(0,0,-HFW+SZ/2+i*SZ);
+    m.name='grass';
+    scene.add(m);
+  }
+  const hLine=(x,z,w)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,LW),lineMat);m.rotation.x=-Math.PI/2;m.position.set(x,.015,z);m.name='line';scene.add(m);};
+  const vLine=(x,z,h)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(LW,h),lineMat);m.rotation.x=-Math.PI/2;m.position.set(x,.015,z);m.name='line';scene.add(m);};
+  const spot=(x,z,r=.35)=>{const m=new THREE.Mesh(new THREE.CircleGeometry(r,24),lineMat);m.rotation.x=-Math.PI/2;m.position.set(x,.02,z);m.name='line';scene.add(m);};
+  const circle=(x,z,r,segs=80)=>{
+    for(let i=0;i<segs;i++){
+      const a0=i/segs*Math.PI*2, a1=(i+1)/segs*Math.PI*2;
+      const ax=x+Math.cos(a0)*r, az=z+Math.sin(a0)*r;
+      const bx=x+Math.cos(a1)*r, bz=z+Math.sin(a1)*r;
+      const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz);
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(len,LW),lineMat);
+      m.position.set((ax+bx)/2,.02,(az+bz)/2);
+      m.rotation.order='YXZ';m.rotation.y=Math.atan2(dx,dz)+Math.PI/2;m.rotation.x=-Math.PI/2;
+      m.name='line';scene.add(m);
+    }
+  };
+  vLine(-HFH,0,FW); vLine(HFH,0,FW); hLine(0,-HFW,FH); hLine(0,HFW,FH);
+  if(sport === 'Andere Sportart') return;
+  hLine(0,0,FH);
+  spot(0,0,.45);
+  if(sport === 'Basketball'){
+    circle(0,0,7);
+    hLine(0,-HFW+7,20); hLine(0,HFW-7,20);
+    vLine(-10,-HFW+3.5,7); vLine(10,-HFW+3.5,7);
+    vLine(-10,HFW-3.5,7); vLine(10,HFW-3.5,7);
+    circle(0,-HFW+7,4.2,48); circle(0,HFW-7,4.2,48);
+    hLine(0,-HFW+1.2,6); hLine(0,HFW-1.2,6);
+  } else if(sport === 'Eishockey'){
+    hLine(0,-HFW+16,FH); hLine(0,HFW-16,FH);
+    hLine(0,-HFW+34,FH); hLine(0,HFW-34,FH);
+    circle(0,0,7);
+    [[-18,-26],[18,-26],[-18,26],[18,26]].forEach(([x,z])=>circle(x,z,4.5,48));
+    hLine(0,-HFW+3,12); hLine(0,HFW-3,12);
+  } else if(sport === 'Handball'){
+    circle(0,0,6);
+    hLine(0,-HFW+9,28); hLine(0,HFW-9,28);
+    hLine(0,-HFW+6,20); hLine(0,HFW-6,20);
+    hLine(0,-HFW+1,7); hLine(0,HFW-1,7);
+    spot(0,-HFW+7,.35); spot(0,HFW-7,.35);
+  } else if(sport === 'Volleyball'){
+    hLine(0,0,FH);
+    hLine(0,-HFW/3,FH); hLine(0,HFW/3,FH);
+    vLine(-HFH/2,0,FW); vLine(HFH/2,0,FW);
+  }
 }
 
 function buildGoal(cx, zLine, dir){
@@ -1632,6 +1723,12 @@ function setKadrivoRoster(roster){
 function placePlayer(pid_str, x, z, attackDirection=null){
   const p=players[pid_str];
   if(!p) return;
+  const alreadyOnField = Boolean(p.onField);
+  const onFieldCount = Object.values(players).filter(player=>player.team===p.team&&player.onField).length;
+  if(!alreadyOnField && onFieldCount >= teamFieldLimit()){
+    alert(`Maximal ${teamFieldLimit()} Spieler auf dem Feld.`);
+    return;
+  }
   if(p.mesh){scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);}
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
   m.position.set(x,0,z);
@@ -1707,7 +1804,7 @@ function applyFormation(btn, name){
     Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
     if(team === 'away') opponentsVisible = true;
     const layout=F[team];
-    const ids=orderedPlayerIdsForLayout(team, layout);
+    const ids=orderedPlayerIdsForLayout(team, layout).slice(0, teamFieldLimit());
     const attackDirection = team === 'away' ? Math.PI : 0;
     let idx=0;
     layout.forEach(group=>{
@@ -1723,7 +1820,7 @@ function autoPlace(team){
   const layout=F[team];
   if(team === 'away') opponentsVisible = true;
   Object.values(players).filter(p=>p.team===team&&p.onField).forEach(p=>removeFromField(p.id));
-  const ids=orderedPlayerIdsForLayout(team, layout);
+  const ids=orderedPlayerIdsForLayout(team, layout).slice(0, teamFieldLimit());
   const attackDirection = team === 'away' ? Math.PI : 0;
   let idx=0;
   layout.forEach(group=>group.forEach(pos=>{if(idx<ids.length)placePlayer(ids[idx++],pos[0],pos[1],attackDirection);}));
@@ -1790,6 +1887,14 @@ function lineupListSort(a,b){
   return (roleOrder[positionRole(a.pos)] ?? 9) - (roleOrder[positionRole(b.pos)] ?? 9)
     || Number(a.num || 999) - Number(b.num || 999)
     || String(a.name || '').localeCompare(String(b.name || ''), 'de');
+}
+
+function teamFieldLimit(){
+  return Math.max(1, Number(boardLimits.fieldPlayers || SPORT_DEFAULTS[currentSport]?.fieldPlayers || 11));
+}
+
+function teamBenchLimit(){
+  return Math.max(0, Number(boardLimits.benchPlayers ?? SPORT_DEFAULTS[currentSport]?.benchPlayers ?? 9));
 }
 
 function assignPlayerToSlot(slots, player, preferRole=true){
@@ -1911,7 +2016,9 @@ function updateSidebar(){
   }
   const team=activeTab;
   const onField=Object.values(players).filter(p=>p.team===team&&p.onField).sort(lineupListSort);
-  const onBench=Object.values(players).filter(p=>p.team===team&&!p.onField).sort(lineupListSort);
+  const benchAll=Object.values(players).filter(p=>p.team===team&&!p.onField).sort(lineupListSort);
+  const onBench=benchAll.slice(0, teamBenchLimit());
+  const reserve=benchAll.slice(teamBenchLimit());
   const col=team==='home'?homeColor:awayColor;
   const sec=team==='home'?homeColorSecond:awayColorSecond;
   const displayName = p=>p.team==='away' ? 'Gegner' : escapeHtml(p.name);
@@ -1921,8 +2028,9 @@ function updateSidebar(){
     <span class="pname">${displayName(p)}</span>
     <span class="ppos">${p.pos}</span>
   </div>`;
-  el.innerHTML=`<div class="section-head">Feld (${onField.length})</div>`+onField.map(pItem).join('')+
-    `<div class="section-head">Bank / Reserve (${onBench.length})</div>`+onBench.map(pItem).join('');
+  el.innerHTML=`<div class="section-head">Feld (${onField.length}/${teamFieldLimit()})</div>`+onField.map(pItem).join('')+
+    `<div class="section-head">Bank (${onBench.length}/${teamBenchLimit()})</div>`+onBench.map(pItem).join('')+
+    (reserve.length ? `<div class="section-head">Reserve (${reserve.length})</div>`+reserve.map(pItem).join('') : '');
   el.querySelectorAll('.player-item.bench').forEach(item=>{
     item.addEventListener('dblclick',()=>placePlayerSmart(item.dataset.pid));
   });
@@ -2223,6 +2331,7 @@ function toggleMode(){
   tt.style.display='';
   document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
   document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+  buildField();
   scheduleKadrivoSave();
 }
 
@@ -2253,7 +2362,7 @@ function resetField(){
 }
 function updateStatus(){
   document.getElementById('s-players').textContent=
-    `Feld: ${Object.values(players).filter(p=>p.onField).length} Spieler`;
+    `Feld: ${Object.values(players).filter(p=>p.team==='home'&&p.onField).length}/${teamFieldLimit()} Spieler`;
 }
 
 // ============================================================
@@ -3231,6 +3340,8 @@ function exportKadrivoState(){
   return {
     version: 2,
     mode,
+    sport: currentSport,
+    limits: boardLimits,
     formation: currentFormation,
     colors: { homeColor, homeColorSecond, awayColor, awayColorSecond },
     players: Object.fromEntries(Object.entries(players).map(([id,p])=>[id,{
@@ -3245,6 +3356,19 @@ function exportKadrivoState(){
     currentScene,
     snapshot: getSnapshot()
   };
+}
+
+function applyBoardSettings(payload){
+  const saved = payload?.saved || {};
+  const nextSport = payload?.sport || saved.sport || currentSport || 'Fussball';
+  currentSport = SPORT_DEFAULTS[nextSport] ? nextSport : 'Andere Sportart';
+  const defaults = SPORT_DEFAULTS[currentSport] || SPORT_DEFAULTS['Andere Sportart'];
+  const limits = payload?.limits || saved.limits || {};
+  boardLimits = {
+    fieldPlayers: Math.max(1, Number(limits.fieldPlayers || defaults.fieldPlayers)),
+    benchPlayers: Math.max(0, Number(limits.benchPlayers ?? defaults.benchPlayers))
+  };
+  buildField();
 }
 
 function importKadrivoState(data, roster){
@@ -3270,6 +3394,7 @@ function importKadrivoState(data, roster){
     document.getElementById('tab-tools').style.display='';
     document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
     document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+    buildField();
     const savedPlayers = data?.players ? Object.values(data.players) : [];
     const fallbackAttackDirection = savedPlayers.some(p=>p.onField)
       ? (savedPlayers.filter(p=>p.onField).reduce((sum,p)=>sum+Number(p.z || 0),0) >= 0 ? Math.PI : 0)
@@ -3339,6 +3464,7 @@ window.addEventListener('message', (event)=>{
   const link=document.getElementById('kadrivo-link');
   if(link) link.textContent = data.event ? `${data.event.type}: ${data.event.title}` : 'Kadrivo';
   if(data.mode) mode = data.mode;
+  applyBoardSettings(data);
   importKadrivoState(data.saved, data.players || []);
 });
 
@@ -3353,6 +3479,7 @@ function bootKadrivoStandalone(){
       const link=document.getElementById('kadrivo-link');
       if(link) link.textContent = payload.event ? `${payload.event.type}: ${payload.event.title}` : 'Kadrivo';
       if(payload.mode) mode = payload.mode;
+      applyBoardSettings(payload);
       importKadrivoState(payload.saved, payload.players || []);
     }
   } catch(err){

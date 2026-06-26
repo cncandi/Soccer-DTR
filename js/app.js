@@ -46,6 +46,14 @@
     const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
     const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
+    const SPORT_DEFAULTS = {
+      Fussball: { fieldPlayers: 11, benchPlayers: 9 },
+      Basketball: { fieldPlayers: 5, benchPlayers: 7 },
+      Eishockey: { fieldPlayers: 6, benchPlayers: 14 },
+      Handball: { fieldPlayers: 7, benchPlayers: 9 },
+      Volleyball: { fieldPlayers: 6, benchPlayers: 6 },
+      "Andere Sportart": { fieldPlayers: 10, benchPlayers: 10 }
+    };
     const CLUB_MODULES = [
       ["dashboard", "Uebersicht", "free"],
       ["players", "Spieler", "free"],
@@ -303,6 +311,8 @@
       const activatedAt = validIsoDateTime(club.licenseActivatedAt || club.license_activated_at) || new Date().toISOString();
       const expiresAt = validIsoDateTime(club.licenseExpiresAt || club.license_expires_at) || defaultLicenseExpiresAt(status, activatedAt);
       const name = club.name || "Mein Verein";
+      const sport = SPORTS.includes(club.sport) ? club.sport : "Fussball";
+      const sportDefaults = SPORT_DEFAULTS[sport] || SPORT_DEFAULTS["Andere Sportart"];
       const rawModules = club.modules && typeof club.modules === "object" ? club.modules : {};
       return {
         id,
@@ -310,7 +320,9 @@
         slug: club.slug || `${slugifyClubName(name) || "verein"}-${id.slice(0, 8)}`,
         color: club.color || "#155e3b",
         logo: club.logo || "",
-        sport: club.sport || "Fussball",
+        sport,
+        maxFieldPlayers: Math.max(1, Number(club.maxFieldPlayers ?? club.max_field_players ?? sportDefaults.fieldPlayers)),
+        maxBenchPlayers: Math.max(0, Number(club.maxBenchPlayers ?? club.max_bench_players ?? sportDefaults.benchPlayers)),
         league: club.league || club.liga || "",
         federalState: club.federalState || club.federal_state || club.bundesland || "",
         modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, rawModules[key] !== false])),
@@ -1254,6 +1266,8 @@
         color: row.color,
         logo: row.logo,
         sport: row.sport,
+        maxFieldPlayers: row.max_field_players,
+        maxBenchPlayers: row.max_bench_players,
         league: row.league,
         federalState: row.federal_state,
         modules: row.modules,
@@ -1269,11 +1283,11 @@
     async function loadRemoteClubsFromTable(client) {
       const withLicense = await client
         .from("clubs")
-        .select("id,name,slug,color,logo,sport,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+        .select("id,name,slug,color,logo,sport,max_field_players,max_bench_players,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
       if (!withLicense.error) return (withLicense.data || []).map(clubFromRow);
 
       const message = withLicense.error.message || "";
-      const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "league", "federal_state", "modules"]
+      const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "max_field_players", "max_bench_players", "league", "federal_state", "modules"]
         .some((column) => message.includes(column));
       if (!missingOptionalClubColumn) {
         if (normalizedSchemaUnavailable(withLicense.error)) return [];
@@ -1591,6 +1605,8 @@
         color: normalizeHexColor(club.color || "#155e3b"),
         logo: club.logo || "",
         sport: club.sport || "Fussball",
+        max_field_players: club.maxFieldPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).fieldPlayers,
+        max_bench_players: club.maxBenchPlayers ?? (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).benchPlayers,
         league: club.league || "",
         federal_state: club.federalState || "",
         modules: club.modules || Object.fromEntries(CLUB_MODULES.map(([key]) => [key, true])),
@@ -1602,8 +1618,8 @@
         updated_at: club.updatedAt || now
       }));
       let clubUpsert = await client.from("clubs").upsert(clubRows);
-      if (clubUpsert.error && ["slug", "sport", "league", "federal_state", "modules"].some((column) => (clubUpsert.error.message || "").includes(column))) {
-        const legacyClubRows = clubRows.map(({ slug, sport, league, federal_state, modules, ...row }) => row);
+      if (clubUpsert.error && ["slug", "sport", "max_field_players", "max_bench_players", "league", "federal_state", "modules"].some((column) => (clubUpsert.error.message || "").includes(column))) {
+        const legacyClubRows = clubRows.map(({ slug, sport, max_field_players, max_bench_players, league, federal_state, modules, ...row }) => row);
         clubUpsert = await client.from("clubs").upsert(legacyClubRows);
       }
       if (clubUpsert.error) throw clubUpsert.error;
@@ -1924,6 +1940,8 @@
         color: "#155e3b",
         logo: "",
         sport: values.sport || "Fussball",
+        maxFieldPlayers: (SPORT_DEFAULTS[values.sport] || SPORT_DEFAULTS.Fussball).fieldPlayers,
+        maxBenchPlayers: (SPORT_DEFAULTS[values.sport] || SPORT_DEFAULTS.Fussball).benchPlayers,
         league: "",
         federalState: "",
         modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, true])),
@@ -2893,6 +2911,8 @@
       if (form.elements.league) form.elements.league.innerHTML = optionListWithEmpty(CLUB_LEAGUES, club.league || "");
       if (form.elements.federalState) form.elements.federalState.innerHTML = optionListWithEmpty(FEDERAL_STATES, club.federalState || "");
       form.elements.name.value = club.name;
+      if (form.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = club.maxFieldPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS["Andere Sportart"]).fieldPlayers;
+      if (form.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = club.maxBenchPlayers ?? (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS["Andere Sportart"]).benchPlayers;
       form.elements.color.value = normalizeHexColor(club.color || "#155e3b");
       form.elements.logoUrl.value = club.logo && !club.logo.startsWith("data:") ? club.logo : "";
       if (form.elements.licenseKey) form.elements.licenseKey.value = club.licenseKey || "";
@@ -2909,6 +2929,14 @@
           </label>
         `).join("");
       }
+    }
+
+    function applySportDefaultsToClubForm() {
+      const form = $("#clubDesignForm");
+      if (!form) return;
+      const defaults = SPORT_DEFAULTS[form.elements.sport?.value] || SPORT_DEFAULTS["Andere Sportart"];
+      if (form.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = defaults.fieldPlayers;
+      if (form.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = defaults.benchPlayers;
     }
 
     function renderPlayerCreateFormOptions() {
@@ -5438,6 +5466,7 @@
 
     function tactic3dPlayersForBoard(board) {
       const fameRank = new Map(fameRows().map((row, index) => [playerNameKey(row.player.name), index + 1]));
+      const maxFieldPlayers = currentClub().maxFieldPlayers || (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).fieldPlayers;
       return tacticPlayersForBoard(board).map((player, index) => ({
         id: tacticPlayerId(player, index),
         team: "home",
@@ -5446,7 +5475,7 @@
         pos: player.position || "",
         starterFactor: normalizeStarterFactor(player.starterFactor),
         fameRank: fameRank.get(playerNameKey(player.name)) || 9999,
-        onField: index < 11,
+        onField: index < maxFieldPlayers,
         vestColor: null
       }));
     }
@@ -5467,6 +5496,11 @@
           time: eventItem.time,
           location: eventItem.location || eventItem.address || ""
         } : null,
+        sport: currentClub().sport || "Fussball",
+        limits: {
+          fieldPlayers: currentClub().maxFieldPlayers || (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).fieldPlayers,
+          benchPlayers: currentClub().maxBenchPlayers ?? (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).benchPlayers
+        },
         players,
         saved: board.threeData || null,
         teamColor: board.teamColor || currentClub().color || "#155e3b"
@@ -6412,6 +6446,7 @@
         ? `${paypalSettings.paypal_mode === "live" ? "Live" : "Sandbox"}-Test bereit: Eine offene Strafe kann jetzt mit PayPal getestet werden.`
         : "PayPal ist noch nicht vollstaendig konfiguriert.";
     });
+    $("#clubSportSelect")?.addEventListener("change", applySportDefaultsToClubForm);
 
     $("#clubDesignForm").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -6420,6 +6455,8 @@
       const club = currentClub();
       club.name = values.name.trim() || club.name;
       club.sport = values.sport || "Fussball";
+      club.maxFieldPlayers = Math.max(1, Number(values.maxFieldPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).fieldPlayers));
+      club.maxBenchPlayers = Math.max(0, Number(values.maxBenchPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).benchPlayers));
       club.league = values.league || "";
       club.federalState = values.federalState || "";
       if (isSuperadmin()) {

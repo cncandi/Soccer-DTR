@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v143</span></h1>
+          <h1>Kadrivo <span class="app-version">v144</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v143</span></h1>
+          <h1>Kadrivo <span class="app-version">v144</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -520,6 +520,8 @@ Nein</textarea></div>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
               <div class="field"><label>Sportart</label><select name="sport" id="clubSportSelect"></select></div>
+              <div class="field"><label>Max. Spieler auf dem Feld</label><input name="maxFieldPlayers" type="number" min="1" max="30" inputmode="numeric"></div>
+              <div class="field"><label>Max. Spieler auf der Bank</label><input name="maxBenchPlayers" type="number" min="0" max="50" inputmode="numeric"></div>
               <div class="field superadmin-only"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
               <div class="field superadmin-only"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
               <div class="field superadmin-only"><label>Aktiviert am</label><input name="licenseActivatedAt" readonly></div>

@@ -28,6 +28,8 @@ create table if not exists public.clubs (
   color text not null default '#155e3b',
   logo text not null default '',
   sport text not null default 'Fussball',
+  max_field_players integer not null default 11,
+  max_bench_players integer not null default 9,
   league text not null default '',
   federal_state text not null default '',
   modules jsonb not null default '{"dashboard": true, "players": true, "events": true, "tactics": true, "messages": true, "polls": true, "cash": true, "fame": true, "settings": true, "scouting": true}'::jsonb,
@@ -45,6 +47,8 @@ alter table public.clubs add column if not exists license_expires_at timestamptz
 alter table public.clubs add column if not exists license_auto_renew boolean not null default false;
 alter table public.clubs add column if not exists slug text unique;
 alter table public.clubs add column if not exists sport text not null default 'Fussball';
+alter table public.clubs add column if not exists max_field_players integer not null default 11;
+alter table public.clubs add column if not exists max_bench_players integer not null default 9;
 alter table public.clubs add column if not exists league text not null default '';
 alter table public.clubs add column if not exists federal_state text not null default '';
 alter table public.clubs add column if not exists modules jsonb not null default '{"dashboard": true, "players": true, "events": true, "tactics": true, "messages": true, "polls": true, "cash": true, "fame": true, "settings": true, "scouting": true}'::jsonb;
