@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=135">
+  <link rel="stylesheet" href="css/app.css?v=136">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v135</span></h1>
+          <h1>Kadrivo <span class="app-version">v136</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v135</span></h1>
+          <h1>Kadrivo <span class="app-version">v136</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -95,6 +95,7 @@
         <button data-view="players" data-min-role="admin">Spieler</button>
         <button data-view="events" data-min-role="player">Training & Spiele<span class="nav-badge" data-nav-badge="events" hidden></span></button>
         <button data-view="tactics" data-min-role="admin">Taktikboard</button>
+        <button data-view="scouting" data-min-role="player" data-staff-view="true">Scouting</button>
         <button data-view="messages" data-min-role="player">Mitteilungen<span class="nav-badge" data-nav-badge="messages" hidden></span></button>
         <button data-view="polls" data-min-role="player">Abstimmungen</button>
         <button data-view="cash" data-min-role="player">Kasse</button>
@@ -235,11 +236,73 @@
         </section>
       </section>
 
+      <section class="view" id="scouting">
+        <div class="grid two">
+          <section class="panel scouting-form-panel">
+            <div class="item-head">
+              <h3>Potentiellen Neuzugang erfassen</h3>
+              <button class="mini" id="newScoutingBtn" type="button">Neu</button>
+            </div>
+            <form id="scoutingForm" class="form-grid">
+              <input type="hidden" name="id">
+              <div class="field"><label>Vorname</label><input name="firstName"></div>
+              <div class="field"><label>Name</label><input name="lastName" required></div>
+              <div class="field"><label>Jahrgang</label><input name="birthYear" type="number" min="1990" max="2040" inputmode="numeric"></div>
+              <div class="field"><label>Nationalitaet</label><select name="nationality"></select></div>
+              <div class="field"><label>Derzeitiger Verein</label><input name="currentClub"></div>
+              <div class="field"><label>Telefon</label><input name="phone" inputmode="tel"></div>
+              <div class="field"><label>E-Mail</label><input name="email" type="email"></div>
+              <div class="field"><label>Kosten voraussichtlich EUR</label><input name="expectedCost" type="number" min="0" step="50"></div>
+              <div class="field full"><label>Staerken</label><textarea name="strengths"></textarea></div>
+              <div class="field full"><label>Schwaechen</label><textarea name="weaknesses"></textarea></div>
+              <div class="field full"><label>Bemerkung</label><textarea name="remark"></textarea></div>
+              <div class="field full"><button class="btn-primary" type="submit">Neuzugang speichern</button></div>
+            </form>
+          </section>
+          <section class="panel">
+            <h3>Potentielle Neuzugaenge</h3>
+            <div class="list" id="scoutingProspectList"></div>
+          </section>
+        </div>
+
+        <section class="panel" id="scoutingReportPanel" hidden>
+          <div class="item-head">
+            <div>
+              <h3 id="scoutingReportTitle">Scoutingbericht</h3>
+              <p class="meta">Jeden Punkt von 1 bis 5 bewerten und konkrete Spielsituationen mit Minute notieren.</p>
+            </div>
+          </div>
+          <form id="scoutingReportForm" class="form-grid">
+            <input type="hidden" name="prospectId">
+            <input type="hidden" name="reportId">
+            <div class="field"><label>Datum</label><input name="date" type="date" required></div>
+            <div class="field"><label>Gegner</label><input name="opponent"></div>
+            <div class="field"><label>Sein Verein</label><input name="observedClub"></div>
+            <div class="field"><label>Ergebnis</label><input name="result" placeholder="z.B. 2:1"></div>
+            <div class="field"><label>Spielzeit Minuten</label><input name="minutesPlayed" type="number" min="0" max="130"></div>
+            <div class="field full"><label>Gesamteindruck</label><textarea name="summary"></textarea></div>
+            <div class="field full scouting-score-grid" id="scoutingScoreGrid"></div>
+            <div class="field full row-actions">
+              <button class="btn-primary" type="submit">Scoutingbericht speichern</button>
+              <button class="btn-secondary" id="clearScoutingReportBtn" type="button">Bericht leeren</button>
+            </div>
+          </form>
+          <div class="list scouting-report-list" id="scoutingReportList"></div>
+        </section>
+
+        <section class="panel">
+          <h3>Scouting-Tabelle</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="scoutingTable"></table>
+          </div>
+        </section>
+      </section>
+
       <section class="view" id="tactics">
         <div class="tactic-shell">
           <section class="panel tactic-sidebar">
             <div class="item-head">
-              <h3>Gespeicherte Einheiten</h3>
+              <h3>Gespeicherte Taktiken</h3>
               <div class="row-actions">
                 <button class="mini" id="newTacticBoardBtn" type="button">Neu</button>
                 <button class="mini no" id="deleteTacticBoardBtn" type="button">Loeschen</button>
@@ -247,12 +310,21 @@
             </div>
             <form id="tacticBoardForm" class="form-grid">
               <div class="field full">
-                <label for="tacticBoardSelect">Gespeicherte Einheiten</label>
+                <label for="tacticBoardName">Name der Taktik</label>
+                <input id="tacticBoardName" name="tacticBoardName" placeholder="z.B. Pressing links, Ecke Variante 1">
+              </div>
+              <div class="field full">
+                <label for="tacticBoardSelect">Gespeicherte Taktiken</label>
                 <select id="tacticBoardSelect"></select>
               </div>
               <div class="field full">
-                <label for="tacticEventSelect">Spiel / Training zuweisen</label>
+                <label for="tacticEventSelect">Spiel / Training verknuepfen</label>
                 <select id="tacticEventSelect"></select>
+                <p class="meta">Die ausgewaehlte Einheit bestimmt die geladenen Spieler. Eine Taktik kann mit mehreren Einheiten verknuepft sein.</p>
+              </div>
+              <div class="field full">
+                <label>Verknuepfte Einheiten</label>
+                <div class="chip-list" id="tacticLinkedEvents"></div>
               </div>
               <div class="field full">
                 <button class="btn-primary" id="saveTacticBoardBtn" type="button">Taktik speichern</button>
@@ -281,7 +353,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=135" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=136" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -589,7 +661,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=135" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=136" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -681,6 +753,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=135" defer></script>
+  <script src="js/app.js?v=136" defer></script>
 </body>
 </html>

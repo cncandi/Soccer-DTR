@@ -114,12 +114,27 @@
       tactics: "Taktik",
       form: "Formbarometer"
     };
+    const SCOUTING_CATEGORIES = [
+      ["Technik", ["Ballannahme und erster Kontakt", "Passgenauigkeit und Passschaerfe", "Beidfussigkeit", "Dribbling und Ballkontrolle unter Druck", "Flanken, Abschluesse und Kopfballtechnik", "Qualitaet bei Standardsituationen"]],
+      ["Taktik", ["Positionsspiel mit und ohne Ball", "Freilaufverhalten und Anbieten", "Spieluebersicht und Entscheidungsfindung", "Erkennen und Besetzen freier Raeume", "Umschaltverhalten nach Ballgewinn und Ballverlust", "Einhalten taktischer Vorgaben", "Verhalten im Pressing und Gegenpressing"]],
+      ["Athletik", ["Antritt und Endgeschwindigkeit", "Beweglichkeit und Koordination", "Zweikampfstaerke", "Ausdauer und Laufbereitschaft", "Koerperliche Robustheit", "Leistungsfaehigkeit ueber die gesamte Spielzeit"]],
+      ["Defensive", ["Stellungsspiel", "Zweikampfverhalten", "Abstand zum Gegenspieler", "Antizipation von Paessen", "Rueckwaertsbewegung", "Absicherung der Mitspieler", "Verhalten bei Flanken und Standards"]],
+      ["Offensive", ["Kreativitaet und Mut", "Tiefenlaeufe", "Verhalten im Strafraum", "Abschlussqualitaet", "Vorbereitung von Torchancen", "Spieltempo und Direktspiel", "Verhalten in Ueberzahl- und Kontersituationen"]],
+      ["Mentalitaet und Persoenlichkeit", ["Einsatzbereitschaft", "Koerpersprache", "Umgang mit Fehlern", "Verhalten bei Rueckstand", "Konzentration und Disziplin", "Kommunikation mit Mitspielern", "Teamfaehigkeit", "Reaktion auf Trainerentscheidungen und Auswechslungen"]],
+      ["Besondere Beobachtung", ["Leistung gegen starke und schwache Gegner", "Verhalten unter hohem Gegnerdruck", "Konstanz waehrend des Spiels", "Einfluss auf das Spiel", "Entwicklungspotenzial", "Passung zur vorgesehenen Position und Spielidee"]]
+    ];
+    const SCOUTING_SCORE_FIELDS = SCOUTING_CATEGORIES.flatMap(([category, items]) => items.map((label) => ({
+      category,
+      label,
+      key: `${category}-${label}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    })));
     const DEFAULT_SUPABASE_URL = "https://pihgvwnoznqhautudhlx.supabase.co";
     const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaGd2d25vem5xaGF1dHVkaGx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDA0NjMsImV4cCI6MjA5NTIxNjQ2M30.7BSIzhcHNibC4Tkz0Id7AnNGxFJTtx9cxF5UFX6QiGA";
     const defaultState = {
       players: [],
       events: [],
       tacticBoards: [],
+      scoutingProspects: [],
       cashFines: [],
       fineCatalog: [],
       polls: [],
@@ -140,6 +155,7 @@
     let expandedEventId = "";
     let expandedAdminEventId = "";
     let selectedFamePlayer = "";
+    let selectedScoutingProspectId = "";
     let selectedTacticBoardId = "";
     let selectedTacticElementId = "";
     let tacticPointer = null;
@@ -166,6 +182,7 @@
       polls: ["Abstimmungen", "Schnelle Entscheidungen fuer Mannschaft, Mannschaftsrat und Kasse."],
       messages: ["Mitteilungen", "Gruppen-Kommunikation im Stil eines Team-Chats."],
       tactics: ["Taktikboard", "Spielsituationen fuer Training und Spiel zeichnen."],
+      scouting: ["Scouting", "Potentielle Neuzugaenge strukturiert beobachten und bewerten."],
       cash: ["Mannschaftskasse", "Strafen, offene Betraege und Kassenstand."],
       fame: ["Hall of Fame", "Punkte, Rangliste und besondere Leistungen."],
       settings: ["Einstellungen", "Vereinsdesign und Datenbank-Einstellungen verwalten."]
@@ -651,11 +668,59 @@
       players: mergePlayersByName(loadedState.players || []),
       events: (loadedState.events || []).map(normalizeEvent),
       tacticBoards: (loadedState.tacticBoards || []).map(normalizeTacticBoard),
+      scoutingProspects: (loadedState.scoutingProspects || []).map(normalizeScoutingProspect),
       cashFines: (loadedState.cashFines || []).map(normalizeCashFine),
         fineCatalog: ensureFineCatalog(loadedState.fineCatalog),
         polls: loadedState.polls || [],
         messages: loadedState.messages || [],
         hallOfFame: normalizeHallOfFame(loadedState.hallOfFame)
+      };
+    }
+
+    function normalizeScoutingScores(scores = {}) {
+      return SCOUTING_SCORE_FIELDS.reduce((acc, field) => {
+        const value = Number(scores[field.key] || 0);
+        acc[field.key] = value >= 1 && value <= 5 ? value : "";
+        return acc;
+      }, {});
+    }
+
+    function normalizeScoutingReport(report = {}) {
+      return {
+        id: report.id || crypto.randomUUID(),
+        date: report.date || isoDate(new Date()),
+        opponent: report.opponent || "",
+        observedClub: report.observedClub || report.club || "",
+        result: report.result || "",
+        minutesPlayed: report.minutesPlayed || "",
+        summary: report.summary || "",
+        scores: normalizeScoutingScores(report.scores || {}),
+        notes: SCOUTING_SCORE_FIELDS.reduce((acc, field) => {
+          acc[field.key] = report.notes?.[field.key] || "";
+          return acc;
+        }, {}),
+        createdAt: report.createdAt || new Date().toISOString(),
+        updatedAt: report.updatedAt || new Date().toISOString()
+      };
+    }
+
+    function normalizeScoutingProspect(prospect = {}) {
+      return {
+        id: prospect.id || crypto.randomUUID(),
+        firstName: prospect.firstName || "",
+        lastName: prospect.lastName || prospect.name || "",
+        birthYear: prospect.birthYear || "",
+        strengths: prospect.strengths || "",
+        weaknesses: prospect.weaknesses || "",
+        currentClub: prospect.currentClub || "",
+        remark: prospect.remark || "",
+        nationality: prospect.nationality || "",
+        phone: prospect.phone || "",
+        email: prospect.email || "",
+        expectedCost: prospect.expectedCost || "",
+        reports: (prospect.reports || []).map(normalizeScoutingReport),
+        createdAt: prospect.createdAt || new Date().toISOString(),
+        updatedAt: prospect.updatedAt || new Date().toISOString()
       };
     }
 
@@ -761,10 +826,17 @@
     }
 
     function normalizeTacticBoard(board = {}) {
+      const eventIds = Array.from(new Set([
+        ...(Array.isArray(board.eventIds) ? board.eventIds : []),
+        ...(Array.isArray(board.event_ids) ? board.event_ids : []),
+        board.eventId || "",
+        board.event_id || ""
+      ].filter(Boolean)));
       return {
         id: board.id || crypto.randomUUID(),
         title: board.title || "Neue Taktik",
-        eventId: board.eventId || "",
+        eventId: board.eventId || board.event_id || eventIds[0] || "",
+        eventIds,
         teamColor: board.teamColor || currentClub()?.color || "#155e3b",
         notesHtml: sanitizeRichText(board.notesHtml || board.notes || ""),
         elements: Array.isArray(board.elements) ? board.elements : [],
@@ -941,6 +1013,11 @@
     }
 
     function canManageEventRoster() {
+      const player = playerByName(activeUser());
+      return canManage() || Boolean(player && hasMemberRole(player, "Trainer"));
+    }
+
+    function canManageScouting() {
       const player = playerByName(activeUser());
       return canManage() || Boolean(player && hasMemberRole(player, "Trainer"));
     }
@@ -1317,9 +1394,18 @@
       } catch (tacticError) {
         if (!normalizedSchemaUnavailable(tacticError)) throw tacticError;
       }
+      let scoutingRows = [];
+      try {
+        const scoutingResult = await client.from("scouting_prospects").select("*").eq("club_id", currentClubId);
+        if (scoutingResult.error) throw scoutingResult.error;
+        scoutingRows = scoutingResult.data || [];
+      } catch (scoutingError) {
+        if (!normalizedSchemaUnavailable(scoutingError)) throw scoutingError;
+      }
       const hasRows = Boolean(clubResult.data)
         || results.some((result) => (result.data || []).length)
-        || tacticRows.length;
+        || tacticRows.length
+        || scoutingRows.length;
       if (!hasRows) return null;
 
       const players = playerRows.map((row) => normalizePlayer({
@@ -1387,6 +1473,12 @@
           title: row.title,
           eventId: row.event_id || "",
           teamColor: row.team_color || "",
+          createdAt: row.created_at || "",
+          updatedAt: row.updated_at || "",
+          ...rowData(row)
+        })),
+        scoutingProspects: scoutingRows.map((row) => normalizeScoutingProspect({
+          id: row.id,
           createdAt: row.created_at || "",
           updatedAt: row.updated_at || "",
           ...rowData(row)
@@ -1474,6 +1566,10 @@
       state.players.forEach(ensureEntityId);
       state.events.forEach(ensureEntityId);
       (state.tacticBoards || []).forEach(ensureEntityId);
+      (state.scoutingProspects || []).forEach((prospect) => {
+        ensureEntityId(prospect);
+        (prospect.reports || []).forEach(ensureEntityId);
+      });
       (state.cashFines || []).forEach(ensureEntityId);
       (state.fineCatalog || []).forEach(ensureEntityId);
       (state.polls || []).forEach(ensureEntityId);
@@ -1579,6 +1675,23 @@
         await deleteMissingRows(client, "tactic_boards", tacticRows.map((row) => row.id));
       } catch (tacticError) {
         if (!normalizedSchemaUnavailable(tacticError)) throw tacticError;
+      }
+
+      const scoutingRows = (state.scoutingProspects || []).map((prospect) => ({
+        id: prospect.id,
+        club_id: currentClubId,
+        title: `${prospect.firstName || ""} ${prospect.lastName || ""}`.trim() || "Neuzugang",
+        data: prospect,
+        updated_at: now
+      }));
+      try {
+        if (scoutingRows.length) {
+          const result = await client.from("scouting_prospects").upsert(scoutingRows);
+          if (result.error) throw result.error;
+        }
+        await deleteMissingRows(client, "scouting_prospects", scoutingRows.map((row) => row.id));
+      } catch (scoutingError) {
+        if (!normalizedSchemaUnavailable(scoutingError)) throw scoutingError;
       }
 
       const cashRows = (state.cashFines || []).map((fine) => ({
@@ -2444,6 +2557,7 @@
       renderEvents();
       renderAllEventsList();
       renderTacticBoard();
+      renderScouting();
       renderFines();
       renderCash();
       renderFame();
@@ -2462,6 +2576,9 @@
       $$(".event-roster-manage").forEach((el) => {
         el.style.display = canManageEventRoster() ? "" : "none";
       });
+      $$("[data-staff-view]").forEach((el) => {
+        el.hidden = !canManageScouting();
+      });
       $$(".superadmin-only").forEach((el) => {
         el.style.display = isSuperadmin() ? "" : "none";
       });
@@ -2475,7 +2592,7 @@
         el.style.display = canJoinHallOfFame() ? "" : "none";
       });
       $$(".nav button").forEach((button) => {
-        button.hidden = !canAccess(button.dataset.minRole) || !licenseFeatureAllowed(button.dataset.view);
+        button.hidden = !canAccess(button.dataset.minRole) || !licenseFeatureAllowed(button.dataset.view) || (button.dataset.staffView && !canManageScouting());
       });
       $("#exportBtn").hidden = !canManage() || licenseLimitsFeatures();
 
@@ -2588,6 +2705,170 @@
       if (!form?.elements.nationality) return;
       const selected = form.elements.nationality.value || "";
       form.elements.nationality.innerHTML = nationalityOptions(selected);
+    }
+
+    function prospectFullName(prospect) {
+      return `${prospect.firstName || ""} ${prospect.lastName || ""}`.trim() || "Neuzugang";
+    }
+
+    function scoutingAverage(report) {
+      const values = Object.values(report?.scores || {}).map(Number).filter(Boolean);
+      if (!values.length) return "";
+      return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+    }
+
+    function scoutingProspectAverage(prospect) {
+      const values = (prospect.reports || []).map(scoutingAverage).map(Number).filter(Boolean);
+      if (!values.length) return "";
+      return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+    }
+
+    function renderScoutingScoreGrid(report = normalizeScoutingReport({})) {
+      const target = $("#scoutingScoreGrid");
+      if (!target) return;
+      target.innerHTML = SCOUTING_CATEGORIES.map(([category, items]) => `
+        <details class="form-details scouting-category" open>
+          <summary>${escapeHtml(category)}</summary>
+          <div class="scouting-score-table">
+            ${items.map((label) => {
+              const field = SCOUTING_SCORE_FIELDS.find((item) => item.category === category && item.label === label);
+              const score = report.scores?.[field.key] || "";
+              const note = report.notes?.[field.key] || "";
+              return `<div class="scouting-score-row">
+                <label>${escapeHtml(label)}</label>
+                <select name="score-${escapeAttr(field.key)}">
+                  <option value="">-</option>
+                  ${[1,2,3,4,5].map((value) => `<option value="${value}" ${Number(score) === value ? "selected" : ""}>${value}</option>`).join("")}
+                </select>
+                <input name="note-${escapeAttr(field.key)}" value="${escapeAttr(note)}" placeholder="Minute / konkrete Situation">
+              </div>`;
+            }).join("")}
+          </div>
+        </details>
+      `).join("");
+    }
+
+    function resetScoutingReportForm() {
+      const form = $("#scoutingReportForm");
+      if (!form) return;
+      form.reset();
+      form.elements.reportId.value = "";
+      form.elements.prospectId.value = selectedScoutingProspectId || "";
+      form.elements.date.value = isoDate(new Date());
+      renderScoutingScoreGrid();
+    }
+
+    function loadScoutingReport(prospectId, reportId) {
+      const prospect = state.scoutingProspects.find((item) => item.id === prospectId);
+      const report = prospect?.reports?.find((item) => item.id === reportId);
+      const form = $("#scoutingReportForm");
+      if (!prospect || !report || !form) return;
+      selectedScoutingProspectId = prospect.id;
+      form.elements.prospectId.value = prospect.id;
+      form.elements.reportId.value = report.id;
+      form.elements.date.value = report.date || "";
+      form.elements.opponent.value = report.opponent || "";
+      form.elements.observedClub.value = report.observedClub || "";
+      form.elements.result.value = report.result || "";
+      form.elements.minutesPlayed.value = report.minutesPlayed || "";
+      form.elements.summary.value = report.summary || "";
+      renderScoutingScoreGrid(report);
+      $("#scoutingReportPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function resetScoutingForm() {
+      const form = $("#scoutingForm");
+      if (!form) return;
+      form.reset();
+      form.elements.id.value = "";
+      if (form.elements.nationality) form.elements.nationality.innerHTML = nationalityOptions("");
+    }
+
+    function loadScoutingProspect(prospectId) {
+      const prospect = state.scoutingProspects.find((item) => item.id === prospectId);
+      const form = $("#scoutingForm");
+      if (!prospect || !form) return;
+      selectedScoutingProspectId = prospect.id;
+      form.elements.id.value = prospect.id;
+      form.elements.firstName.value = prospect.firstName || "";
+      form.elements.lastName.value = prospect.lastName || "";
+      form.elements.birthYear.value = prospect.birthYear || "";
+      form.elements.nationality.innerHTML = nationalityOptions(prospect.nationality || "");
+      form.elements.currentClub.value = prospect.currentClub || "";
+      form.elements.phone.value = prospect.phone || "";
+      form.elements.email.value = prospect.email || "";
+      form.elements.expectedCost.value = prospect.expectedCost || "";
+      form.elements.strengths.value = prospect.strengths || "";
+      form.elements.weaknesses.value = prospect.weaknesses || "";
+      form.elements.remark.value = prospect.remark || "";
+      resetScoutingReportForm();
+      renderScouting();
+    }
+
+    function renderScouting() {
+      const form = $("#scoutingForm");
+      if (!form) return;
+      if (form.elements.nationality && !form.elements.nationality.options.length) {
+        form.elements.nationality.innerHTML = nationalityOptions("");
+      }
+      if (!selectedScoutingProspectId || !state.scoutingProspects.some((item) => item.id === selectedScoutingProspectId)) {
+        selectedScoutingProspectId = state.scoutingProspects[0]?.id || "";
+      }
+      const prospects = state.scoutingProspects.slice().sort((a, b) => prospectFullName(a).localeCompare(prospectFullName(b), "de"));
+      $("#scoutingProspectList").innerHTML = prospects.map((prospect) => {
+        const selected = prospect.id === selectedScoutingProspectId ? " selected" : "";
+        return `<article class="list-item scouting-card${selected}">
+          <div>
+            <strong>${escapeHtml(prospectFullName(prospect))}</strong>
+            <p>${escapeHtml([prospect.birthYear, prospect.currentClub, nationalityLabel(prospect.nationality)].filter(Boolean).join(" · ") || "Keine Stammdaten")}</p>
+            <div class="meta">
+              <span>${prospect.reports.length} Scoutings</span>
+              ${scoutingProspectAverage(prospect) ? `<span>Ø ${escapeHtml(scoutingProspectAverage(prospect))}</span>` : ""}
+              ${prospect.expectedCost ? `<span>Kosten ca. ${escapeHtml(formatCurrency(prospect.expectedCost))}</span>` : ""}
+            </div>
+          </div>
+          <div class="row-actions">
+            <button class="mini" type="button" data-scout-select="${escapeAttr(prospect.id)}">Oeffnen</button>
+            <button class="mini no" type="button" data-scout-delete="${escapeAttr(prospect.id)}">Loeschen</button>
+          </div>
+        </article>`;
+      }).join("") || `<div class="empty-state">Noch keine potentiellen Neuzugaenge erfasst.</div>`;
+
+      const selected = state.scoutingProspects.find((item) => item.id === selectedScoutingProspectId);
+      const reportPanel = $("#scoutingReportPanel");
+      if (reportPanel) reportPanel.hidden = !selected;
+      if (selected) {
+        $("#scoutingReportTitle").textContent = `Scoutingbericht fuer ${prospectFullName(selected)}`;
+        const reportForm = $("#scoutingReportForm");
+        if (reportForm && !reportForm.elements.prospectId.value) resetScoutingReportForm();
+        $("#scoutingReportList").innerHTML = selected.reports
+          .slice()
+          .sort((a, b) => `${b.date}`.localeCompare(`${a.date}`))
+          .map((report) => `<article class="list-item">
+            <div>
+              <strong>${escapeHtml(formatShortDate(report.date))} ${escapeHtml(report.opponent || "Beobachtung")}</strong>
+              <p>${escapeHtml([report.observedClub, report.result, report.minutesPlayed ? `${report.minutesPlayed} Min.` : ""].filter(Boolean).join(" · "))}</p>
+              <div class="meta"><span>Ø ${escapeHtml(scoutingAverage(report) || "-")}</span>${report.summary ? `<span>${escapeHtml(report.summary.slice(0, 80))}</span>` : ""}</div>
+            </div>
+            <div class="row-actions">
+              <button class="mini" type="button" data-scout-report-edit="${escapeAttr(selected.id)}::${escapeAttr(report.id)}">Bearbeiten</button>
+              <button class="mini no" type="button" data-scout-report-delete="${escapeAttr(selected.id)}::${escapeAttr(report.id)}">Loeschen</button>
+            </div>
+          </article>`).join("") || `<div class="empty-state">Noch keine Scoutings fuer diesen Spieler.</div>`;
+      }
+
+      $("#scoutingTable").innerHTML = `<thead><tr><th>Spieler</th><th>Jahrgang</th><th>Verein</th><th>Nationalitaet</th><th>Scoutings</th><th>Ø</th><th>Kosten</th><th>Kontakt</th></tr></thead><tbody>
+        ${prospects.map((prospect) => `<tr>
+          <td><strong>${escapeHtml(prospectFullName(prospect))}</strong></td>
+          <td>${escapeHtml(prospect.birthYear || "")}</td>
+          <td>${escapeHtml(prospect.currentClub || "")}</td>
+          <td>${escapeHtml(nationalityLabel(prospect.nationality) || "")}</td>
+          <td>${prospect.reports.length}</td>
+          <td>${escapeHtml(scoutingProspectAverage(prospect) || "")}</td>
+          <td>${prospect.expectedCost ? escapeHtml(formatCurrency(prospect.expectedCost)) : ""}</td>
+          <td>${escapeHtml([prospect.phone, prospect.email].filter(Boolean).join(" / "))}</td>
+        </tr>`).join("") || `<tr><td colspan="8">Noch keine Daten.</td></tr>`}
+      </tbody>`;
     }
 
     function renderLoginUsers() {
@@ -4701,17 +4982,31 @@
       return state.tacticBoards.find((board) => board.id === selectedTacticBoardId);
     }
 
-    function tacticBoardDisplayTitle(board = {}) {
-      const eventItem = state.events.find((item) => item.id === board.eventId);
-      if (!eventItem) return board.title || "Freie Taktik";
+    function tacticEventLabel(eventItem) {
+      if (!eventItem) return "";
       const date = eventItem.date ? `${formatShortDate(eventItem.date)} ` : "";
       const time = eventItem.time ? `${eventItem.time} - ` : "";
       return `${date}${time}${eventItem.type}: ${eventItem.title || "Termin"}`.trim();
     }
 
-    function syncTacticBoardTitle(board = currentTacticBoard()) {
-      if (!board) return;
-      board.title = tacticBoardDisplayTitle(board);
+    function linkedTacticEvents(board = currentTacticBoard()) {
+      const linkedIds = Array.from(new Set([...(board?.eventIds || []), board?.eventId || ""].filter(Boolean)));
+      return linkedIds
+        .map((eventId) => state.events.find((item) => item.id === eventId))
+        .filter(Boolean)
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    }
+
+    function linkTacticEvent(board = currentTacticBoard(), eventId = "") {
+      if (!board || !eventId) return;
+      board.eventIds = Array.from(new Set([...(board.eventIds || []), eventId]));
+      board.eventId = eventId;
+    }
+
+    function unlinkTacticEvent(board = currentTacticBoard(), eventId = "") {
+      if (!board || !eventId) return;
+      board.eventIds = (board.eventIds || []).filter((id) => id !== eventId);
+      if (board.eventId === eventId) board.eventId = board.eventIds[0] || "";
     }
 
     function tacticElementsSnapshot(board = currentTacticBoard()) {
@@ -4970,7 +5265,7 @@
       await requestTactic3dState(board);
       flushTactic3dSave();
       const eventItem = state.events.find((item) => item.id === board.eventId);
-      const url = `taktikboard-3d.html?v=135&board=${encodeURIComponent(board.id)}`;
+      const url = `taktikboard-3d.html?v=136&board=${encodeURIComponent(board.id)}`;
       const frame = $("#tactic3dModalFrame");
       if (frame && !frame.src.includes(`board=${encodeURIComponent(board.id)}`)) frame.src = url;
       $("#tactic3dModalTitle").textContent = board.title || "3D Taktiktafel";
@@ -5302,12 +5597,20 @@
     function renderTacticBoard() {
       if (!$("#tacticBoardForm")) return;
       const board = currentTacticBoard();
-      syncTacticBoardTitle(board);
-      $("#tacticBoardTitle").textContent = tacticBoardDisplayTitle(board) || "Taktikboard";
-      $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(tacticBoardDisplayTitle(item))}</option>`).join("");
+      $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
+      if ($("#tacticBoardName") && document.activeElement !== $("#tacticBoardName")) $("#tacticBoardName").value = board.title || "";
+      $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title || "Taktik")}</option>`).join("");
       $("#tacticBoardSelect").value = board.id;
       $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
       $("#tacticEventSelect").value = board.eventId || "";
+      const linkedEvents = linkedTacticEvents(board);
+      const linkedTarget = $("#tacticLinkedEvents");
+      if (linkedTarget) {
+        linkedTarget.innerHTML = linkedEvents.map((eventItem) => `<span class="chip tactic-linked-chip ${eventItem.id === board.eventId ? "blue" : ""}">
+          ${escapeHtml(tacticEventLabel(eventItem))}
+          <button type="button" class="chip-remove" data-tactic-unlink-event="${escapeAttr(eventItem.id)}" aria-label="Verknuepfung entfernen">×</button>
+        </span>`).join("") || `<span class="meta">Noch keine Einheit verknuepft.</span>`;
+      }
       const notes = $("#tacticBoardNotes");
       if (notes && document.activeElement !== notes) notes.innerHTML = sanitizeRichText(board.notesHtml || "");
       const eventItem = state.events.find((item) => item.id === board.eventId);
@@ -5315,7 +5618,7 @@
       $("#tactic3dMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} am ${formatShortDate(eventItem.date)} ${eventItem.time || ""} - ${tacticPlayers.length} zugesagte Spieler`
         : "Bitte Spiel oder Training auswaehlen. Danach werden nur zugesagte Spieler geladen.";
-      const openUrl = `taktikboard-3d.html?v=135&board=${encodeURIComponent(board.id)}`;
+      const openUrl = `taktikboard-3d.html?v=136&board=${encodeURIComponent(board.id)}`;
       ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame && !frame.src.includes("taktikboard-3d.html")) frame.src = openUrl;
@@ -5324,15 +5627,14 @@
     }
 
     function addTacticBoard() {
-      const nextEvent = state.events
-        .filter((eventItem) => eventItem.type === "Spiel" || eventItem.type === "Training")
-        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
+      const title = (window.prompt("Name der neuen Taktik:", `Taktik ${state.tacticBoards.length + 1}`) || "").trim();
+      if (!title) return;
       const board = normalizeTacticBoard({
-        title: "Freie Taktik",
-        eventId: nextEvent?.id || "",
+        title,
+        eventId: "",
+        eventIds: [],
         teamColor: currentClub().color || "#155e3b"
       });
-      syncTacticBoardTitle(board);
       state.tacticBoards.unshift(board);
       selectedTacticBoardId = board.id;
       selectedTacticElementId = "";
@@ -5343,9 +5645,8 @@
       if (!canManage()) return;
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === eventId);
-      board.eventId = eventItem?.id || "";
-      syncTacticBoardTitle(board);
-      board.threeData = null;
+      if (eventItem) linkTacticEvent(board, eventItem.id);
+      else board.eventId = "";
       board.updatedAt = new Date().toISOString();
       selectedTacticElementId = "";
       tacticUndoStack = [];
@@ -5372,8 +5673,10 @@
       try {
         const eventId = $("#tacticEventSelect")?.value || "";
         const eventItem = state.events.find((item) => item.id === eventId);
-        board.eventId = eventItem?.id || "";
-        syncTacticBoardTitle(board);
+        const title = ($("#tacticBoardName")?.value || "").trim();
+        board.title = title || board.title || "Taktik";
+        if (eventItem) linkTacticEvent(board, eventItem.id);
+        else board.eventId = "";
         board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
         board.teamColor = board.teamColor || currentClub().color || "#155e3b";
         board.updatedAt = new Date().toISOString();
@@ -6301,6 +6604,23 @@
       assignEventToCurrentTactic($("#tacticEventSelect").value || "");
     });
     $("#saveTacticBoardBtn")?.addEventListener("click", saveCurrentTacticBoardExplicitly);
+    $("#tacticBoardName")?.addEventListener("change", () => {
+      const board = currentTacticBoard();
+      board.title = ($("#tacticBoardName").value || "").trim() || board.title || "Taktik";
+      board.updatedAt = new Date().toISOString();
+      saveState();
+      renderTacticBoard();
+    });
+    $("#tacticLinkedEvents")?.addEventListener("click", (event) => {
+      const eventId = event.target.closest("[data-tactic-unlink-event]")?.dataset.tacticUnlinkEvent;
+      if (!eventId || !canManage()) return;
+      const board = currentTacticBoard();
+      unlinkTacticEvent(board, eventId);
+      board.updatedAt = new Date().toISOString();
+      saveState();
+      renderTacticBoard();
+      requestAnimationFrame(sendTactic3dPayload);
+    });
     $("#tacticBoardNotes")?.addEventListener("input", () => {
       clearTimeout(tacticNotesSaveTimer);
       tacticNotesSaveTimer = setTimeout(updateCurrentTacticNotes, 500);
@@ -6313,6 +6633,112 @@
       $("#tacticBoardNotes")?.focus();
       document.execCommand(button.dataset.richCommand, false, null);
       updateCurrentTacticNotes();
+    });
+    $("#newScoutingBtn")?.addEventListener("click", () => {
+      resetScoutingForm();
+      resetScoutingReportForm();
+    });
+    $("#scoutingForm")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!canManageScouting()) return;
+      const form = event.currentTarget;
+      const values = formValues(form);
+      const now = new Date().toISOString();
+      const existing = state.scoutingProspects.find((item) => item.id === values.id);
+      const prospect = normalizeScoutingProspect({
+        ...(existing || {}),
+        id: existing?.id || crypto.randomUUID(),
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        birthYear: values.birthYear || "",
+        nationality: values.nationality || "",
+        currentClub: values.currentClub.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        expectedCost: values.expectedCost || "",
+        strengths: values.strengths.trim(),
+        weaknesses: values.weaknesses.trim(),
+        remark: values.remark.trim(),
+        reports: existing?.reports || [],
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
+      });
+      if (!prospect.lastName && !prospect.firstName) return;
+      if (existing) Object.assign(existing, prospect);
+      else state.scoutingProspects.unshift(prospect);
+      selectedScoutingProspectId = prospect.id;
+      saveState();
+      renderScouting();
+      setStatus(`Scouting-Spieler ${prospectFullName(prospect)} gespeichert.`);
+    });
+    $("#scoutingReportForm")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!canManageScouting()) return;
+      const form = event.currentTarget;
+      const values = formValues(form);
+      const prospect = state.scoutingProspects.find((item) => item.id === values.prospectId);
+      if (!prospect) return;
+      const scores = {};
+      const notes = {};
+      SCOUTING_SCORE_FIELDS.forEach((field) => {
+        scores[field.key] = values[`score-${field.key}`] || "";
+        notes[field.key] = values[`note-${field.key}`] || "";
+      });
+      const now = new Date().toISOString();
+      const existing = prospect.reports.find((item) => item.id === values.reportId);
+      const report = normalizeScoutingReport({
+        ...(existing || {}),
+        id: existing?.id || crypto.randomUUID(),
+        date: values.date || isoDate(new Date()),
+        opponent: values.opponent.trim(),
+        observedClub: values.observedClub.trim(),
+        result: values.result.trim(),
+        minutesPlayed: values.minutesPlayed || "",
+        summary: values.summary.trim(),
+        scores,
+        notes,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
+      });
+      if (existing) Object.assign(existing, report);
+      else prospect.reports.unshift(report);
+      prospect.updatedAt = now;
+      saveState();
+      resetScoutingReportForm();
+      renderScouting();
+      setStatus(`Scoutingbericht fuer ${prospectFullName(prospect)} gespeichert.`);
+    });
+    $("#clearScoutingReportBtn")?.addEventListener("click", resetScoutingReportForm);
+    $("#scoutingProspectList")?.addEventListener("click", (event) => {
+      const selectId = event.target.closest("[data-scout-select]")?.dataset.scoutSelect;
+      const deleteId = event.target.closest("[data-scout-delete]")?.dataset.scoutDelete;
+      if (selectId) loadScoutingProspect(selectId);
+      if (deleteId && canManageScouting()) {
+        const prospect = state.scoutingProspects.find((item) => item.id === deleteId);
+        if (!prospect || !window.confirm(`${prospectFullName(prospect)} wirklich loeschen?`)) return;
+        state.scoutingProspects = state.scoutingProspects.filter((item) => item.id !== deleteId);
+        if (selectedScoutingProspectId === deleteId) selectedScoutingProspectId = state.scoutingProspects[0]?.id || "";
+        saveState();
+        resetScoutingForm();
+        renderScouting();
+      }
+    });
+    $("#scoutingReportList")?.addEventListener("click", (event) => {
+      const edit = event.target.closest("[data-scout-report-edit]")?.dataset.scoutReportEdit;
+      const remove = event.target.closest("[data-scout-report-delete]")?.dataset.scoutReportDelete;
+      if (edit) {
+        const [prospectId, reportId] = edit.split("::");
+        loadScoutingReport(prospectId, reportId);
+      }
+      if (remove && canManageScouting()) {
+        const [prospectId, reportId] = remove.split("::");
+        const prospect = state.scoutingProspects.find((item) => item.id === prospectId);
+        if (!prospect || !window.confirm("Scoutingbericht wirklich loeschen?")) return;
+        prospect.reports = prospect.reports.filter((item) => item.id !== reportId);
+        prospect.updatedAt = new Date().toISOString();
+        saveState();
+        renderScouting();
+      }
     });
     $("#tactic3dFrame")?.addEventListener("load", () => {
       sendTactic3dPayload();

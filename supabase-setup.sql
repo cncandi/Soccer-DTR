@@ -226,6 +226,39 @@ for update using (true);
 create policy "tactic boards delete" on public.tactic_boards
 for delete using (true);
 
+create table if not exists public.scouting_prospects (
+  id text primary key default gen_random_uuid()::text,
+  club_id text not null references public.clubs(id) on delete cascade,
+  title text not null default 'Neuzugang',
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.scouting_prospects add column if not exists title text not null default 'Neuzugang';
+alter table public.scouting_prospects add column if not exists data jsonb not null default '{}'::jsonb;
+
+create index if not exists scouting_prospects_club_idx on public.scouting_prospects (club_id);
+
+alter table public.scouting_prospects enable row level security;
+
+drop policy if exists "scouting prospects read" on public.scouting_prospects;
+drop policy if exists "scouting prospects write" on public.scouting_prospects;
+drop policy if exists "scouting prospects update" on public.scouting_prospects;
+drop policy if exists "scouting prospects delete" on public.scouting_prospects;
+
+create policy "scouting prospects read" on public.scouting_prospects
+for select using (true);
+
+create policy "scouting prospects write" on public.scouting_prospects
+for insert with check (true);
+
+create policy "scouting prospects update" on public.scouting_prospects
+for update using (true);
+
+create policy "scouting prospects delete" on public.scouting_prospects
+for delete using (true);
+
 create table if not exists public.cash_entries (
   id text primary key default gen_random_uuid()::text,
   club_id text not null references public.clubs(id) on delete cascade,

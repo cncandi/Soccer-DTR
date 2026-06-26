@@ -795,6 +795,92 @@
     .chip.blue { background: #dbeafe; color: var(--blue); }
     .chip.red { background: #fee2e2; color: var(--danger); }
 
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 36px;
+      align-items: center;
+    }
+
+    .chip-remove {
+      min-height: 22px;
+      width: 22px;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.08);
+      color: inherit;
+      font-size: .9rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .chip-remove:hover {
+      background: rgba(185,28,28,.16);
+      color: var(--danger);
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .data-table th {
+      background: var(--soft);
+      color: var(--muted);
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .scouting-card.selected {
+      border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+      box-shadow: inset 4px 0 0 var(--green);
+    }
+
+    .scouting-score-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .scouting-category {
+      background: #fff;
+    }
+
+    .scouting-score-table {
+      display: grid;
+      gap: 8px;
+    }
+
+    .scouting-score-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 90px minmax(180px, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .scouting-score-row label {
+      font-size: .9rem;
+      color: var(--text);
+    }
+
     .paid-check {
       width: 26px;
       height: 26px;
@@ -2174,6 +2260,10 @@
       }
 
       .availability-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scouting-score-row {
         grid-template-columns: 1fr;
       }
     }
