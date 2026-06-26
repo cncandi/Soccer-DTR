@@ -2817,17 +2817,18 @@
       const prospects = state.scoutingProspects.slice().sort((a, b) => prospectFullName(a).localeCompare(prospectFullName(b), "de"));
       $("#scoutingProspectList").innerHTML = prospects.map((prospect) => {
         const selected = prospect.id === selectedScoutingProspectId ? " selected" : "";
+        const metaParts = [prospect.birthYear, prospect.currentClub, nationalityLabel(prospect.nationality)].filter(Boolean);
         return `<article class="list-item scouting-card${selected}">
-          <div>
+          <div class="scouting-card-main">
             <strong>${escapeHtml(prospectFullName(prospect))}</strong>
-            <p>${escapeHtml([prospect.birthYear, prospect.currentClub, nationalityLabel(prospect.nationality)].filter(Boolean).join(" · ") || "Keine Stammdaten")}</p>
-            <div class="meta">
-              <span>${prospect.reports.length} Scoutings</span>
-              ${scoutingProspectAverage(prospect) ? `<span>Ø ${escapeHtml(scoutingProspectAverage(prospect))}</span>` : ""}
-              ${prospect.expectedCost ? `<span>Kosten ca. ${escapeHtml(formatCurrency(prospect.expectedCost))}</span>` : ""}
+            <p>${escapeHtml(metaParts.join(" · ") || "Keine Stammdaten")}</p>
+            <div class="scouting-card-meta">
+              <span class="chip">${prospect.reports.length} Scoutings</span>
+              ${scoutingProspectAverage(prospect) ? `<span class="chip blue">Ø ${escapeHtml(scoutingProspectAverage(prospect))}</span>` : ""}
+              ${prospect.expectedCost ? `<span class="chip warn">Kosten ca. ${escapeHtml(formatCurrency(prospect.expectedCost))} EUR</span>` : ""}
             </div>
           </div>
-          <div class="row-actions">
+          <div class="row-actions scouting-card-actions">
             <button class="mini" type="button" data-scout-select="${escapeAttr(prospect.id)}">Oeffnen</button>
             <button class="mini no" type="button" data-scout-delete="${escapeAttr(prospect.id)}">Loeschen</button>
           </div>
