@@ -24,15 +24,22 @@
     const TRIAL_DAYS = 21;
     const FULL_LICENSE_DAYS = 365;
     const LICENSE_WARNING_DAYS = 5;
-    const EXPIRED_LICENSE_VIEWS = new Set(["players", "events", "fame", "settings"]);
+    const FREE_MODULE_KEYS = new Set(["dashboard", "players", "events", "settings"]);
+    const PAID_MODULE_KEYS = new Set(["tactics", "messages", "polls", "cash", "fame"]);
     const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
     const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
     const CLUB_MODULES = [
-      ["fame", "Hall of Fame"],
-      ["cash", "Kasse"],
-      ["polls", "Abstimmungen"],
-      ["scouting", "Scouting"]
+      ["dashboard", "Uebersicht", "free"],
+      ["players", "Spieler", "free"],
+      ["events", "Training & Spiele", "free"],
+      ["tactics", "Taktikboard", "paid"],
+      ["messages", "Mitteilungen", "paid"],
+      ["polls", "Abstimmungen", "paid"],
+      ["cash", "Kasse", "paid"],
+      ["fame", "Hall of Fame", "paid"],
+      ["settings", "Einstellungen", "free"],
+      ["scouting", "Scouting", "addon"]
     ];
     const NATIONALITIES = [
       ["DE", "🇩🇪", "Deutschland"],
@@ -364,7 +371,7 @@
     }
 
     function licenseFeatureAllowed(viewName) {
-      return !licenseLimitsFeatures() || EXPIRED_LICENSE_VIEWS.has(viewName);
+      return !licenseLimitsFeatures() || FREE_MODULE_KEYS.has(viewName);
     }
 
     function moduleFeatureAllowed(viewName, club = currentClub()) {
@@ -398,7 +405,7 @@
       if (club?.licenseAutoRenew && status === "active") return "";
       const days = licenseDaysLeft(club);
       if (days === null) return "";
-      if (days < 0) return "Die Lizenz ist abgelaufen. Zurzeit stehen nur Spieler, Training & Spiele, Hall of Fame und Einstellungen zur Verfügung.";
+      if (days < 0) return "Die Lizenz ist abgelaufen. Zurzeit stehen nur Uebersicht, Spieler, Training & Spiele und Einstellungen zur Verfügung.";
       if (days <= LICENSE_WARNING_DAYS) {
         return `Die Lizenz laeuft in ${days} Tagen ab und sollte erneuert werden, damit alle Funktionen erhalten bleiben.`;
       }
@@ -6275,7 +6282,9 @@
       club.sport = values.sport || "Fussball";
       club.league = values.league || "";
       club.federalState = values.federalState || "";
-      club.modules = Object.fromEntries(CLUB_MODULES.map(([key]) => [key, values[`module_${key}`] === "on"]));
+      if (isSuperadmin()) {
+        club.modules = Object.fromEntries(CLUB_MODULES.map(([key]) => [key, values[`module_${key}`] === "on"]));
+      }
       club.color = normalizeHexColor(values.color);
       if (isSuperadmin() && values.licenseStatus) {
         const nextStatus = normalizeLicenseStatus(values.licenseStatus);

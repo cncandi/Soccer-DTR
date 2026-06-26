@@ -11,6 +11,20 @@ const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
 const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
 const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
+const FREE_MODULE_KEYS = new Set(["dashboard", "players", "events", "settings"]);
+const PAID_MODULE_KEYS = new Set(["tactics", "messages", "polls", "cash", "fame"]);
+const CLUB_MODULES = [
+  ["dashboard", "Uebersicht", "free"],
+  ["players", "Spieler", "free"],
+  ["events", "Training & Spiele", "free"],
+  ["scouting", "Scouting", "addon"],
+  ["tactics", "Taktikboard", "paid"],
+  ["messages", "Mitteilungen", "paid"],
+  ["polls", "Abstimmungen", "paid"],
+  ["cash", "Kasse", "paid"],
+  ["fame", "Hall of Fame", "paid"],
+  ["settings", "Einstellungen", "free"]
+];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -103,6 +117,19 @@ function optionListWithEmpty(options, selected) {
     .join("");
 }
 
+function normalizeModules(value) {
+  const raw = value && typeof value === "object" ? value : {};
+  return Object.fromEntries(CLUB_MODULES.map(([key]) => [key, raw[key] !== false]));
+}
+
+function moduleTypeLabel(type) {
+  return {
+    free: "Kostenfrei",
+    paid: "Kostenpflichtig",
+    addon: "Zusatzmodul"
+  }[type] || "Modul";
+}
+
 function withTimeout(promise, ms, message) {
   return Promise.race([
     promise,
@@ -164,7 +191,7 @@ async function fetchClubs() {
   const withLicense = await withTimeout(
     client
       .from("clubs")
-      .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at"),
+      .select("id,name,slug,color,logo,sport,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at"),
     8000,
     "Vereine konnten nicht geladen werden."
   );
@@ -173,7 +200,7 @@ async function fetchClubs() {
     return withLicense.data || [];
   }
   const message = withLicense.error.message || "";
-  const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+  const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "league", "federal_state", "modules"]
     .some((column) => message.includes(column));
   if (!missingOptionalClubColumn) {
     throw withLicense.error;
@@ -191,7 +218,8 @@ async function fetchClubs() {
     ...club,
     license_activated_at: club.created_at || null,
     license_expires_at: null,
-    license_auto_renew: false
+    license_auto_renew: false,
+    modules: normalizeModules(null)
   }));
 }
 
@@ -210,7 +238,9 @@ async function loadBackendData() {
   ]);
   backend = {
     ...backend,
-    clubs: clubs.sort((a, b) => (a.name || "").localeCompare(b.name || "", "de")),
+    clubs: clubs
+      .map((club) => ({ ...club, modules: normalizeModules(club.modules) }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "de")),
     players,
     events,
     rsvps,
@@ -330,6 +360,11 @@ function renderDetails() {
           </select></div>
           <div class="field"><label>Ablaufdatum</label><input name="licenseExpiresAt" type="date" value="${escapeHtml((club.license_expires_at || "").slice(0, 10))}"></div>
           <div class="field full"><label class="check-row"><input name="licenseAutoRenew" type="checkbox" ${club.license_auto_renew ? "checked" : ""}> Automatische Verlaengerung</label></div>
+          <div class="field full">
+            <label>Module fuer diesen Verein</label>
+            ${renderModuleControls(club)}
+            <p class="meta">Kostenfrei: Uebersicht, Spieler, Training & Spiele, Einstellungen. Kostenpflichtig: Taktikboard, Mitteilungen, Abstimmungen, Kasse, Hall of Fame.</p>
+          </div>
           <div class="field full row-actions">
             <button class="btn-primary" type="submit" ${backend.licenseColumnsReady ? "" : "disabled"}>Lizenz speichern</button>
             <button class="btn-secondary" type="button" data-set-license="trial" ${backend.licenseColumnsReady ? "" : "disabled"}>Trial neu starten</button>
@@ -385,6 +420,23 @@ function renderDetails() {
   `;
 }
 
+function renderModuleControls(club) {
+  const modules = normalizeModules(club.modules);
+  return `
+    <div class="module-grid">
+      ${CLUB_MODULES.map(([key, label, type]) => `
+        <label class="module-toggle ${type}">
+          <input type="checkbox" name="module_${escapeHtml(key)}" ${modules[key] !== false ? "checked" : ""}>
+          <span>
+            <strong>${escapeHtml(label)}</strong>
+            <small>${escapeHtml(moduleTypeLabel(type))}</small>
+          </span>
+        </label>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderAdminTable(admins) {
   if (!admins.length) return `<div class="empty">Keine Admins angelegt.</div>`;
   return `
@@ -431,6 +483,7 @@ async function updateClubDocument(club) {
     logo: club.logo,
     league: club.league || "",
     federalState: club.federal_state || "",
+    modules: normalizeModules(club.modules),
     licenseKey: club.license_key,
     licenseStatus: club.license_status,
     licenseActivatedAt: club.license_activated_at,
@@ -446,6 +499,7 @@ async function updateClubDocument(club) {
       logo: club.logo,
       league: club.league || "",
       federalState: club.federal_state || "",
+      modules: normalizeModules(club.modules),
       licenseKey: club.license_key,
       licenseStatus: club.license_status,
       licenseActivatedAt: club.license_activated_at,
@@ -471,6 +525,7 @@ async function saveLicense(values) {
     license_status: values.licenseStatus,
     license_expires_at: expiresAt,
     license_auto_renew: values.licenseAutoRenew === "on",
+    modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, values[`module_${key}`] === "on"])),
     updated_at: now
   };
   const current = backend.clubs.find((club) => club.id === values.clubId);

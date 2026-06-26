@@ -30,7 +30,7 @@ create table if not exists public.clubs (
   sport text not null default 'Fussball',
   league text not null default '',
   federal_state text not null default '',
-  modules jsonb not null default '{"fame": true, "cash": true, "polls": true, "scouting": true}'::jsonb,
+  modules jsonb not null default '{"dashboard": true, "players": true, "events": true, "tactics": true, "messages": true, "polls": true, "cash": true, "fame": true, "settings": true, "scouting": true}'::jsonb,
   license_key text not null unique default ('KAD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))),
   license_status text not null default 'trial' check (license_status in ('trial', 'active', 'blocked')),
   license_activated_at timestamptz default now(),
@@ -47,7 +47,7 @@ alter table public.clubs add column if not exists slug text unique;
 alter table public.clubs add column if not exists sport text not null default 'Fussball';
 alter table public.clubs add column if not exists league text not null default '';
 alter table public.clubs add column if not exists federal_state text not null default '';
-alter table public.clubs add column if not exists modules jsonb not null default '{"fame": true, "cash": true, "polls": true, "scouting": true}'::jsonb;
+alter table public.clubs add column if not exists modules jsonb not null default '{"dashboard": true, "players": true, "events": true, "tactics": true, "messages": true, "polls": true, "cash": true, "fame": true, "settings": true, "scouting": true}'::jsonb;
 
 alter table public.clubs enable row level security;
 

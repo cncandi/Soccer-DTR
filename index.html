@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=139">
+  <link rel="stylesheet" href="css/app.css?v=142">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v141</span></h1>
+          <h1>Kadrivo <span class="app-version">v142</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v141</span></h1>
+          <h1>Kadrivo <span class="app-version">v142</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -349,7 +349,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=139" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=142" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -530,7 +530,7 @@ Nein</textarea></div>
               <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
               <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
               <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
-              <div class="field full">
+              <div class="field full superadmin-only">
                 <label>Aktive Module</label>
                 <div class="module-toggle-grid" id="clubModuleToggles"></div>
               </div>
@@ -671,7 +671,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=139" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=142" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -774,6 +774,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=139" defer></script>
+  <script src="js/app.js?v=142" defer></script>
 </body>
 </html>
