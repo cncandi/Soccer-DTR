@@ -27,6 +27,13 @@
     const EXPIRED_LICENSE_VIEWS = new Set(["players", "events", "fame", "settings"]);
     const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
+    const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
+    const CLUB_MODULES = [
+      ["fame", "Hall of Fame"],
+      ["cash", "Kasse"],
+      ["polls", "Abstimmungen"],
+      ["scouting", "Scouting"]
+    ];
     const NATIONALITIES = [
       ["DE", "🇩🇪", "Deutschland"],
       ["TR", "🇹🇷", "Tuerkei"],
@@ -271,14 +278,17 @@
       const activatedAt = validIsoDateTime(club.licenseActivatedAt || club.license_activated_at) || new Date().toISOString();
       const expiresAt = validIsoDateTime(club.licenseExpiresAt || club.license_expires_at) || defaultLicenseExpiresAt(status, activatedAt);
       const name = club.name || "Mein Verein";
+      const rawModules = club.modules && typeof club.modules === "object" ? club.modules : {};
       return {
         id,
         name,
         slug: club.slug || `${slugifyClubName(name) || "verein"}-${id.slice(0, 8)}`,
         color: club.color || "#155e3b",
         logo: club.logo || "",
+        sport: club.sport || "Fussball",
         league: club.league || club.liga || "",
         federalState: club.federalState || club.federal_state || club.bundesland || "",
+        modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, rawModules[key] !== false])),
         licenseKey: club.licenseKey || club.license_key || generateLicenseKey(),
         licenseStatus: status,
         licenseActivatedAt: activatedAt,
@@ -355,6 +365,12 @@
 
     function licenseFeatureAllowed(viewName) {
       return !licenseLimitsFeatures() || EXPIRED_LICENSE_VIEWS.has(viewName);
+    }
+
+    function moduleFeatureAllowed(viewName, club = currentClub()) {
+      const moduleViewNames = new Set(CLUB_MODULES.map(([key]) => key));
+      if (!moduleViewNames.has(viewName)) return true;
+      return club?.modules?.[viewName] !== false;
     }
 
     function formatLicenseDate(value) {
@@ -1212,8 +1228,10 @@
         slug: row.slug,
         color: row.color,
         logo: row.logo,
+        sport: row.sport,
         league: row.league,
         federalState: row.federal_state,
+        modules: row.modules,
         licenseKey: row.license_key,
         licenseStatus: row.license_status,
         licenseActivatedAt: row.license_activated_at,
@@ -1226,11 +1244,11 @@
     async function loadRemoteClubsFromTable(client) {
       const withLicense = await client
         .from("clubs")
-        .select("id,name,slug,color,logo,league,federal_state,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
+        .select("id,name,slug,color,logo,sport,league,federal_state,modules,license_key,license_status,license_activated_at,license_expires_at,license_auto_renew,created_at,updated_at");
       if (!withLicense.error) return (withLicense.data || []).map(clubFromRow);
 
       const message = withLicense.error.message || "";
-      const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "league", "federal_state"]
+      const missingOptionalClubColumn = ["slug", "license_activated_at", "license_expires_at", "license_auto_renew", "sport", "league", "federal_state", "modules"]
         .some((column) => message.includes(column));
       if (!missingOptionalClubColumn) {
         if (normalizedSchemaUnavailable(withLicense.error)) return [];
@@ -1547,8 +1565,10 @@
         slug: club.slug || `${slugifyClubName(club.name) || "verein"}-${club.id.slice(0, 8)}`,
         color: normalizeHexColor(club.color || "#155e3b"),
         logo: club.logo || "",
+        sport: club.sport || "Fussball",
         league: club.league || "",
         federal_state: club.federalState || "",
+        modules: club.modules || Object.fromEntries(CLUB_MODULES.map(([key]) => [key, true])),
         license_key: club.licenseKey || generateLicenseKey(),
         license_status: normalizeLicenseStatus(club.licenseStatus),
         license_activated_at: club.licenseActivatedAt,
@@ -1557,8 +1577,8 @@
         updated_at: club.updatedAt || now
       }));
       let clubUpsert = await client.from("clubs").upsert(clubRows);
-      if (clubUpsert.error && ["slug", "league", "federal_state"].some((column) => (clubUpsert.error.message || "").includes(column))) {
-        const legacyClubRows = clubRows.map(({ slug, league, federal_state, ...row }) => row);
+      if (clubUpsert.error && ["slug", "sport", "league", "federal_state", "modules"].some((column) => (clubUpsert.error.message || "").includes(column))) {
+        const legacyClubRows = clubRows.map(({ slug, sport, league, federal_state, modules, ...row }) => row);
         clubUpsert = await client.from("clubs").upsert(legacyClubRows);
       }
       if (clubUpsert.error) throw clubUpsert.error;
@@ -1797,6 +1817,10 @@
       if (!modal) return;
       $("#clubSignupForm").reset();
       $("#clubSignupStatus").textContent = "";
+      const sportSelect = $("#clubSignupSport");
+      if (sportSelect) {
+        sportSelect.innerHTML = SPORTS.map((sport) => `<option value="${escapeHtml(sport)}">${escapeHtml(sport)}</option>`).join("");
+      }
       modal.classList.add("open");
       modal.setAttribute("aria-hidden", "false");
       $("#clubSignupForm").elements.clubName.focus();
@@ -1874,8 +1898,10 @@
         slug: "",
         color: "#155e3b",
         logo: "",
+        sport: values.sport || "Fussball",
         league: "",
         federalState: "",
+        modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, true])),
         licenseKey: generateLicenseKey(),
         licenseStatus: "trial",
         licenseActivatedAt: now,
@@ -1908,8 +1934,10 @@
         slug: club.slug,
         color: club.color,
         logo: club.logo,
+        sport: club.sport || "Fussball",
         league: club.league || "",
         federal_state: club.federalState || "",
+        modules: club.modules || Object.fromEntries(CLUB_MODULES.map(([key]) => [key, true])),
         license_key: club.licenseKey,
         license_status: club.licenseStatus,
         license_activated_at: club.licenseActivatedAt,
@@ -1919,11 +1947,11 @@
       };
       let clubInsert = await client.from("clubs").insert(clubPayload);
       if (clubInsert.error && normalizedSchemaUnavailable(clubInsert.error)) {
-        const { license_activated_at, license_expires_at, license_auto_renew, ...legacyClubPayload } = clubPayload;
+        const { license_activated_at, license_expires_at, license_auto_renew, sport, modules, ...legacyClubPayload } = clubPayload;
         clubInsert = await client.from("clubs").insert(legacyClubPayload);
       }
-      if (clubInsert.error && ["slug", "league", "federal_state"].some((column) => (clubInsert.error.message || "").includes(column))) {
-        const { slug, league, federal_state, ...legacyClubPayload } = clubPayload;
+      if (clubInsert.error && ["slug", "sport", "league", "federal_state", "modules"].some((column) => (clubInsert.error.message || "").includes(column))) {
+        const { slug, sport, league, federal_state, modules, ...legacyClubPayload } = clubPayload;
         clubInsert = await client.from("clubs").insert(legacyClubPayload);
       }
       if (clubInsert.error) throw clubInsert.error;
@@ -2592,7 +2620,10 @@
         el.style.display = canJoinHallOfFame() ? "" : "none";
       });
       $$(".nav button").forEach((button) => {
-        button.hidden = !canAccess(button.dataset.minRole) || !licenseFeatureAllowed(button.dataset.view) || (button.dataset.staffView && !canManageScouting());
+        button.hidden = !canAccess(button.dataset.minRole)
+          || !licenseFeatureAllowed(button.dataset.view)
+          || !moduleFeatureAllowed(button.dataset.view)
+          || (button.dataset.staffView && !canManageScouting());
       });
       $("#exportBtn").hidden = !canManage() || licenseLimitsFeatures();
 
@@ -2688,6 +2719,9 @@
       const form = $("#clubDesignForm");
       if (!form) return;
       const club = currentClub();
+      if (form.elements.sport) {
+        form.elements.sport.innerHTML = SPORTS.map((sport) => `<option value="${escapeHtml(sport)}"${sport === (club.sport || "Fussball") ? " selected" : ""}>${escapeHtml(sport)}</option>`).join("");
+      }
       if (form.elements.league) form.elements.league.innerHTML = optionListWithEmpty(CLUB_LEAGUES, club.league || "");
       if (form.elements.federalState) form.elements.federalState.innerHTML = optionListWithEmpty(FEDERAL_STATES, club.federalState || "");
       form.elements.name.value = club.name;
@@ -2698,6 +2732,15 @@
       if (form.elements.licenseActivatedAt) form.elements.licenseActivatedAt.value = formatLicenseDate(club.licenseActivatedAt);
       if (form.elements.licenseExpiresAt) form.elements.licenseExpiresAt.value = formatLicenseDate(club.licenseExpiresAt);
       if (form.elements.licenseAutoRenew) form.elements.licenseAutoRenew.checked = Boolean(club.licenseAutoRenew);
+      const moduleToggles = $("#clubModuleToggles");
+      if (moduleToggles) {
+        moduleToggles.innerHTML = CLUB_MODULES.map(([key, label]) => `
+          <label class="module-toggle">
+            <input type="checkbox" name="module_${escapeHtml(key)}" ${club.modules?.[key] !== false ? "checked" : ""}>
+            <span>${escapeHtml(label)}</span>
+          </label>
+        `).join("");
+      }
     }
 
     function renderPlayerCreateFormOptions() {
@@ -6199,8 +6242,10 @@
       const values = formValues(event.currentTarget);
       const club = currentClub();
       club.name = values.name.trim() || club.name;
+      club.sport = values.sport || "Fussball";
       club.league = values.league || "";
       club.federalState = values.federalState || "";
+      club.modules = Object.fromEntries(CLUB_MODULES.map(([key]) => [key, values[`module_${key}`] === "on"]));
       club.color = normalizeHexColor(values.color);
       if (isSuperadmin() && values.licenseStatus) {
         const nextStatus = normalizeLicenseStatus(values.licenseStatus);

@@ -46,6 +46,29 @@
       cursor: pointer;
       min-height: 44px;
       touch-action: manipulation;
+      transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, color .16s ease, border-color .16s ease, filter .16s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .6;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [contenteditable="true"]:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--green) 34%, transparent);
+      outline-offset: 2px;
     }
 
     .app-shell {
@@ -61,7 +84,8 @@
       display: none;
       align-items: center;
       justify-content: flex-end;
-      padding: 24px max(24px, 10vw);
+      padding: clamp(14px, 3vw, 28px) max(24px, 8vw);
+      overflow: auto;
       background:
         linear-gradient(rgba(2,18,14,.18), rgba(2,18,14,.18)),
         url("../assets/kadrivo-login-banner.jpg") left max(24px, 8vw) center / min(620px, 46vw) auto no-repeat,
@@ -95,7 +119,9 @@
     .login-panel {
       position: relative;
       z-index: 102;
-      width: min(420px, 100%);
+      width: min(520px, calc(100vw - 32px));
+      max-height: calc(100svh - 28px);
+      overflow: auto;
       background: rgba(255,255,255,.96);
       border-radius: 8px;
       padding: 22px;
@@ -103,6 +129,15 @@
       display: grid;
       gap: 14px;
       backdrop-filter: blur(8px);
+    }
+
+    .login-panel .field,
+    .login-panel input,
+    .login-panel select,
+    .login-panel textarea,
+    .login-panel button {
+      min-width: 0;
+      width: 100%;
     }
 
     .login-panel > .btn-secondary {
@@ -133,19 +168,21 @@
       background: #f3f8f5;
       border: 1px solid var(--line);
       border-radius: 8px;
+      overflow: hidden;
+      align-items: stretch;
     }
 
     .club-share {
       display: grid;
-      grid-template-columns: 86px 1fr;
+      grid-template-columns: 74px minmax(0, 1fr);
       gap: 10px;
       align-items: center;
       margin-top: 10px;
     }
 
     .club-share img {
-      width: 86px;
-      height: 86px;
+      width: 74px;
+      height: 74px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fff;
@@ -162,7 +199,7 @@
 
     .club-share a {
       display: block;
-      max-width: 210px;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -170,6 +207,15 @@
       font-size: .82rem;
       font-weight: 800;
       margin-bottom: 8px;
+    }
+
+    .login-install > div:first-child {
+      min-width: 0;
+    }
+
+    .login-install .row-actions {
+      align-items: stretch;
+      min-width: min(160px, 100%);
     }
 
     .sidebar {
@@ -319,6 +365,12 @@
       font-weight: 800;
     }
 
+    .logout-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.38);
+      color: #fff;
+    }
+
     .nav {
       display: grid;
       gap: 8px;
@@ -334,6 +386,11 @@
       padding: 11px 12px;
       border-radius: 8px;
       position: relative;
+    }
+
+    .nav button:hover:not(.active):not(:disabled) {
+      background: rgba(255,255,255,.09);
+      color: #fff;
     }
 
     .nav button[hidden] {
@@ -456,6 +513,23 @@
       font-weight: 800;
     }
 
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(.96);
+      box-shadow: 0 10px 22px rgba(21,94,59,.22);
+    }
+
+    .btn-secondary:hover:not(:disabled),
+    .mini:hover:not(:disabled) {
+      background: #dbe7df;
+      box-shadow: 0 8px 18px rgba(16,43,32,.12);
+    }
+
+    .btn-danger:hover:not(:disabled),
+    .mini.no:hover:not(:disabled) {
+      background: #fecaca;
+      box-shadow: 0 8px 18px rgba(185,28,28,.14);
+    }
+
     .grid {
       display: grid;
       gap: 14px;
@@ -565,6 +639,41 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+    }
+
+    .module-toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .module-toggle {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbf9;
+      font-weight: 800;
+      color: var(--text);
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .module-toggle:hover {
+      background: var(--soft);
+      border-color: color-mix(in srgb, var(--green) 22%, var(--line));
+      box-shadow: 0 8px 18px rgba(16,43,32,.08);
+      transform: translateY(-1px);
+    }
+
+    .module-toggle input {
+      width: 22px;
+      min-width: 22px;
+      height: 22px;
+      accent-color: var(--green);
     }
 
     .staff-panel {
@@ -1597,8 +1706,14 @@
     }
 
     .player-nav-btn {
-      min-width: 42px;
+      min-width: 48px;
       padding-inline: 12px;
+    }
+
+    .modal-head-actions .mini:hover,
+    .player-nav-btn:hover {
+      border-color: color-mix(in srgb, var(--green) 22%, var(--line));
+      box-shadow: 0 8px 18px rgba(16,43,32,.12);
     }
 
     .player-tabs {
@@ -2185,6 +2300,19 @@
         display: grid;
       }
 
+      .login-install {
+        grid-template-columns: 1fr;
+      }
+
+      .club-share {
+        grid-template-columns: 66px minmax(0, 1fr);
+      }
+
+      .club-share img {
+        width: 66px;
+        height: 66px;
+      }
+
       .calendar-day {
         min-height: 74px;
         padding: 5px;
@@ -2297,6 +2425,10 @@
       }
 
       .availability-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .module-toggle-grid {
         grid-template-columns: 1fr;
       }
 

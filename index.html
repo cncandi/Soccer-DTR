@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=138">
+  <link rel="stylesheet" href="css/app.css?v=139">
 </head>
 <body>
   <section class="login-screen" id="loginScreen">
@@ -23,7 +23,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v138</span></h1>
+          <h1>Kadrivo <span class="app-version">v139</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v138</span></h1>
+          <h1>Kadrivo <span class="app-version">v139</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -310,10 +310,6 @@
             </div>
             <form id="tacticBoardForm" class="form-grid">
               <div class="field full">
-                <label for="tacticBoardName">Name der Taktik</label>
-                <input id="tacticBoardName" name="tacticBoardName" placeholder="z.B. Pressing links, Ecke Variante 1">
-              </div>
-              <div class="field full">
                 <label for="tacticBoardSelect">Gespeicherte Taktiken</label>
                 <select id="tacticBoardSelect"></select>
               </div>
@@ -351,9 +347,9 @@
                   <h3>3D Taktiktafel</h3>
                   <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
                 </div>
-                <button class="mini" id="openTactic3dBtn" type="button">Gross oeffnen</button>
+                <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=138" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=139" title="3D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -523,6 +519,7 @@ Nein</textarea></div>
             <h3>Vereinsdesign</h3>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
+              <div class="field"><label>Sportart</label><select name="sport" id="clubSportSelect"></select></div>
               <div class="field superadmin-only"><label>Lizenznummer</label><input name="licenseKey" readonly></div>
               <div class="field superadmin-only"><label>Lizenzstatus</label><select name="licenseStatus"><option value="trial">Testlizenz</option><option value="active">Aktiv</option><option value="blocked">Gesperrt</option></select></div>
               <div class="field superadmin-only"><label>Aktiviert am</label><input name="licenseActivatedAt" readonly></div>
@@ -533,6 +530,10 @@ Nein</textarea></div>
               <div class="field"><label>Vereinsfarbe</label><input type="color" name="color" value="#155e3b"></div>
               <div class="field"><label>Logo-Datei</label><input type="file" id="clubLogoFile" accept="image/*"></div>
               <div class="field full"><label>Logo als URL</label><input name="logoUrl" placeholder="https://..."></div>
+              <div class="field full">
+                <label>Aktive Module</label>
+                <div class="module-toggle-grid" id="clubModuleToggles"></div>
+              </div>
               <div class="field"><button class="btn-secondary" id="clearClubLogoBtn" type="button">Logo entfernen</button></div>
               <div class="field full"><button class="btn-primary" type="submit">Design speichern</button></div>
             </form>
@@ -661,7 +662,7 @@ for update using (true);</textarea>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=138" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=139" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -702,6 +703,7 @@ for update using (true);</textarea>
       <p class="signup-benefit">Die Anmeldung ist komplett kostenfrei. Du kannst Kadrivo direkt starten und die meisten Funktionen ohne Zahlung nutzen.</p>
       <form id="clubSignupForm" class="form-grid">
         <div class="field full"><label>Vereinsname</label><input name="clubName" required autocomplete="organization"></div>
+        <div class="field full"><label>Sportart</label><select name="sport" id="clubSignupSport"></select></div>
         <div class="field"><label>Ansprechpartner</label><input name="adminName" required autocomplete="name"></div>
         <div class="field"><label>E-Mail optional</label><input name="adminEmail" type="email" autocomplete="email"></div>
         <div class="field"><label>Passwort</label><input name="adminPassword" type="password" required minlength="4" autocomplete="new-password"></div>
@@ -753,6 +755,6 @@ for update using (true);</textarea>
     </section>
   </div>
 
-  <script src="js/app.js?v=138" defer></script>
+  <script src="js/app.js?v=139" defer></script>
 </body>
 </html>
