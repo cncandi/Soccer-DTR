@@ -2723,6 +2723,64 @@
       return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
     }
 
+    function scoutingProspectToPlayer(prospect) {
+      const name = prospectFullName(prospect);
+      return normalizePlayer({
+        id: crypto.randomUUID(),
+        name,
+        password: DEFAULT_PASSWORD,
+        role: "Spieler",
+        memberRoles: ["Spieler"],
+        group: "Mannschaft",
+        groups: ["Mannschaft"],
+        position: "",
+        jerseyNumber: "",
+        starterFactor: 2,
+        birthDate: prospect.birthYear ? `${prospect.birthYear}-01-01` : "",
+        nationality: prospect.nationality || "",
+        phone: prospect.phone || "",
+        memberSince: "",
+        captainRole: "",
+        trainingFocusShort: "",
+        trainingFocusLong: "",
+        notes: [
+          prospect.currentClub ? `Bisheriger Verein: ${prospect.currentClub}` : "",
+          prospect.expectedCost ? `Kosten voraussichtlich: ${formatCurrency(prospect.expectedCost)} EUR` : "",
+          prospect.strengths ? `Staerken: ${prospect.strengths}` : "",
+          prospect.weaknesses ? `Schwaechen: ${prospect.weaknesses}` : "",
+          prospect.remark ? `Bemerkung: ${prospect.remark}` : ""
+        ].filter(Boolean).join("\n"),
+        photo: "",
+        alternatePositions: [],
+        availability: defaultAvailability(),
+        performance: {
+          ...defaultPerformance(),
+          strengths: prospect.strengths || "",
+          weaknesses: prospect.weaknesses || ""
+        }
+      });
+    }
+
+    function promoteScoutingProspect(prospectId) {
+      if (!canManageScouting()) return;
+      const prospect = state.scoutingProspects.find((item) => item.id === prospectId);
+      if (!prospect) return;
+      const player = scoutingProspectToPlayer(prospect);
+      if (!player.name.trim()) return;
+      if (hasPlayerName(player.name)) {
+        setStatus(`Spieler "${player.name}" existiert bereits.`);
+        return;
+      }
+      if (!window.confirm(`${player.name} in die Spielerliste uebernehmen?`)) return;
+      state.players.push(player);
+      prospect.promotedPlayerId = player.id;
+      prospect.promotedAt = new Date().toISOString();
+      prospect.updatedAt = prospect.promotedAt;
+      saveState();
+      render();
+      setStatus(`${player.name} wurde in die Spielerliste uebernommen.`);
+    }
+
     function renderScoutingScoreGrid(report = normalizeScoutingReport({})) {
       const target = $("#scoutingScoreGrid");
       if (!target) return;
@@ -2830,6 +2888,7 @@
           </div>
           <div class="row-actions scouting-card-actions">
             <button class="mini" type="button" data-scout-select="${escapeAttr(prospect.id)}">Oeffnen</button>
+            ${prospect.promotedPlayerId ? `<span class="chip blue">Uebernommen</span>` : `<button class="mini yes" type="button" data-scout-promote="${escapeAttr(prospect.id)}">Als Spieler uebernehmen</button>`}
             <button class="mini no" type="button" data-scout-delete="${escapeAttr(prospect.id)}">Loeschen</button>
           </div>
         </article>`;
@@ -6712,8 +6771,10 @@
     $("#clearScoutingReportBtn")?.addEventListener("click", resetScoutingReportForm);
     $("#scoutingProspectList")?.addEventListener("click", (event) => {
       const selectId = event.target.closest("[data-scout-select]")?.dataset.scoutSelect;
+      const promoteId = event.target.closest("[data-scout-promote]")?.dataset.scoutPromote;
       const deleteId = event.target.closest("[data-scout-delete]")?.dataset.scoutDelete;
       if (selectId) loadScoutingProspect(selectId);
+      if (promoteId) promoteScoutingProspect(promoteId);
       if (deleteId && canManageScouting()) {
         const prospect = state.scoutingProspects.find((item) => item.id === deleteId);
         if (!prospect || !window.confirm(`${prospectFullName(prospect)} wirklich loeschen?`)) return;

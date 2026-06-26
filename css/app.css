@@ -889,7 +889,7 @@
 
     .scouting-card-actions {
       justify-content: flex-end;
-      min-width: 190px;
+      min-width: min(100%, 320px);
     }
 
     .scouting-score-grid {
