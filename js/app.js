@@ -5845,7 +5845,7 @@
         saved2d: board.twoData || null,
         teamColor: board.teamColor || currentClub().color || "#155e3b",
         homeColor: board.teamColor || currentClub().color || "#155e3b",
-        awayColor: "#e63946",
+        awayColor: "#1565c0",
         gkColor:   "#ff9900"
       };
     }
