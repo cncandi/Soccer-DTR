@@ -2966,6 +2966,11 @@
       if (form.elements.licenseActivatedAt) form.elements.licenseActivatedAt.value = formatLicenseDate(club.licenseActivatedAt);
       if (form.elements.licenseExpiresAt) form.elements.licenseExpiresAt.value = formatLicenseDate(club.licenseExpiresAt);
       if (form.elements.licenseAutoRenew) form.elements.licenseAutoRenew.checked = Boolean(club.licenseAutoRenew);
+      // Positionen laden
+      if (form.elements.customPositions) {
+        form.elements.customPositions.value = (club.customPositions || []).join(", ");
+        updatePositionsHint(club.sport || "Fussball");
+      }
       const moduleToggles = $("#clubModuleToggles");
       if (moduleToggles) {
         moduleToggles.innerHTML = CLUB_MODULES.map(([key, label]) => `
@@ -2977,12 +2982,21 @@
       }
     }
 
+    function updatePositionsHint(sport) {
+      const hint = $("#customPositionsHint");
+      if (!hint) return;
+      const defaults = SPORT_POSITIONS[sport] || SPORT_POSITIONS["Fussball"];
+      hint.textContent = "Vorgabe " + sport + ": " + defaults.join(", ");
+    }
+
     function applySportDefaultsToClubForm() {
       const form = $("#clubDesignForm");
       if (!form) return;
-      const defaults = SPORT_DEFAULTS[form.elements.sport?.value] || SPORT_DEFAULTS["Andere Sportart"];
+      const sport = form.elements.sport?.value || "Fussball";
+      const defaults = SPORT_DEFAULTS[sport] || SPORT_DEFAULTS["Andere Sportart"];
       if (form.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = defaults.fieldPlayers;
       if (form.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = defaults.benchPlayers;
+      updatePositionsHint(sport);
     }
 
     function renderPlayerCreateFormOptions() {
@@ -4699,10 +4713,19 @@
       "Andere Sportart":["Tor", "Abwehr", "Mittelfeld", "Sturm", "Trainer", "Betreuer"]
     };
 
-    function positionOptions(selected) {
+    function sportPositionDefaults() {
       const sport = currentClub().sport || "Fussball";
-      const list = SPORT_POSITIONS[sport] || SPORT_POSITIONS["Fussball"];
-      return optionList(list, selected);
+      return SPORT_POSITIONS[sport] || SPORT_POSITIONS["Fussball"];
+    }
+
+    function currentPositionList() {
+      const custom = currentClub().customPositions;
+      if (custom && custom.length) return custom;
+      return sportPositionDefaults();
+    }
+
+    function positionOptions(selected) {
+      return optionList(currentPositionList(), selected);
     }
 
     function groupOptions(selected) {
@@ -6582,6 +6605,9 @@
       club.sport = values.sport || "Fussball";
       club.maxFieldPlayers = Math.max(1, Number(values.maxFieldPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).fieldPlayers));
       club.maxBenchPlayers = Math.max(0, Number(values.maxBenchPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS.Fussball).benchPlayers));
+      // Eigene Positionen (leer = Vorgabe der Sportart verwenden)
+      const rawPositions = (values.customPositions || "").split(",").map(p => p.trim()).filter(Boolean);
+      club.customPositions = rawPositions.length ? rawPositions : [];
       club.league = values.league || "";
       club.federalState = values.federalState || "";
       if (isSuperadmin()) {
