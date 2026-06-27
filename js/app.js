@@ -6409,24 +6409,24 @@
       const button = $("#saveTacticBoardBtn");
       if (button) button.disabled = true;
       try {
-        let board = currentTacticBoard();
-
-        // Kein Board explizit gewählt → Name abfragen → neu anlegen
+        // Explizit prüfen BEVOR currentTacticBoard() aufgerufen wird (das legt sonst auto an)
         const hasSelection = selectedTacticBoardId && state.tacticBoards.some(b => b.id === selectedTacticBoardId);
         if (!hasSelection) {
           const name = window.prompt("Name der Taktik:", "");
           if (!name?.trim()) return;
-          board = normalizeTacticBoard({
+          const newBoard = normalizeTacticBoard({
             id: crypto.randomUUID(),
             title: name.trim(),
             eventIds: [],
             eventId: "",
             teamColor: currentClub()?.color || "#155e3b"
           });
-          state.tacticBoards.push(board);
-          selectedTacticBoardId = board.id;
+          state.tacticBoards.push(newBoard);
+          selectedTacticBoardId = newBoard.id;
         }
-        // Bestehende Taktik: direkt überschreiben, kein Prompt
+        // Jetzt sicher: board holen (existiert garantiert)
+        let board = state.tacticBoards.find(b => b.id === selectedTacticBoardId);
+        if (!board) return;
 
         board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML||"");
         board.teamColor = board.teamColor||currentClub()?.color||"#155e3b";
@@ -7627,17 +7627,25 @@
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === "kadrivo:tactic-save") {
         const data = event.data;
-        const board = currentTacticBoard();
-        if (!board || data.boardId !== board.id) return;
+        const board = state.tacticBoards.find(b => b.id === data.boardId);
+        if (!board) return;
         // Unterscheide 2D vs 3D anhand des Source-Frames
         const src = event.source;
         const is2d = src === $("#tactic2dFrame")?.contentWindow || src === $("#tactic2dModalFrame")?.contentWindow;
         if (is2d) {
-          board.twoData  = data.state || null;
+          board.twoData = data.state || null;
         } else {
           board.threeData = data.state || null;
         }
-        scheduleTactic3dSave(data);
+        // tactic3dSaveRequest resolven falls wartend
+        if (tactic3dSaveRequest && tactic3dSaveRequest.boardId === data.boardId) {
+          const pending = tactic3dSaveRequest;
+          tactic3dSaveRequest = null;
+          window.clearTimeout(pending.timer);
+          pending.resolve(data.state || null);
+        }
+        clearTimeout(tactic3dSaveTimer);
+        tactic3dSaveTimer = setTimeout(() => saveState(), 600);
       }
     });
     $("#tacticTool")?.addEventListener("change", () => {
