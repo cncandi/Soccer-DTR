@@ -2214,6 +2214,50 @@
       }, 800);
     }
 
+    // ── SCHNELL-SYNC für einzelne Tabellen ──────────────────────
+    async function quickSyncTable(tableName, stateKey) {
+      if (!window.supabase) return;
+      const client = getSupabaseClient();
+      if (!client) return;
+      try {
+        const { data, error } = await client
+          .from(tableName)
+          .select("*")
+          .eq("club_id", currentClubId);
+        if (error || !data) return;
+        if (tableName === "messages") {
+          state.messages = data.map(row => ({
+            id: row.id,
+            group: row.group_name || "Mannschaft",
+            title: row.title || "",
+            body: row.body || "",
+            author: row.author || "",
+            createdAt: row.created_at || "",
+            ...((row.data && typeof row.data === "object") ? row.data : {})
+          }));
+        } else if (tableName === "players") {
+          state.players = data.map(row => normalizePlayer({
+            id: row.id, name: row.name, password: row.password || DEFAULT_PASSWORD,
+            role: row.role || "Spieler", memberRoles: row.member_roles || undefined,
+            groups: row.groups || undefined, position: row.position || "",
+            phone: row.phone || "", notes: row.notes || "",
+            photo: row.photo || "", alternatePositions: row.alternate_positions || [],
+            availability: row.availability || {}, performance: row.performance || {},
+            ...((row.data && typeof row.data === "object") ? row.data : {})
+          }));
+        } else if (tableName === "events") {
+          state.events = data.map(row => normalizeEvent({
+            id: row.id, type: normalizedEventType(row.type), title: row.title,
+            date: row.date, time: row.time, location: row.location,
+            gameVenue: row.home_away || row.game_venue || "",
+            ...((row.data && typeof row.data === "object") ? row.data : {})
+          }));
+        }
+        localStorage.setItem(stateKey(), JSON.stringify(state));
+        render();
+      } catch (_) { /* silent */ }
+    }
+
     async function syncWithSupabase(options = {}) {
       if (syncInProgress) {
         pendingCloudSync = true;
@@ -2281,7 +2325,7 @@
           ? (migratedFromLegacy ? "Migriert und synchronisiert" : "Synchronisiert")
           : "Synchronisiert mit Dokument-Speicher";
         setStatus(`${syncMode}: ${new Date().toLocaleTimeString("de-DE")}`);
-        render();
+        renderAll();
       } catch (error) {
         setStatus(supabaseErrorMessage(error));
       } finally {
@@ -2929,31 +2973,76 @@
       renderClubSelect();
       renderLoginUsers();
       renderPublicLoginState();
-      renderClubDesignForm();
-      renderPlayerCreateFormOptions();
       renderInstallPanel();
       renderStatus();
-      renderStats();
-      renderSelfProfileForm();
-      renderMessageGroups();
-      renderPlayers();
-      renderStaff();
-      renderEventForm();
-      renderCalendar();
-      renderEvents();
-      renderAllEventsList();
-      renderTacticBoard();
-      renderScouting();
-      renderFines();
-      renderCash();
-      renderFame();
-      renderPolls();
-      renderMessages();
-      renderDashboard();
       renderNotificationBadges();
-      renderPushPanel();
-      renderPaypalSettingsForm();
-      renderKadrivoSubscriptionButton();
+
+      // Aktiven View ermitteln
+      const activeView = $(".view.active")?.id || "dashboard";
+
+      // Immer rendern (Navigation, Status, globale Elemente)
+      renderStats();        // Dashboard-Kacheln
+      renderDashboard();    // Nächste Termine
+
+      // View-spezifisch – nur aktiven View rendern für Performance
+      if (activeView === "players" || activeView === "dashboard") {
+        renderPlayers();
+        renderStaff();
+        renderSelfProfileForm();
+      }
+      if (activeView === "events" || activeView === "dashboard") {
+        renderEventForm();
+        renderCalendar();
+        renderEvents();
+        renderAllEventsList();
+      }
+      if (activeView === "tactics") {
+        renderTacticBoard();
+      }
+      if (activeView === "scouting") {
+        renderScouting();
+      }
+      if (activeView === "cash") {
+        renderFines();
+        renderCash();
+      }
+      if (activeView === "fame") {
+        renderFame();
+      }
+      if (activeView === "polls") {
+        renderPolls();
+      }
+      if (activeView === "messages") {
+        renderMessageGroups();
+        renderMessages();
+      }
+      if (activeView === "settings") {
+        renderClubDesignForm();
+        renderPlayerCreateFormOptions();
+        renderPushPanel();
+        renderPaypalSettingsForm();
+        renderKadrivoSubscriptionButton();
+      }
+
+      // Bei vollem Render (z.B. nach Login) alle Views initialisieren
+      if (activeView === "dashboard" && _fullRenderPending) {
+        _fullRenderPending = false;
+        renderPlayers(); renderStaff(); renderEventForm();
+        renderCalendar(); renderEvents(); renderAllEventsList();
+        renderTacticBoard(); renderScouting(); renderFines();
+        renderCash(); renderFame(); renderPolls();
+        renderMessageGroups(); renderMessages();
+        renderClubDesignForm(); renderPlayerCreateFormOptions();
+        renderSelfProfileForm(); renderPushPanel();
+        renderPaypalSettingsForm(); renderKadrivoSubscriptionButton();
+      }
+    }
+
+    let _fullRenderPending = true;
+
+    function renderAll() {
+      _fullRenderPending = true;
+      render();
     }
 
     function applyPermissions() {
@@ -6377,7 +6466,18 @@
         markSeen(viewName);
         renderNotificationBadges();
       }
-      if (viewName === "messages") scrollMessagesToBottom();
+      if (viewName === "messages") {
+        scrollMessagesToBottom();
+        // Schnell-Sync nur Messages
+        if (window.supabase && !syncInProgress) quickSyncTable("messages", stateKey);
+      }
+      if (viewName === "players") {
+        // Schnell-Sync nur Spieler
+        if (window.supabase && !syncInProgress) quickSyncTable("players", stateKey);
+      }
+      if (viewName === "events") {
+        if (window.supabase && !syncInProgress) quickSyncTable("events", stateKey);
+      }
       if (viewName === "settings") renderKadrivoSubscriptionButton();
     }
 
@@ -7787,12 +7887,25 @@
     $("#settingsForm").elements.url.value = settings.url;
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
-    render();
-    setLoginVisible(!restoredLogin);
-    if (restoredLogin && location.hash === "#messages") {
-      switchView("messages");
+
+    // Wenn URL-Club angefordert und nicht im localStorage → erst sync, dann render
+    const urlClubKnown = requestedClubId && clubs.some(c => clubMatchesIdentifier(c, requestedClubId));
+    if (requestedClubId && !urlClubKnown && settings.url && settings.key) {
+      // Zeige Ladeindikator sofort
+      setStatus("Vereinsdaten werden geladen …");
+      render();
+      setLoginVisible(false);
+      // Sync mit hoher Priorität – danach render und Login
+      syncWithSupabase({ silent: true }).then(() => {
+        setLoginVisible(!restoredLogin);
+        if (restoredLogin && location.hash === "#messages") switchView("messages");
+      });
+    } else {
+      render();
+      setLoginVisible(!restoredLogin);
+      if (restoredLogin && location.hash === "#messages") switchView("messages");
+      syncWithSupabase({ silent: true });
     }
-    syncWithSupabase({ silent: true });
     refreshLoginDirectory().catch(() => {});
     loadPaypalSettings();
 
