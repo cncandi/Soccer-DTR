@@ -1185,202 +1185,155 @@ function undo(){
 // ============================================================
 // TOOLS / PLACEMENT
 // ============================================================
+// ============================================================
+// SPIELER-FELD-MANAGEMENT (nach 3D-Modell)
+// ============================================================
+
+// Ist Spieler gerade auf dem Feld? (hat sichtbares object-Eintrag)
+function isOnField(pid){
+  return objects.some(o=>o.type==='player'&&o.playerId===pid&&!o.hidden&&!o.playerId?.startsWith('away_')===!pid?.startsWith('away_'));
+}
+
+// Spieler aufs Feld – findet passenden freien Slot
 function addPlayerToField(player){
-  if(objects.some(o=>o.playerId===player.id&&!o.isBench)) return;
-  const isGk = (player.pos||player.position||'').toLowerCase().includes('torwart') || (player.pos||player.position||'').toLowerCase()==='gk';
-  const col = player.team==='away' ? awayColor : isGk ? gkColor : homeColor;
-  addObject({
-    type:'player', id:newId(),
-    fx: player.team==='away' ? 80 : 25,
-    fy: 34,
-    color: player.color || col,
-    name: player.name,
-    num:  player.num || player.number || '',
-    playerId: player.id,
-    starter: true
-  });
-  const el=document.querySelector(`.player-item[data-pid="${player.id}"]`);
-  if(el) el.classList.add('on-field');
-  updatePlayerCount();
-}
-
-function addBenchPlayer(player){
-  if(objects.some(o=>o.playerId===player.id)) return;
-  const benchCount=objects.filter(o=>o.isBench).length;
-  addObject({
-    type:'player', id:newId(),
-    fx: benchCount*8+4,
-    fy: 64,
-    color: '#555555',
-    name: player.name,
-    num:  player.num || player.number || '',
-    playerId: player.id,
-    isBench: true,
-    starter: false
-  });
-  const el=document.querySelector(`.player-item[data-pid="${player.id}"]`);
-  if(el) el.classList.add('on-field');
-  updatePlayerCount();
-}
-
-// ── ACTIVE TOOL MODE ─────────────────────────────────────────
-// Wie im 3D-Board: Tool aktivieren → endlos platzieren bis ESC
-let activeTool = null; // {type, ...params}
-
-function setActiveTool(toolId, params){
-  // Toggle: nochmal klicken deaktiviert
-  if(activeTool && activeTool.id === toolId){
-    activeTool = null;
-    document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
-    canvas.style.cursor = 'default';
-    document.getElementById('s-mode').textContent = 'Modus: Auswahl';
+  if(!player||!player.id) return;
+  // Schon auf dem Feld?
+  const existing=objects.find(o=>o.playerId===player.id&&!o.hidden);
+  if(existing){ selected=existing.id; render(); return; }
+  // Feldlimit prüfen
+  const onField=objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench&&!o.playerId?.startsWith('away_'));
+  const isAway=player.id?.startsWith('away_')||player.team==='away';
+  if(!isAway && onField.length>=fieldLimit){
+    document.getElementById('s-mode').textContent=`Feld voll (max. ${fieldLimit})`;
+    setTimeout(()=>document.getElementById('s-mode').textContent='',2000);
     return;
   }
-  activeTool = {id: toolId, ...params};
-  // Zeichenmodus deaktivieren
-  drawMode = null; drawStart = null;
-  document.querySelectorAll('.draw-item').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
-  const btn = document.getElementById('atool-'+toolId);
-  if(btn) btn.classList.add('active');
-  canvas.style.cursor = 'crosshair';
-  document.getElementById('s-mode').textContent = 'Modus: Platzieren – Klick auf Feld, ESC zum Beenden';
-  render();
+  pushUndo();
+  // Finde freien Formation-Slot
+  const role=positionRole(player.pos);
+  const slots=currentSport==='Fussball'?formation2dSlots(currentFormation):[];
+  const usedPositions=objects.filter(o=>o.type==='player'&&!o.hidden).map(o=>({fx:o.fx,fy:o.fy}));
+  function slotFree(s){ return !usedPositions.some(u=>Math.hypot(u.fx-s.x,u.fy-s.y)<4); }
+  // Slot nach Rolle
+  const byRole=slots.find(s=>s.role===role&&slotFree(s));
+  const anyFree=slots.find(s=>slotFree(s));
+  const defaultPos=isAway
+    ?{fx:FIELD.w*0.7+Math.random()*10-5,fy:FIELD.h/2+Math.random()*20-10}
+    :{fx:FIELD.w*0.3+Math.random()*10-5,fy:FIELD.h/2+Math.random()*20-10};
+  const pos=byRole?{fx:byRole.x,fy:byRole.y}:anyFree?{fx:anyFree.x,fy:anyFree.y}:defaultPos;
+  const col=player.color||(isAway?awayColor:role==='keeper'?gkColor:homeColor);
+  // Entferne alten hidden/bench Eintrag falls vorhanden
+  objects=objects.filter(o=>o.playerId!==player.id);
+  objects.push({type:'player',id:newId(),fx:pos.fx,fy:pos.fy,
+    color:col,name:player.name,num:player.num||'',
+    playerId:player.id,starter:true,isBench:false,hidden:false});
+  updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
 
-function placeActiveTool(fx, fy){
-  if(!activeTool) return;
-  const t = activeTool;
-  let obj = null;
-  if(t.type==='ball')    obj={type:'ball',id:newId(),fx,fy};
-  if(t.type==='cone')    obj={type:'cone',id:newId(),fx,fy,color:t.color||'#ff5500'};
-  if(t.type==='pole')    obj={type:'pole',id:newId(),fx,fy,horizontal:t.horizontal||false,color:'#cc0000'};
-  if(t.type==='goal')    obj={type:'goal',id:newId(),fx,fy,goalW:t.goalW||7.32,goalH:t.goalH||2.44};
-  if(t.type==='trainingPlayer') obj={type:'player',id:newId(),fx,fy,color:t.color||'#e63946',name:'',num:''};
-  if(obj){ pushUndo(); objects.push(obj); render(); scheduleKadrivoSave(); }
+// Spieler vom Feld entfernen
+function removePlayerFromField(pid){
+  const obj=objects.find(o=>o.playerId===pid);
+  if(!obj) return;
+  pushUndo();
+  objects=objects.filter(o=>o.playerId!==pid);
+  updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
 
-function cancelActiveTool(){
-  activeTool = null;
-  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
-  canvas.style.cursor = 'default';
-  document.getElementById('s-mode').textContent = 'Modus: Auswahl';
-  render();
+// Spieler Feld↔Bank tauschen (Doppelklick auf Canvas-Objekt)
+function swapPlayerFieldBench(obj){
+  if(!obj||obj.type!=='player'||!obj.playerId) return;
+  if(obj.playerId.startsWith('away_')){ removePlayerFromField(obj.playerId); return; }
+  removePlayerFromField(obj.playerId);
 }
 
-document.addEventListener('keydown', e=>{
-  // Nicht im Text-Input
-  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  if(e.key==='Escape'){
-    if(activeTool){ cancelActiveTool(); return; }
-    if(drawMode){ setDrawMode(null); return; }
-    if(drawStart){ drawStart=null; mousePos=null; render(); }
-    selected=null; render();
-    return;
-  }
-  if(e.key==='Delete'||e.key==='Backspace'){
-    if(!selected) return;
-    e.preventDefault();
-    // Prüfe ob selected eine drawLine ist
-    const line=drawLines.find(l=>l.id===selected);
-    if(line){
-      pushUndo(); drawLines=drawLines.filter(l=>l.id!==selected); selected=null; render(); scheduleKadrivoSave(); return;
-    }
-    // Prüfe objects
-    const obj=objects.find(o=>o.id===selected);
-    if(obj){
-      if(obj.type==='player'&&obj.playerId&&!obj.playerId.startsWith('away_')){
-        swapPlayerFieldBench(obj);
-      } else {
-        removeObject(selected);
-      }
-      selected=null; render();
-    }
-  }
-});
-
-function addCone(color){ addObject({type:'cone',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,color:color||'#ff5500'}); }
-function addBall(){      addObject({type:'ball',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2}); }
-function addPole(horiz){ addObject({type:'pole',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,horizontal:horiz,color:'#cc0000'}); }
-function addGoalObj(gw,gh){ addObject({type:'goal',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,goalW:gw,goalH:gh}); }
-
-function addTextAtPos(fx,fy,text){
-  if(!text) return;
-  addObject({type:'text',id:newId(),fx,fy,text,color:'#ffff00',fontSize:14});
-}
-
-// ============================================================
-// TAB / SIDEBAR
-// ============================================================
-function showTab(name){
-  currentTab=name;
-  document.querySelectorAll('.stab').forEach(el=>el.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  updateSidebar();
-}
-
-function updateSidebar(){
-  const content=document.getElementById('sidebar-content');
-  if(currentTab==='players') content.innerHTML=buildPlayersSidebar();
-  else if(currentTab==='tools') content.innerHTML=buildToolsSidebar();
-  else if(currentTab==='draw') content.innerHTML=buildDrawSidebar();
+function updatePlayerCount(){
+  const onF=objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench&&!o.playerId?.startsWith('away_')).length;
+  document.getElementById('s-players').textContent=`Feld: ${onF}/${fieldLimit}`;
 }
 
 function buildPlayersSidebar(){
-  let html='';
   const home=kadrivoPlayers.filter(p=>p.team!=='away');
   const away=kadrivoPlayers.filter(p=>p.team==='away');
-  const starters=home.slice(0,fieldLimit);
-  const bench=home.slice(fieldLimit,fieldLimit+benchLimit);
 
-  if(starters.length){
-    html+=`<div class="section-head">Starter (${starters.length}/${fieldLimit})</div>`;
-    starters.forEach(p=>{
-      const on=objects.some(o=>o.playerId===p.id&&!o.isBench);
-      const isGk=(p.pos||'').toLowerCase().includes('torwart')||(p.pos||'').toLowerCase()==='gk';
-      const col=p.color||(isGk?gkColor:homeColor);
-      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        <div class="pnum" style="background:${col}">${p.num||'?'}</div>
-        <span class="pname">${p.name||'Spieler'}</span>
-        <span class="ppos">${p.pos||''}</span>
-      </div>`;
-    });
+  // Wer ist wirklich auf dem Feld?
+  const onFieldIds=new Set(objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench).map(o=>o.playerId));
+  const onField=home.filter(p=>onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
+  const notOnField=home.filter(p=>!onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
+  const bench=notOnField.slice(0,benchLimit);
+  const reserve=notOnField.slice(benchLimit);
+
+  const pItem=(p,isOnF)=>{
+    const isGk=positionRole(p.pos)==='keeper';
+    const col=p.color||(isGk?gkColor:homeColor);
+    const action=isOnF
+      ?`removePlayerFromField('${p.id}')`
+      :`addPlayerToField(${JSON.stringify(p).replace(/\"/g,'&quot;')})`;
+    const hint=isOnF?'Doppelklick = vom Feld':'Doppelklick = aufs Feld';
+    return `<div class="player-item${isOnF?' on-field':''}" data-pid="${p.id}"
+      ondblclick="${action}" title="${hint}"
+      onclick="highlightPlayerOnField('${p.id}')">
+      <div class="pnum" style="background:${col};${!isOnF?'opacity:0.5':''}">
+        ${p.num||'?'}</div>
+      <span class="pname">${escapeHtml(p.name||'Spieler')}</span>
+      <span class="ppos">${p.pos||''}</span>
+    </div>`;
+  };
+
+  let html='';
+  html+=`<div class="section-head">Feld (${onField.length}/${fieldLimit})</div>`;
+  if(onField.length) html+=onField.map(p=>pItem(p,true)).join('');
+  else html+=`<div style="color:#555;font-size:10px;padding:4px">Niemand auf dem Feld</div>`;
+
+  html+=`<div class="section-head" style="color:#ffcc00">Bank (${bench.length}/${benchLimit})</div>`;
+  if(bench.length) html+=bench.map(p=>pItem(p,false)).join('');
+
+  if(reserve.length){
+    html+=`<div class="section-head" style="color:#888">Reserve (${reserve.length})</div>`;
+    html+=reserve.map(p=>pItem(p,false)).join('');
   }
-  if(bench.length){
-    html+=`<div class="section-head" style="color:#ffcc00">Bank (${bench.length}/${benchLimit})</div>`;
-    bench.forEach(p=>{
-      const on=objects.some(o=>o.playerId===p.id&&o.isBench);
-      const col='#555555';
-      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" style="${on?'':'opacity:0.7'}" onclick="addBenchPlayer(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        <div class="pnum" style="background:${col};border:1px dashed #aaa">${p.num||'?'}</div>
-        <span class="pname" style="color:#ffcc00">${p.name||'Spieler'} <small>Bank</small></span>
-        <span class="ppos">${p.pos||''}</span>
-      </div>`;
-    });
-  }
+
   if(away.length){
+    const awayOnF=away.filter(p=>onFieldIds.has(p.id));
+    const awayOff=away.filter(p=>!onFieldIds.has(p.id));
     html+=`<div class="section-head">Gegner</div>`;
-    away.forEach(p=>{
-      const on=objects.some(o=>o.playerId===p.id);
+    html+=awayOnF.map(p=>{
       const col=p.color||awayColor;
-      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+      return `<div class="player-item on-field" data-pid="${p.id}"
+        ondblclick="removePlayerFromField('${p.id}')" onclick="highlightPlayerOnField('${p.id}')">
         <div class="pnum" style="background:${col}">${p.num||'?'}</div>
-        <span class="pname">${p.name||'Spieler'}</span>
+        <span class="pname">${p.name||'Gegner'}</span>
         <span class="ppos">${p.pos||''}</span>
       </div>`;
-    });
+    }).join('');
+    html+=awayOff.map(p=>{
+      const col=p.color||awayColor;
+      return `<div class="player-item" data-pid="${p.id}"
+        ondblclick="addPlayerToField(${JSON.stringify(p).replace(/\"/g,'&quot;')})"
+        onclick="highlightPlayerOnField('${p.id}')">
+        <div class="pnum" style="background:${col};opacity:0.5">${p.num||'?'}</div>
+        <span class="pname">${p.name||'Gegner'}</span>
+        <span class="ppos">${p.pos||''}</span>
+      </div>`;
+    }).join('');
   }
+
   if(!home.length&&!away.length){
     html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.</div>`;
   }
+
   html+=`<div class="section-head">Trainingsspieler</div>
-  <div class="tool-item" onclick="setActiveTool('tp-home',{type:'trainingPlayer',color:'${homeColor}'})"><span class="ticon">🔴</span>Heim-Spieler</div>
-  <div class="tool-item" onclick="setActiveTool('tp-away',{type:'trainingPlayer',color:'${awayColor}'})"><span class="ticon">🔵</span>Gegner-Spieler</div>
-  <div class="tool-item" onclick="setActiveTool('tp-gk',{type:'trainingPlayer',color:'${gkColor}'})"><span class="ticon">🟡</span>Torwart</div>
-  <div class="tool-item" onclick="openTrainingColorPicker()"><span class="ticon">🎨</span>Farbe wählen…</div>
-  <p class="meta" style="padding:6px;font-size:9px;color:#666">Klick auf Feld platziert · ESC zum Beenden</p>`;
+  <div class="tool-item" onclick="setActiveTool('tp-home',{type:'trainingPlayer',color:'${homeColor}'})"><span class="ticon">🔴</span>Heim</div>
+  <div class="tool-item" onclick="setActiveTool('tp-away',{type:'trainingPlayer',color:'${awayColor}'})"><span class="ticon">🔵</span>Gegner</div>
+  <div class="tool-item" onclick="setActiveTool('tp-gk',{type:'trainingPlayer',color:'${gkColor}'})"><span class="ticon">🟡</span>Torwart</div>`;
   return html;
 }
+
+function highlightPlayerOnField(pid){
+  const obj=objects.find(o=>o.playerId===pid&&!o.hidden);
+  if(obj){ selected=obj.id; render(); }
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function buildToolsSidebar(){
   const at = activeTool;
