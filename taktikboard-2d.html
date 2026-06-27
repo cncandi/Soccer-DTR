@@ -838,10 +838,24 @@ function onMouseDown(e){
     return;
   }
 
-  // Active tool placement mode
+  // Active tool placement mode - but allow clicking existing objects
   if(activeTool){
-    const fp = canvasToField(p.x,p.y);
-    placeActiveTool(fp.x, fp.y);
+    const hit=hitTest(p.x,p.y);
+    if(hit){
+      // Click on existing object → select it, don't place
+      selected=hit.id;
+      dragObj=hit;
+      dragMoved=false;
+      dragStartFx=hit.fx;
+      dragStartFy=hit.fy;
+      const hp=fieldToCanvas(hit.fx,hit.fy);
+      dragOffX=p.x-hp.x; dragOffY=p.y-hp.y;
+      render();
+    } else {
+      // Click on empty field → place tool
+      const fp = canvasToField(p.x,p.y);
+      placeActiveTool(fp.x, fp.y);
+    }
     return;
   }
 
@@ -1419,24 +1433,55 @@ const FORMATIONS = {
 
 // Generic formations for other player counts
 function genericFormation(count){
-  // Returns field positions for `count` field players (excl. GK)
   const slots=[];
-  // GK at 10% from left side
-  slots.push([8,34]);
-  // Distribute rest evenly in rows
+  slots.push([FIELD.w*0.1, FIELD.h/2]);
   const outfield=count-1;
   const rows=outfield<=3?1:outfield<=6?2:outfield<=9?3:4;
   const perRow=Math.ceil(outfield/rows);
   for(let r=0;r<rows;r++){
     const cnt=Math.min(perRow,outfield-r*perRow);
-    const x=20+r*(50/rows);
+    const x=FIELD.w*0.18+r*(FIELD.w*0.55/rows);
     for(let i=0;i<cnt;i++){
-      const y=10+((58/(cnt+1))*(i+1));
+      const y=FIELD.h*0.1+((FIELD.h*0.8/(cnt+1))*(i+1));
       slots.push([x,y]);
     }
   }
   return slots;
 }
+
+const GK_POSITIONS={
+  Fussball:['tor','torwart','gk','keeper'],
+  Handball:['tor','torwart','gk'],
+  Basketball:[],
+  Eishockey:['tor','torwart','goalie','goalkeeper'],
+  Volleyball:[],
+  'Andere Sportart':['tor','torwart','gk']
+};
+function isGkPosition(pos){
+  const terms=(GK_POSITIONS[currentSport]||GK_POSITIONS['Andere Sportart']);
+  const n=(pos||'').toLowerCase();
+  return terms.some(t=>n.includes(t));
+}
+
+// Sport-spezifische Slot-Positionen (in echten Metern des jeweiligen Feldes)
+const SPORT_AUTO_FORMATIONS={
+  Handball:{
+    gk:[[3,10]],
+    field:[[12,4],[12,10],[12,16],[20,4],[20,10],[20,16],[28,4],[28,10],[28,16],[32,5],[32,15],[16,7],[16,13],[24,7],[24,13]]
+  },
+  Basketball:{
+    gk:[],
+    field:[[3,7.5],[8,3],[8,12],[13,3],[13,12],[19,7.5],[16,4],[16,11],[10,7.5],[5,4],[5,11],[21,4],[21,11],[24,4],[24,11]]
+  },
+  Eishockey:{
+    gk:[[4,13]],
+    field:[[14,7],[14,13],[14,19],[22,7],[22,13],[22,19],[30,7],[30,13],[30,19],[38,7],[38,13],[38,19],[8,9],[8,17],[18,10]]
+  },
+  Volleyball:{
+    gk:[],
+    field:[[3,1.5],[3,4.5],[3,7.5],[8,1.5],[8,4.5],[8,7.5],[5.5,1.5],[5.5,4.5],[5.5,7.5],[1.5,3],[1.5,6],[10,3],[10,6],[6.5,3],[6.5,6]]
+  }
+};
 
 let currentFormation='4-3-3';
 let fieldLimit=11;
@@ -1459,31 +1504,66 @@ function applyFormation2d(name){
 }
 
 function autoPlace2d(){
-  // Remove all home players from field
+  // Alle Heimspieler vom Feld entfernen
   objects.filter(o=>o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')).forEach(o=>{
     const el=document.querySelector(`.player-item[data-pid="${o.playerId}"]`);
     if(el) el.classList.remove('on-field');
   });
   objects=objects.filter(o=>!(o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')));
 
-  // Get starters
-  const starters=kadrivoPlayers.filter(p=>p.team!=='away').slice(0,fieldLimit);
-  const slots=getFormationSlots(starters.length);
-  starters.forEach((p,i)=>{
-    const pos=slots[i]||[50,34];
-    const isGk=(p.pos||'').toLowerCase().includes('torwart')||(p.pos||'').toLowerCase()==='gk';
-    const col=isGk?gkColor:homeColor;
-    const obj={type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true};
-    objects.push(obj);
-    const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-    if(el) el.classList.add('on-field');
-  });
+  const allHome=kadrivoPlayers.filter(p=>p.team!=='away');
+  const starters=allHome.slice(0,fieldLimit);
+  const bench=allHome.slice(fieldLimit,fieldLimit+benchLimit);
 
-  // Place bench players along bottom edge
-  const bench=kadrivoPlayers.filter(p=>p.team!=='away').slice(fieldLimit,fieldLimit+benchLimit);
+  if(currentSport==='Fussball'){
+    const slots=getFormationSlots(starters.length);
+    starters.forEach((p,i)=>{
+      const pos=slots[i]||[FIELD.w/2,FIELD.h/2];
+      const col=isGkPosition(p.pos)?gkColor:homeColor;
+      objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+      const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+      if(el) el.classList.add('on-field');
+    });
+  } else {
+    const formation=SPORT_AUTO_FORMATIONS[currentSport];
+    const gkPlayers=starters.filter(p=>isGkPosition(p.pos));
+    const fieldPlayers=starters.filter(p=>!isGkPosition(p.pos));
+
+    if(formation){
+      let slotIdx=0;
+      // Torwart(e) zuerst
+      gkPlayers.forEach((p,i)=>{
+        const slot=formation.gk[i];
+        if(!slot) return;
+        objects.push({type:'player',id:newId(),fx:slot[0],fy:slot[1],color:p.color||gkColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+        if(el) el.classList.add('on-field');
+      });
+      // Feldspieler
+      fieldPlayers.forEach((p,i)=>{
+        const slot=formation.field[i];
+        if(!slot) return;
+        objects.push({type:'player',id:newId(),fx:slot[0],fy:slot[1],color:p.color||homeColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+        if(el) el.classList.add('on-field');
+      });
+    } else {
+      // Fallback genericFormation
+      const slots=genericFormation(starters.length);
+      starters.forEach((p,i)=>{
+        const pos=slots[i]||[FIELD.w/2,FIELD.h/2];
+        const col=isGkPosition(p.pos)?gkColor:homeColor;
+        objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+        if(el) el.classList.add('on-field');
+      });
+    }
+  }
+
+  // Bank entlang unterer Feldkante
   bench.forEach((p,i)=>{
-    const obj={type:'player',id:newId(),fx:i*8+4,fy:64,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true};
-    objects.push(obj);
+    const benchX=Math.min(FIELD.w-1, 1+i*(FIELD.w/Math.max(benchLimit,1)));
+    objects.push({type:'player',id:newId(),fx:benchX,fy:FIELD.h-0.8,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true});
     const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
     if(el) el.classList.add('on-field');
   });
