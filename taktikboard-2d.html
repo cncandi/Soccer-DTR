@@ -827,14 +827,25 @@ function addPlayerToField(player){
   const role=positionRole(player.pos);
   const slots=currentSport==='Fussball'?formation2dSlots(currentFormation):[];
   const usedPos=objects.filter(o=>o.type==='player'&&!o.hidden).map(o=>({fx:o.fx,fy:o.fy}));
-  const slotFree=s=>!usedPos.some(u=>Math.hypot(u.fx-s.x,u.fy-s.y)<4);
+  const slotFree=s=>!usedPos.some(u=>Math.hypot(u.fx-s.x,u.fy-s.y)<3);
   const byRole=slots.find(s=>s.role===role&&slotFree(s));
   const anyFree=slots.find(s=>slotFree(s));
-  const defPos=isAway?{fx:FIELD.w*0.7,fy:FIELD.h/2}:{fx:FIELD.w*0.3,fy:FIELD.h/2};
-  const pos=byRole?{fx:byRole.x,fy:byRole.y}:anyFree?{fx:anyFree.x,fy:anyFree.y}:defPos;
+  let pos;
+  if(byRole)      pos={fx:byRole.x,fy:byRole.y};
+  else if(anyFree) pos={fx:anyFree.x,fy:anyFree.y};
+  else {
+    // Kein freier Slot: verteile auf dem Feld mit Abstand zu anderen
+    const spread=onFieldCount%(isAway?3:4);
+    const row=Math.floor(onFieldCount/4);
+    pos=isAway
+      ? {fx:FIELD.w*0.65+row*5, fy:FIELD.h*0.2+spread*FIELD.h*0.2}
+      : {fx:FIELD.w*0.25+row*5, fy:FIELD.h*0.2+spread*FIELD.h*0.2};
+  }
   const col=player.color||(isAway?awayColor:role==='keeper'?gkColor:homeColor);
   objects=objects.filter(o=>o.playerId!==player.id);
-  objects.push({type:'player',id:newId(),fx:pos.fx+Math.random()*2-1,fy:pos.fy+Math.random()*2-1,
+  objects.push({type:'player',id:newId(),
+    fx:pos.fx+(Math.random()-0.5)*3,
+    fy:pos.fy+(Math.random()-0.5)*3,
     color:col,name:player.name||'',num:player.num||'',playerId:player.id,hidden:false});
   updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
