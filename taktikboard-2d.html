@@ -217,13 +217,6 @@ let drawLines = [];   // drawn arrows/lines
 let selected  = null; // selected object id
 let undoStack = [];
 
-let dragObj   = null;
-let dragOffX  = 0, dragOffY = 0;
-let dragMoved = false;
-let dragStartFx = 0, dragStartFy = 0;
-let isPanning = false;
-let panStart  = {x:0,y:0};
-let panOff    = {x:0,y:0};
 let zoom      = 1;
 
 let currentTab   = 'players';
@@ -853,11 +846,6 @@ function distToSegment(px,py,ax,ay,bx,by){
 // ============================================================
 let mousePos = null;
 
-canvas.addEventListener('mousedown', onMouseDown);
-canvas.addEventListener('mousemove', onMouseMove);
-canvas.addEventListener('mouseup',   onMouseUp);
-canvas.addEventListener('contextmenu', onContextMenu);
-canvas.addEventListener('dblclick',  onDblClick);
 canvas.addEventListener('wheel', onWheel, {passive:false});
 
 function canvasXY(e){
@@ -865,39 +853,81 @@ function canvasXY(e){
   return {x:e.clientX-r.left, y:e.clientY-r.top};
 }
 
-function onMouseDown(e){
+// ============================================================
+// MOUSE / TOUCH – komplett neu, sauber, ohne Zustandsfehler
+// ============================================================
+// Drag-State
+let _drag = null;
+// {obj, src:'obj'|'line', startFx, startFy, offX, offY,
+//  lineDx, lineDy,   // für Linienpfeil: akkumulierter Delta
+//  moved}
+
+let isPanning  = false;
+let panStart   = {x:0,y:0};
+let panOff     = {x:0,y:0};
+let _clickCount = 0;  // für Doppelklick-Erkennung
+let _clickTimer = null;
+
+// Hilfsfunktion: Canvas-Koordinaten aus Event
+
+canvas.addEventListener('mousedown',  onPointerDown);
+canvas.addEventListener('mousemove',  onPointerMove);
+canvas.addEventListener('mouseup',    onPointerUp);
+canvas.addEventListener('dblclick',   onDblClick);
+canvas.addEventListener('contextmenu',onContextMenu);
+canvas.addEventListener('mouseleave', onPointerUp); // Maus verlässt Canvas → stoppe Drag
+
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); onPointerDown(e.touches[0]); },{passive:false});
+canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); onPointerMove(e.touches[0]); },{passive:false});
+canvas.addEventListener('touchend',   e=>{ e.preventDefault(); onPointerUp(e.changedTouches[0]); },{passive:false});
+
+function onPointerDown(e){
+  // Nur Linksklick (bei Maus)
+  if(e.button !== undefined && e.button !== 0) return;
   closeContextMenu();
   const p = canvasXY(e);
-  if(e.button===1){ isPanning=true; panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y}; e.preventDefault(); return; }
-  if(e.button===2) return;
-  if(e.button!==0) return;
 
-  // IMMER zuerst hitTest – egal welcher Modus aktiv ist
+  // 1. Immer zuerst HitTest
   const hit = hitTest(p.x, p.y);
 
   if(hit){
-    // Objekt getroffen → selektieren & draggen
     cancelActiveTool();
     drawStart = null;
     const obj = hit.obj;
-    selected = obj.id;
-    dragObj  = obj;
-    dragMoved = false;
-    dragSrc = hit.src;
+    selected  = obj.id;
+
     if(hit.src === 'obj'){
-      dragStartFx = obj.fx; dragStartFy = obj.fy;
-      const hp = fieldToCanvas(obj.fx, obj.fy);
-      dragOffX = p.x - hp.x; dragOffY = p.y - hp.y;
+      const cp = fieldToCanvas(obj.fx, obj.fy);
+      _drag = {
+        obj,
+        src:    'obj',
+        startFx: obj.fx,
+        startFy: obj.fy,
+        offX:   p.x - cp.x,
+        offY:   p.y - cp.y,
+        moved:  false
+      };
     } else {
-      // Pfeil/Linie: Mittelpunkt als Drag-Handle
-      dragStartFx = obj.x1; dragStartFy = obj.y1;
-      dragOffX = 0; dragOffY = 0;
+      // Pfeil/Linie: Mittelpunkt des Segments berechnen
+      const cp1 = fieldToCanvas(obj.x1, obj.y1);
+      const cp2 = fieldToCanvas(obj.x2, obj.y2);
+      const mx  = (cp1.x + cp2.x) / 2;
+      const my  = (cp1.y + cp2.y) / 2;
+      _drag = {
+        obj,
+        src:    'line',
+        startX1: obj.x1, startY1: obj.y1,
+        startX2: obj.x2, startY2: obj.y2,
+        offX:   p.x - mx,
+        offY:   p.y - my,
+        moved:  false
+      };
     }
     render();
     return;
   }
 
-  // Kein Hit – je nach Modus reagieren
+  // 2. Kein Hit → Tool / Zeichnen / Pan
   if(activeTool){
     const fp = canvasToField(p.x, p.y);
     placeActiveTool(fp.x, fp.y);
@@ -910,93 +940,154 @@ function onMouseDown(e){
   }
   if(drawMode){
     const fp = canvasToField(p.x, p.y);
-    if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; return; }
-    pushUndo();
-    drawLines.push({id:newId(),x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,arrow:true});
-    drawStart=null; mousePos=null;
-    render(); scheduleKadrivoSave(); return;
+    if(!drawStart){
+      drawStart = {x: fp.x, y: fp.y};
+      mousePos  = p;
+    } else {
+      pushUndo();
+      drawLines.push({
+        id: newId(), x1: drawStart.x, y1: drawStart.y,
+        x2: fp.x, y2: fp.y,
+        color: arrowColor, style: arrowStyle, arrow: true
+      });
+      drawStart = null; mousePos = null;
+      render(); scheduleKadrivoSave();
+    }
+    return;
   }
+
   // Pan
-  selected=null; dragObj=null;
-  isPanning=true;
-  panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y};
+  selected = null; _drag = null;
+  isPanning = true;
+  panStart  = {x: e.clientX - panOff.x, y: e.clientY - panOff.y};
   render();
 }
 
-function onMouseMove(e){
-  const p=canvasXY(e);
-  mousePos=p;
-  if(isPanning){ panOff={x:e.clientX-panStart.x, y:e.clientY-panStart.y}; calcFieldRect(); render(); return; }
-  if(dragObj){
-    const fp=canvasToField(p.x-dragOffX, p.y-dragOffY);
-    if(dragSrc==='line'){
-      // Pfeil verschieben: beide Punkte gleichzeitig
-      const dx=fp.x-dragLastFx, dy=fp.y-dragLastFy;
-      if(dragLastFx!==undefined){
-        dragObj.x1=Math.max(0,Math.min(FIELD.w,dragObj.x1+dx));
-        dragObj.y1=Math.max(0,Math.min(FIELD.h,dragObj.y1+dy));
-        dragObj.x2=Math.max(0,Math.min(FIELD.w,dragObj.x2+dx));
-        dragObj.y2=Math.max(0,Math.min(FIELD.h,dragObj.y2+dy));
-      }
-      dragLastFx=fp.x; dragLastFy=fp.y;
-    } else {
-      dragObj.fx=Math.max(0,Math.min(FIELD.w,fp.x));
-      dragObj.fy=Math.max(0,Math.min(FIELD.h,fp.y));
-    }
-    dragMoved=true; render(); return;
+function onPointerMove(e){
+  const p = canvasXY(e);
+  mousePos = p;
+
+  if(isPanning && !_drag){
+    panOff = {x: e.clientX - panStart.x, y: e.clientY - panStart.y};
+    calcFieldRect();
+    render();
+    return;
   }
+
+  if(_drag){
+    const d = _drag;
+    if(d.src === 'obj'){
+      // Feldkoordinaten des neuen Mittelpunkts
+      const fp = canvasToField(p.x - d.offX, p.y - d.offY);
+      d.obj.fx = Math.max(0, Math.min(FIELD.w, fp.x));
+      d.obj.fy = Math.max(0, Math.min(FIELD.h, fp.y));
+      d.moved  = true;
+    } else {
+      // Pfeil: verschiebe beide Punkte relativ zum Ursprungs-Mittelpunkt
+      const fp = canvasToField(p.x - d.offX, p.y - d.offY);
+      // fp ist der aktuelle Mittelpunkt in Feldkoordinaten
+      const origMx = (d.startX1 + d.startX2) / 2;
+      const origMy = (d.startY1 + d.startY2) / 2;
+      // Ursprüngliche Ausdehnung
+      const halfDx = (d.startX2 - d.startX1) / 2;
+      const halfDy = (d.startY2 - d.startY1) / 2;
+      // Neuer Mittelpunkt
+      const origCenter = fieldToCanvas(origMx, origMy);
+      const newCenter  = canvasToField(p.x - d.offX, p.y - d.offY);
+      d.obj.x1 = Math.max(0, Math.min(FIELD.w, newCenter.x - halfDx));
+      d.obj.y1 = Math.max(0, Math.min(FIELD.h, newCenter.y - halfDy));
+      d.obj.x2 = Math.max(0, Math.min(FIELD.w, newCenter.x + halfDx));
+      d.obj.y2 = Math.max(0, Math.min(FIELD.h, newCenter.y + halfDy));
+      d.moved  = true;
+    }
+    render();
+    return;
+  }
+
   if(drawMode && drawStart){ render(); }
 }
 
-let dragLastFx, dragLastFy, dragSrc='obj';
+function onPointerUp(e){
+  if(e.button !== undefined && e.button !== 0 && e.button !== undefined){
+    if(e.button === 1){ isPanning = false; return; }
+    if(e.button !== 0) return;
+  }
 
-function onMouseUp(e){
-  if(e.button===1){ isPanning=false; return; }
-  if(isPanning && !dragObj){ isPanning=false; return; }
-  if(dragObj){
-    if(dragMoved){
-      if(dragSrc==='line'){
-        const x1=dragObj.x1,y1=dragObj.y1,x2=dragObj.x2,y2=dragObj.y2;
-        dragObj.x1=dragStartFx; dragObj.y1=dragStartFy;
-        pushUndo();
-        dragObj.x1=x1; dragObj.y1=y1; dragObj.x2=x2; dragObj.y2=y2;
+  if(isPanning){ isPanning = false; return; }
+
+  if(_drag){
+    const d = _drag;
+    if(d.moved){
+      if(d.src === 'obj'){
+        // Undo-Eintrag: speichere Zustand VOR dem Drag
+        // Wir setzen die Position kurz zurück, klonen, setzen dann wieder
+        const curFx = d.obj.fx, curFy = d.obj.fy;
+        d.obj.fx = d.startFx; d.obj.fy = d.startFy;
+        const snap = {
+          objects:   JSON.parse(JSON.stringify(objects)),
+          drawLines: JSON.parse(JSON.stringify(drawLines))
+        };
+        undoStack.push(snap);
+        if(undoStack.length > 40) undoStack.shift();
+        // Finale Position setzen
+        d.obj.fx = curFx; d.obj.fy = curFy;
       } else {
-        const fx=dragObj.fx, fy=dragObj.fy;
-        dragObj.fx=dragStartFx; dragObj.fy=dragStartFy;
-        pushUndo();
-        dragObj.fx=fx; dragObj.fy=fy;
+        // Pfeil-Undo
+        const cx1=d.obj.x1,cy1=d.obj.y1,cx2=d.obj.x2,cy2=d.obj.y2;
+        d.obj.x1=d.startX1; d.obj.y1=d.startY1;
+        d.obj.x2=d.startX2; d.obj.y2=d.startY2;
+        const snap = {
+          objects:   JSON.parse(JSON.stringify(objects)),
+          drawLines: JSON.parse(JSON.stringify(drawLines))
+        };
+        undoStack.push(snap);
+        if(undoStack.length > 40) undoStack.shift();
+        d.obj.x1=cx1; d.obj.y1=cy1;
+        d.obj.x2=cx2; d.obj.y2=cy2;
       }
       scheduleKadrivoSave();
     }
-    dragObj=null; dragMoved=false; isPanning=false;
-    dragLastFx=undefined; dragLastFy=undefined;
+    _drag = null;
     render();
+    return;
   }
 }
 
 function onDblClick(e){
-  dragObj=null; dragMoved=false; isPanning=false;
-  const p=canvasXY(e);
-  const hit=hitTest(p.x,p.y);
+  // Drag-State komplett zurücksetzen
+  _drag     = null;
+  isPanning = false;
+
+  const p   = canvasXY(e);
+  const hit = hitTest(p.x, p.y);
   if(!hit) return;
-  const obj=hit.obj;
-  if(hit.src==='line'){
+
+  const obj = hit.obj;
+
+  if(hit.src === 'line'){
     pushUndo();
-    drawLines=drawLines.filter(l=>l.id!==obj.id);
-    selected=null; render(); scheduleKadrivoSave(); return;
+    drawLines = drawLines.filter(l => l.id !== obj.id);
+    selected  = null;
+    render(); scheduleKadrivoSave();
+    return;
   }
-  if(obj.type==='player'&&obj.playerId&&!obj.playerId.startsWith('away_')){
+
+  // Spieler mit playerId → Feld↔Bank wechseln
+  if(obj.type === 'player' && obj.playerId && !obj.playerId.startsWith('away_')){
     swapPlayerFieldBench(obj);
-  } else {
-    removeObject(obj.id);
-    selected=null;
+    return;
   }
+
+  // Alle anderen Objekte → löschen
+  pushUndo();
+  objects  = objects.filter(o => o.id !== obj.id);
+  selected = null;
+  render(); scheduleKadrivoSave();
 }
 
 function onContextMenu(e){
   e.preventDefault();
-  const p=canvasXY(e);
-  const hit=hitTest(p.x,p.y);
+  const hit=hitTest(canvasXY(e).x, canvasXY(e).y);
   if(!hit){ closeContextMenu(); return; }
   const obj=hit.obj;
   selected=obj.id;
