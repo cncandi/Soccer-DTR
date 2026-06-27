@@ -3123,6 +3123,15 @@
       if (form.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = defaults.fieldPlayers;
       if (form.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = defaults.benchPlayers;
       updatePositionsHint(sport);
+      // Sofort im Club-Objekt speichern damit Taktik-Limits stimmen
+      const club = currentClub();
+      if (club) {
+        club.sport = sport;
+        club.maxFieldPlayers = defaults.fieldPlayers;
+        club.maxBenchPlayers = defaults.benchPlayers;
+        saveClubs({ sync: false });
+        requestAnimationFrame(sendTactic3dPayload);
+      }
     }
 
     function renderPlayerCreateFormOptions() {
@@ -5670,9 +5679,29 @@
       return `home_${String(player.id || player.name || index).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || index}`;
     }
 
+    function sportCorrectFieldLimit() {
+      const club = currentClub();
+      const sport = club.sport || "Fussball";
+      const sportDefault = (SPORT_DEFAULTS[sport] || SPORT_DEFAULTS.Fussball).fieldPlayers;
+      const stored = club.maxFieldPlayers;
+      // Wenn gespeicherter Wert dem Fußball-Default (11) entspricht aber Sportart ≠ Fußball
+      // → sport-korrekten Default verwenden
+      if (sport !== "Fussball" && stored === 11) return sportDefault;
+      return stored || sportDefault;
+    }
+
+    function sportCorrectBenchLimit() {
+      const club = currentClub();
+      const sport = club.sport || "Fussball";
+      const sportDefault = (SPORT_DEFAULTS[sport] || SPORT_DEFAULTS.Fussball).benchPlayers;
+      const stored = club.maxBenchPlayers;
+      if (sport !== "Fussball" && stored === 9) return sportDefault;
+      return stored ?? sportDefault;
+    }
+
     function tactic3dPlayersForBoard(board) {
       const fameRank = new Map(fameRows().map((row, index) => [playerNameKey(row.player.name), index + 1]));
-      const maxFieldPlayers = currentClub().maxFieldPlayers || (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).fieldPlayers;
+      const maxFieldPlayers = sportCorrectFieldLimit();
       return tacticPlayersForBoard(board).map((player, index) => ({
         id: tacticPlayerId(player, index),
         team: "home",
@@ -5704,8 +5733,8 @@
         } : null,
         sport: currentClub().sport || "Fussball",
         limits: {
-          fieldPlayers: currentClub().maxFieldPlayers || (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).fieldPlayers,
-          benchPlayers: currentClub().maxBenchPlayers ?? (SPORT_DEFAULTS[currentClub().sport] || SPORT_DEFAULTS.Fussball).benchPlayers
+          fieldPlayers: sportCorrectFieldLimit(),
+          benchPlayers: sportCorrectBenchLimit()
         },
         players,
         saved: board.threeData || null,
