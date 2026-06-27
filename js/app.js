@@ -5560,7 +5560,7 @@
       } catch (error) {
         console.warn("Taktik-Payload konnte nicht lokal gespeichert werden.", error);
       }
-      ["#tactic3dFrame", "#tactic3dModalFrame", "#tactic2dFrame"].forEach((selector) => {
+      ["#tactic3dFrame", "#tactic3dModalFrame", "#tactic2dFrame", "#tactic2dModalFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame?.contentWindow) frame.contentWindow.postMessage(payload, window.location.origin);
       });
@@ -5625,7 +5625,16 @@
     }
     window.switchTacticMode = switchTacticMode;
 
+    function currentTacticMode() {
+      return $("#tactic-panel-2d")?.style.display === "" ? "2d" : "3d";
+    }
+
     async function openTactic3dModal() {
+      const mode = currentTacticMode();
+      if (mode === "2d") {
+        await openTactic2dModal();
+        return;
+      }
       const modal = $("#tactic3dModal");
       if (!modal) return;
       const board = currentTacticBoard();
@@ -5643,6 +5652,32 @@
       modal.setAttribute("aria-hidden", "false");
       document.body.classList.add("modal-open");
       requestAnimationFrame(sendTactic3dPayload);
+    }
+
+    async function openTactic2dModal() {
+      const modal = $("#tactic2dModal");
+      if (!modal) return;
+      const board = currentTacticBoard();
+      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const frame = $("#tactic2dModalFrame");
+      if (frame && !frame.src.includes("taktikboard-2d.html")) frame.src = `taktikboard-2d.html?v=144`;
+      $("#tactic2dModalTitle").textContent = board.title || "2D Taktiktafel";
+      $("#tactic2dModalMeta").textContent = eventItem
+        ? `${eventItem.type}: ${eventItem.title} - Aenderungen werden automatisch gespeichert.`
+        : "Bitte zuerst ein Spiel oder Training auswaehlen.";
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-open");
+      requestAnimationFrame(sendTactic3dPayload);
+    }
+
+    async function closeTactic2dModal() {
+      const modal = $("#tactic2dModal");
+      if (!modal) return;
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("modal-open");
+      sendTactic3dPayload();
     }
 
     async function closeTactic3dModal() {
@@ -7134,8 +7169,15 @@
     $("#tactic2dFrame")?.addEventListener("load", () => {
       sendTactic3dPayload();
     });
+    $("#tactic2dModalFrame")?.addEventListener("load", () => {
+      sendTactic3dPayload();
+    });
     $("#openTactic3dBtn")?.addEventListener("click", openTactic3dModal);
     $("#openTactic2dBtn")?.addEventListener("click", openTactic3dModal);
+    $("#closeTactic2dModalBtn")?.addEventListener("click", closeTactic2dModal);
+    $("#tactic2dModal")?.addEventListener("click", (event) => {
+      if (event.target.id === "tactic2dModal") closeTactic2dModal();
+    });
     $("#closeTactic3dModalBtn")?.addEventListener("click", closeTactic3dModal);
     $("#tactic3dModal")?.addEventListener("click", (event) => {
       if (event.target.id === "tactic3dModal") closeTactic3dModal();

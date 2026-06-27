@@ -112,7 +112,16 @@ canvas{display:block}
       <button class="tb-btn" onclick="undo()">↩ Undo</button>
       <button class="tb-btn" onclick="clearAll()">🗑 Leeren</button>
       <button class="tb-btn" onclick="toggleNames()" id="btn-names">Namen: Aus</button>
+      <button class="tb-btn" onclick="autoPlace2d()">⚡ Auto-Aufstellung</button>
       <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
+    </div>
+    <div id="formation-bar-2d" style="display:none;position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:5px;background:rgba(10,10,30,.85);border:1px solid #2a2a4a;border-radius:8px;padding:5px 8px;z-index:20;backdrop-filter:blur(4px);flex-wrap:nowrap">
+      <button class="tb-btn fbtn2d active" id="fbtn-4-3-3" onclick="applyFormation2d('4-3-3')">4-3-3</button>
+      <button class="tb-btn fbtn2d" id="fbtn-4-4-2" onclick="applyFormation2d('4-4-2')">4-4-2</button>
+      <button class="tb-btn fbtn2d" id="fbtn-4-2-3-1" onclick="applyFormation2d('4-2-3-1')">4-2-3-1</button>
+      <button class="tb-btn fbtn2d" id="fbtn-3-5-2" onclick="applyFormation2d('3-5-2')">3-5-2</button>
+      <button class="tb-btn fbtn2d" id="fbtn-5-3-2" onclick="applyFormation2d('5-3-2')">5-3-2</button>
+      <button class="tb-btn fbtn2d" id="fbtn-3-4-3" onclick="applyFormation2d('3-4-3')">3-4-3</button>
     </div>
     <div id="statusbar">
       <span id="s-mode">Modus: Auswahl</span>
@@ -403,21 +412,44 @@ function drawObj(obj){
 }
 
 function drawPlayer(obj, s, sel){
-  const r = 14;
+  const r = obj.isBench ? 10 : 14;
   const col = obj.color || '#e63946';
   // Shadow
   ctx.beginPath();
   ctx.ellipse(0, r*0.7, r*0.7, r*0.25, 0, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fill();
-  // Body circle
+  // Body circle - bench players get dashed border
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI*2);
   ctx.fillStyle = col;
   ctx.fill();
-  ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.7)';
-  ctx.lineWidth = sel ? 2.5 : 1.5;
-  ctx.stroke();
+  if(obj.isBench){
+    ctx.save();
+    ctx.setLineDash([3,2]);
+    ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+    // "B" label overlay for bench
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.arc(r-2, -r+2, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 6px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('B', r-2, -r+2);
+  } else {
+    ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = sel ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.stroke();
+  }
   // Number / initials
   const label = obj.num ? String(obj.num) : (obj.name || '?').substring(0,2).toUpperCase();
   ctx.fillStyle = '#fff';
@@ -429,7 +461,7 @@ function drawPlayer(obj, s, sel){
   // Name below
   if(showNames && obj.name){
     ctx.font = '9px sans-serif';
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = obj.isBench ? '#ffcc00' : '#fff';
     ctx.shadowColor = '#000';
     ctx.shadowBlur = 3;
     ctx.fillText(obj.name, 0, r+9);
@@ -835,9 +867,8 @@ function undo(){
 // TOOLS / PLACEMENT
 // ============================================================
 function addPlayerToField(player){
-  // Check if already on field
-  if(objects.some(o=>o.playerId===player.id)) return;
-  const isGk = (player.position||'').toLowerCase().includes('torwart') || (player.position||'').toLowerCase().includes('gk');
+  if(objects.some(o=>o.playerId===player.id&&!o.isBench)) return;
+  const isGk = (player.pos||player.position||'').toLowerCase().includes('torwart') || (player.pos||player.position||'').toLowerCase()==='gk';
   const col = player.team==='away' ? awayColor : isGk ? gkColor : homeColor;
   addObject({
     type:'player', id:newId(),
@@ -846,7 +877,27 @@ function addPlayerToField(player){
     color: player.color || col,
     name: player.name,
     num:  player.num || player.number || '',
-    playerId: player.id
+    playerId: player.id,
+    starter: true
+  });
+  const el=document.querySelector(`.player-item[data-pid="${player.id}"]`);
+  if(el) el.classList.add('on-field');
+  updatePlayerCount();
+}
+
+function addBenchPlayer(player){
+  if(objects.some(o=>o.playerId===player.id)) return;
+  const benchCount=objects.filter(o=>o.isBench).length;
+  addObject({
+    type:'player', id:newId(),
+    fx: benchCount*8+4,
+    fy: 64,
+    color: '#555555',
+    name: player.name,
+    num:  player.num || player.number || '',
+    playerId: player.id,
+    isBench: true,
+    starter: false
   });
   const el=document.querySelector(`.player-item[data-pid="${player.id}"]`);
   if(el) el.classList.add('on-field');
@@ -886,20 +937,33 @@ function updateSidebar(){
 
 function buildPlayersSidebar(){
   let html='';
-  // Home team
   const home=kadrivoPlayers.filter(p=>p.team!=='away');
   const away=kadrivoPlayers.filter(p=>p.team==='away');
-  const training=[];
+  const starters=home.slice(0,fieldLimit);
+  const bench=home.slice(fieldLimit,fieldLimit+benchLimit);
 
-  if(home.length){
-    html+=`<div class="section-head">Heimteam</div>`;
-    home.forEach(p=>{
-      const on=objects.some(o=>o.playerId===p.id);
-      const col=p.color||homeColor;
+  if(starters.length){
+    html+=`<div class="section-head">Starter (${starters.length}/${fieldLimit})</div>`;
+    starters.forEach(p=>{
+      const on=objects.some(o=>o.playerId===p.id&&!o.isBench);
+      const isGk=(p.pos||'').toLowerCase().includes('torwart')||(p.pos||'').toLowerCase()==='gk';
+      const col=p.color||(isGk?gkColor:homeColor);
       html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        <div class="pnum" style="background:${col}">${p.num||p.number||'?'}</div>
+        <div class="pnum" style="background:${col}">${p.num||'?'}</div>
         <span class="pname">${p.name||'Spieler'}</span>
-        <span class="ppos">${p.position||''}</span>
+        <span class="ppos">${p.pos||''}</span>
+      </div>`;
+    });
+  }
+  if(bench.length){
+    html+=`<div class="section-head" style="color:#ffcc00">Bank (${bench.length}/${benchLimit})</div>`;
+    bench.forEach(p=>{
+      const on=objects.some(o=>o.playerId===p.id&&o.isBench);
+      const col='#555555';
+      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" style="${on?'':'opacity:0.7'}" onclick="addBenchPlayer(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+        <div class="pnum" style="background:${col};border:1px dashed #aaa">${p.num||'?'}</div>
+        <span class="pname" style="color:#ffcc00">${p.name||'Spieler'} <small>Bank</small></span>
+        <span class="ppos">${p.pos||''}</span>
       </div>`;
     });
   }
@@ -909,14 +973,14 @@ function buildPlayersSidebar(){
       const on=objects.some(o=>o.playerId===p.id);
       const col=p.color||awayColor;
       html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        <div class="pnum" style="background:${col}">${p.num||p.number||'?'}</div>
+        <div class="pnum" style="background:${col}">${p.num||'?'}</div>
         <span class="pname">${p.name||'Spieler'}</span>
-        <span class="ppos">${p.position||''}</span>
+        <span class="ppos">${p.pos||''}</span>
       </div>`;
     });
   }
-  if(!home.length && !away.length){
-    html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.<br>Trainingsspieler hinzufügen:</div>`;
+  if(!home.length&&!away.length){
+    html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.</div>`;
   }
   html+=`<div class="section-head">Trainingsspieler</div>
   <div class="tool-item" onclick="openTrainingColorPicker('home')"><span class="ticon">🔴</span>Heim-Spieler</div>
@@ -1124,6 +1188,106 @@ function updatePlayerCount(){
 }
 
 // ============================================================
+// FORMATIONS (Fussball 11er)
+// ============================================================
+const FORMATIONS = {
+  '4-3-3': {
+    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[35,20],[35,34],[35,48],[60,17],[60,34],[60,51]]
+  },
+  '4-4-2': {
+    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[35,14],[35,27],[35,41],[35,54],[55,22],[55,46]]
+  },
+  '4-2-3-1': {
+    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[33,22],[33,46],[47,15],[47,34],[47,53],[60,34]]
+  },
+  '3-5-2': {
+    slots:[[52,34],[17,20],[17,34],[17,48],[30,12],[33,24],[35,34],[33,44],[30,56],[57,22],[57,46]]
+  },
+  '5-3-2': {
+    slots:[[52,34],[15,12],[15,24],[17,34],[15,44],[15,56],[34,20],[34,34],[34,48],[56,22],[56,46]]
+  },
+  '3-4-3': {
+    slots:[[52,34],[17,20],[17,34],[17,48],[33,14],[33,27],[33,41],[33,54],[56,17],[56,34],[56,51]]
+  }
+};
+
+// Generic formations for other player counts
+function genericFormation(count){
+  // Returns field positions for `count` field players (excl. GK)
+  const slots=[];
+  // GK at 10% from left side
+  slots.push([8,34]);
+  // Distribute rest evenly in rows
+  const outfield=count-1;
+  const rows=outfield<=3?1:outfield<=6?2:outfield<=9?3:4;
+  const perRow=Math.ceil(outfield/rows);
+  for(let r=0;r<rows;r++){
+    const cnt=Math.min(perRow,outfield-r*perRow);
+    const x=20+r*(50/rows);
+    for(let i=0;i<cnt;i++){
+      const y=10+((58/(cnt+1))*(i+1));
+      slots.push([x,y]);
+    }
+  }
+  return slots;
+}
+
+let currentFormation='4-3-3';
+let fieldLimit=11;
+let benchLimit=9;
+let currentSport='Fussball';
+
+function getFormationSlots(count){
+  if(currentSport==='Fussball'&&count===11&&FORMATIONS[currentFormation]){
+    return FORMATIONS[currentFormation].slots;
+  }
+  return genericFormation(count);
+}
+
+function applyFormation2d(name){
+  if(FORMATIONS[name]) currentFormation=name;
+  document.querySelectorAll('.fbtn2d').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('fbtn-'+name);
+  if(btn) btn.classList.add('active');
+  autoPlace2d();
+}
+
+function autoPlace2d(){
+  // Remove all home players from field
+  objects.filter(o=>o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')).forEach(o=>{
+    const el=document.querySelector(`.player-item[data-pid="${o.playerId}"]`);
+    if(el) el.classList.remove('on-field');
+  });
+  objects=objects.filter(o=>!(o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')));
+
+  // Get starters
+  const starters=kadrivoPlayers.filter(p=>p.team!=='away').slice(0,fieldLimit);
+  const slots=getFormationSlots(starters.length);
+  starters.forEach((p,i)=>{
+    const pos=slots[i]||[50,34];
+    const isGk=(p.pos||'').toLowerCase().includes('torwart')||(p.pos||'').toLowerCase()==='gk';
+    const col=isGk?gkColor:homeColor;
+    const obj={type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true};
+    objects.push(obj);
+    const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+    if(el) el.classList.add('on-field');
+  });
+
+  // Place bench players along bottom edge
+  const bench=kadrivoPlayers.filter(p=>p.team!=='away').slice(fieldLimit,fieldLimit+benchLimit);
+  bench.forEach((p,i)=>{
+    const obj={type:'player',id:newId(),fx:i*8+4,fy:64,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true};
+    objects.push(obj);
+    const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
+    if(el) el.classList.add('on-field');
+  });
+
+  render();
+  updatePlayerCount();
+  scheduleKadrivoSave();
+}
+
+// ============================================================
 // KADRIVO PROTOCOL (same as 3D board)
 // ============================================================
 function scheduleKadrivoSave(){
@@ -1153,7 +1317,6 @@ function importState(saved, players){
     showNames = saved.showNames || false;
     arrowColor= saved.arrowColor|| '#ffffff';
     arrowStyle= saved.arrowStyle|| 'solid';
-    // restore oidSeq
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o',''));if(n>maxId)maxId=n; });
     oidSeq=maxId+1;
@@ -1174,9 +1337,16 @@ window.addEventListener('message',(event)=>{
   kadrivoBoardId=data.boardId||null;
   kadrivoReady=true;
   if(data.players) kadrivoPlayers=data.players;
+  if(data.limits){
+    fieldLimit=data.limits.fieldPlayers||11;
+    benchLimit=data.limits.benchPlayers??9;
+  }
+  if(data.sport) currentSport=data.sport;
   homeColor=data.homeColor||COLORS_HOME;
   awayColor=data.awayColor||COLORS_AWAY;
   gkColor  =data.gkColor  ||COLORS_GK;
+  // Update formation bar visibility
+  updateFormationBar();
   kadrivoHydrating=true;
   try{
     importState(data.saved,data.players||[]);
@@ -1184,6 +1354,13 @@ window.addEventListener('message',(event)=>{
     kadrivoHydrating=false;
   }
 });
+
+function updateFormationBar(){
+  const bar=document.getElementById('formation-bar-2d');
+  if(!bar) return;
+  // Show formations only for Fussball with 11 players
+  bar.style.display=(currentSport==='Fussball'&&fieldLimit===11)?'flex':'none';
+}
 
 // ============================================================
 // INIT
