@@ -6323,7 +6323,8 @@
       const sel = $("#tacticBoardSelect");
       if (sel) {
         const boards = (state.tacticBoards || []).sort((a,b) => (b.updatedAt||"") > (a.updatedAt||"") ? 1 : -1);
-        sel.innerHTML = `<option value="">— Neue Taktik —</option>` +
+        const placeholder = boards.length ? `<option value="">— Taktik wählen —</option>` : `<option value="">Noch keine Taktik gespeichert</option>`;
+        sel.innerHTML = placeholder +
           boards.map(b => `<option value="${escapeAttr(b.id)}"${b.id===selectedTacticBoardId?" selected":""}>${escapeHtml(b.title||"Taktik")}</option>`).join("");
         sel.value = selectedTacticBoardId || "";
       }
@@ -6401,7 +6402,7 @@
       saveState();
     }
 
-    // Taktik speichern – fragt nach Name wenn neu
+    // Taktik speichern – bei neuer Taktik Name abfragen, bei bestehender direkt überschreiben
     async function saveTacticBoardWithCheck() {
       const status = $("#tacticSaveStatus");
       const button = $("#saveTacticBoardBtn");
@@ -6409,7 +6410,7 @@
       try {
         let board = currentTacticBoard();
 
-        // Neue Taktik: Name abfragen
+        // Noch keine Taktik gewählt → Name abfragen → neu anlegen
         if (!board) {
           const name = window.prompt("Name der Taktik:", "");
           if (!name?.trim()) return;
@@ -6422,15 +6423,8 @@
           });
           state.tacticBoards.push(board);
           selectedTacticBoardId = board.id;
-        } else {
-          // Bestehende: wenn noch kein Name, fragen
-          const currentName = board.title?.trim();
-          if (!currentName || currentName === "Neue Taktik") {
-            const name = window.prompt("Name der Taktik:", currentName||"");
-            if (!name?.trim()) return;
-            board.title = name.trim();
-          }
         }
+        // Bestehende Taktik: direkt überschreiben, kein Prompt
 
         board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML||"");
         board.teamColor = board.teamColor||currentClub()?.color||"#155e3b";
