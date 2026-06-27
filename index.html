@@ -17,11 +17,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=162">
+  <link rel="stylesheet" href="css/app.css?v=163">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v162';
+      const EXPECTED = 'v163';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +45,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v162</span></h1>
+          <h1>Kadrivo <span class="app-version">v163</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v162</span></h1>
+          <h1>Kadrivo <span class="app-version">v163</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -322,40 +322,40 @@
 
       <section class="view" id="tactics">
         <div class="tactic-shell">
-          <section class="panel tactic-sidebar" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+          <section class="panel tactic-sidebar" style="display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden">
+
+            <!-- KOPFZEILE: Spiel-Filter + Speichern-Button -->
+            <div style="padding:12px 12px 8px;border-bottom:1px solid #eee">
+              <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Spiel wählen</div>
+              <select id="tacticGameFilter" onchange="onTacticGameFilterChange()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
+                <option value="">— Alle Taktiken —</option>
+              </select>
+            </div>
 
             <!-- TAKTIK-LISTE -->
-            <div style="padding:12px 12px 6px">
-              <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Gespeicherte Taktiken</div>
+            <div style="flex:1;overflow-y:auto;padding:8px 12px">
               <div id="tacticBoardList"></div>
-              <button onclick="startNewTactic()"
-                style="width:100%;margin-top:6px;padding:8px;border:2px dashed #ccc;border-radius:8px;background:transparent;color:#888;font-size:13px;cursor:pointer">
+              <button onclick="startNewTactic()" style="width:100%;margin-top:8px;padding:8px;border:2px dashed #ccc;border-radius:8px;background:transparent;color:#888;font-size:13px;cursor:pointer;text-align:center">
                 + Neue Taktik
               </button>
             </div>
 
-            <!-- TAKTIK-DETAILS -->
+            <!-- TAKTIK-DETAILS (wird eingeblendet wenn eine Taktik aktiv ist) -->
             <div id="tacticDetails" style="border-top:1px solid #eee;padding:12px;display:none">
               <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Aktive Taktik</div>
-              <form id="tacticBoardForm" onsubmit="return false">
-                <!-- Name: kein submit bei Enter -->
+              <form id="tacticBoardForm">
+                <!-- Name -->
                 <input id="tacticBoardName" placeholder="Taktikname…"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-                  style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:600;box-sizing:border-box;margin-bottom:10px">
-
+                  style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:600;box-sizing:border-box;margin-bottom:8px">
                 <!-- Spiele verknüpfen -->
-                <div style="margin-bottom:10px">
-                  <div style="font-size:11px;color:#888;margin-bottom:4px">Spiele zuordnen</div>
-                  <div class="chip-list" id="tacticLinkedEvents" style="margin-bottom:6px;min-height:16px"></div>
+                <div style="margin-bottom:8px">
+                  <div style="font-size:11px;color:#888;margin-bottom:4px">Verknüpfte Spiele</div>
+                  <div class="chip-list" id="tacticLinkedEvents" style="margin-bottom:6px;min-height:20px"></div>
                   <div style="display:flex;gap:6px">
                     <select id="tacticEventSelect" style="flex:1;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></select>
-                    <button type="button" onclick="linkTacticEvent()"
-                      style="padding:5px 10px;border:1px solid #155e3b;border-radius:6px;background:#155e3b;color:#fff;font-size:12px;cursor:pointer;white-space:nowrap">
-                      + Zuordnen
-                    </button>
+                    <button type="button" id="tacticLinkEventBtn" onclick="linkTacticEvent()" style="padding:5px 10px;border:1px solid #155e3b;border-radius:6px;background:#155e3b;color:#fff;font-size:12px;cursor:pointer">+ Zuordnen</button>
                   </div>
                 </div>
-
                 <!-- Bemerkungen -->
                 <div style="font-size:11px;color:#888;margin-bottom:4px">Bemerkungen</div>
                 <div class="rich-toolbar" style="margin-bottom:4px">
@@ -363,10 +363,8 @@
                   <button class="mini" type="button" data-rich-command="italic"><em>I</em></button>
                   <button class="mini" type="button" data-rich-command="insertUnorderedList">Liste</button>
                 </div>
-                <div id="tacticBoardNotes" class="rich-field" contenteditable="true" role="textbox" aria-multiline="true"
-                  style="min-height:60px;margin-bottom:10px"></div>
-
-                <!-- Aktionen -->
+                <div id="tacticBoardNotes" class="rich-field" contenteditable="true" role="textbox" aria-multiline="true" style="min-height:60px;margin-bottom:10px"></div>
+                <!-- Buttons -->
                 <button type="button" id="saveTacticBoardBtn" onclick="saveTacticBoardWithCheck()"
                   style="width:100%;padding:9px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:6px">
                   Taktik speichern
@@ -380,6 +378,7 @@
             </div>
 
           </section>
+          <section class="panel tactic-workspace">
             <div class="item-head">
               <h3 id="tacticBoardTitle">Taktikboard</h3>
               <div style="display:flex;gap:6px;align-items:center">
@@ -405,7 +404,7 @@
                 </div>
                 <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=159" title="2D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=163" title="2D Taktiktafel"></iframe>
             </div>
           </section>
         </div>
@@ -687,7 +686,7 @@ Nein</textarea></div>
         </div>
         <button class="mini" id="closeTactic2dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=159" title="2D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=163" title="2D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -790,7 +789,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=162" defer></script>
+  <script src="js/app.js?v=163" defer></script>
   <!-- BIBLIOTHEK: Übung anlegen/bearbeiten -->
   <div class="modal-backdrop" id="libraryItemModal" aria-hidden="true" style="display:none">
     <div class="modal" style="max-width:520px;width:95%">

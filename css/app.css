@@ -1944,29 +1944,22 @@
 
     .tactic-shell {
       display: grid;
-      grid-template-columns: minmax(280px, 320px) 1fr;
+      grid-template-columns: minmax(280px, 360px) 1fr;
       gap: 16px;
-      align-items: stretch;
-      min-height: calc(100vh - 120px);
+      align-items: start;
     }
 
     .tactic-sidebar {
       position: sticky;
       top: 16px;
-      max-height: calc(100vh - 80px);
-      overflow-y: auto;
     }
 
     .tactic-workspace {
       min-width: 0;
-      display: flex;
-      flex-direction: column;
     }
 
     .tactic-3d-panel {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
+      display: grid;
       gap: 10px;
       margin: 0 0 16px;
       padding: 10px;
@@ -1977,9 +1970,7 @@
 
     .tactic-3d-frame {
       width: 100%;
-      flex: 1;
-      min-height: calc(100vh - 220px);
-      height: calc(100vh - 220px);
+      min-height: 720px;
       border: 0;
       border-radius: 8px;
       background: #12122a;
@@ -2288,17 +2279,10 @@
 
       .tactic-shell {
         grid-template-columns: 1fr;
-        min-height: auto;
       }
 
       .tactic-sidebar {
         position: static;
-        max-height: none;
-      }
-
-      .tactic-3d-frame {
-        min-height: 60vw;
-        height: 60vw;
       }
 
       .profile-card, .sync-status {
