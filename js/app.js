@@ -5943,7 +5943,23 @@
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
 
     // Neue Taktik mit Name anlegen und 2D-State speichern
-    window.saveTacticBoardNamed = async function(name) {
+    // Aktuellen 2D-Board-Inhalt vom iframe holen und in board.twoData schreiben
+    function requestCurrentBoardState(boardId) {
+      const modal2dOpen = document.getElementById('tactic2dModal')?.classList.contains('open');
+      const frame2d = modal2dOpen ? document.getElementById('tactic2dModalFrame') : document.getElementById('tactic2dFrame');
+      const frame3d = document.getElementById('tactic3dFrame');
+      const msg = { type: 'kadrivo:tactic-export-request', boardId: boardId };
+      if (frame2d && frame2d.contentWindow) frame2d.contentWindow.postMessage(msg, window.location.origin);
+      if (frame3d && frame3d.contentWindow) frame3d.contentWindow.postMessage(msg, window.location.origin);
+    }
+
+    function showSaveStatus() {
+      const status = document.getElementById('tacticSaveStatus');
+      if (status) { status.textContent = '✓ Gespeichert'; setTimeout(() => { status.textContent = ''; }, 2000); }
+    }
+
+    // Neue Taktik mit Name anlegen
+    window.saveTacticBoardNamed = function(name) {
       const board = {
         id: crypto.randomUUID(),
         title: name.trim(),
@@ -5951,7 +5967,7 @@
         eventId: '',
         twoData: null,
         threeData: null,
-        notesHtml: '',
+        notesHtml: sanitizeRichText(document.getElementById('tacticBoardNotes')?.innerHTML || ''),
         teamColor: (typeof currentClub === 'function' ? currentClub()?.color : null) || '#155e3b',
         updatedAt: new Date().toISOString()
       };
@@ -5960,23 +5976,30 @@
       }
       state.tacticBoards.push(board);
       selectedTacticBoardId = board.id;
-      // 2D-Frame nach State fragen
-      const frame2d = document.getElementById('tactic2dFrame');
-      if (frame2d && frame2d.contentWindow) {
-        frame2d.contentWindow.postMessage({
-          type: 'kadrivo:tactic-export-request',
-          boardId: board.id
-        }, window.location.origin);
-      }
-      // kurz warten dann speichern
-      setTimeout(function() {
-        if (typeof saveState === 'function') saveState();
+      // iframe nach aktuellem State fragen (Antwort schreibt board.twoData + speichert via message-handler)
+      requestCurrentBoardState(board.id);
+      // Fallback-Speicherung falls iframe nicht antwortet
+      setTimeout(() => {
+        saveState();
         if (typeof renderTacticBoard === 'function') renderTacticBoard();
         const sel = document.getElementById('tacticBoardSelect');
         if (sel) sel.value = board.id;
-        const status = document.getElementById('tacticSaveStatus');
-        if (status) { status.textContent = '✓ Gespeichert'; setTimeout(()=>{ status.textContent=''; }, 2000); }
-      }, 800);
+        showSaveStatus();
+      }, 900);
+    };
+
+    // Bestehende (gewaehlte) Taktik ueberschreiben
+    window.overwriteCurrentTactic = function() {
+      const board = state.tacticBoards.find(b => b.id === selectedTacticBoardId);
+      if (!board) return;
+      board.notesHtml = sanitizeRichText(document.getElementById('tacticBoardNotes')?.innerHTML || '');
+      board.updatedAt = new Date().toISOString();
+      requestCurrentBoardState(board.id);
+      setTimeout(() => {
+        saveState();
+        if (typeof renderTacticBoard === 'function') renderTacticBoard();
+        showSaveStatus();
+      }, 900);
     };
     window.deleteCurrentTacticBoard   = deleteCurrentTacticBoard;
     window.linkTacticEvent            = linkTacticEvent;
