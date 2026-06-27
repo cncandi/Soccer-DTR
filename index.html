@@ -563,7 +563,16 @@ Nein</textarea></div>
             </form>
           </section>
 
-          <section class="panel admin-only" id="kadrivoSubscriptionPanel">
+          <section class="panel admin-only">
+            <h3>Beispieldaten laden</h3>
+            <p class="meta">Legt 15 Spieler/innen mit fiktiven Namen, 7 Trainingseinheiten und 3 Spiele an. Vorhandene Daten bleiben erhalten.</p>
+            <div class="row-actions" style="margin-top:10px;gap:8px;display:flex;flex-wrap:wrap">
+              <button class="btn-secondary" id="loadDemoMaleBtn" type="button">👨 Männlich laden</button>
+              <button class="btn-secondary" id="loadDemoFemaleBtn" type="button">👩 Weiblich laden</button>
+              <button class="btn-secondary danger" id="clearDemoBtn" type="button">🗑 Beispieldaten löschen</button>
+            </div>
+            <p class="meta" id="demoStatus" aria-live="polite" style="margin-top:6px"></p>
+          </section>
             <h3>Kadrivo Abo</h3>
             <div class="pro-card">
               <div>

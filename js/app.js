@@ -941,6 +941,132 @@
       if (options.sync !== false) queueCloudSync();
     }
 
+    // ── BEISPIELDATEN ────────────────────────────────────────────
+    const DEMO_TAG = "__demo__";
+
+    const DEMO_NAMES_MALE = [
+      "Lukas Bauer","Jonas Müller","Felix Wagner","Niklas Schmidt","Tobias Hoffmann",
+      "Maximilian Fischer","Leon Weber","Florian Meyer","Moritz Schulz","Tim Richter",
+      "Paul Zimmermann","Erik Koch","Alexander Wolf","Sebastian Braun","Dominik Schäfer"
+    ];
+    const DEMO_NAMES_FEMALE = [
+      "Laura Bauer","Hannah Müller","Sophie Wagner","Lena Schmidt","Julia Hoffmann",
+      "Marie Fischer","Lea Weber","Anna Meyer","Sara Schulz","Mia Richter",
+      "Emilia Zimmermann","Clara Koch","Nora Wolf","Lisa Braun","Johanna Schäfer"
+    ];
+
+    // Positionen je Sportart mit sinnvoller Verteilung für 15 Spieler
+    const DEMO_POSITIONS = {
+      Fussball:   ["Tor","Abwehr","Abwehr","Abwehr","Abwehr","Mittelfeld","Mittelfeld","Mittelfeld","Mittelfeld","Mittelfeld","Sturm","Sturm","Sturm","Abwehr","Mittelfeld"],
+      Handball:   ["Tor","Tor","Abwehr","Abwehr","Rückraum","Rückraum","Rückraum","Außen","Außen","Kreis","Kreis","Abwehr","Rückraum","Außen","Tor"],
+      Basketball: ["Center","Center","Forward","Forward","Forward","Guard","Guard","Guard","Center","Forward","Guard","Forward","Center","Guard","Forward"],
+      Eishockey:  ["Tor","Tor","Verteidiger","Verteidiger","Verteidiger","Verteidiger","Stürmer","Stürmer","Stürmer","Stürmer","Stürmer","Verteidiger","Stürmer","Stürmer","Stürmer"],
+      Volleyball: ["Außenangreifer","Außenangreifer","Außenangreifer","Diagonal","Diagonal","Mittelblocker","Mittelblocker","Mittelblocker","Zuspiel","Zuspiel","Libero","Libero","Außenangreifer","Mittelblocker","Diagonal"],
+      "Andere Sportart": ["Tor","Abwehr","Abwehr","Abwehr","Mittelfeld","Mittelfeld","Mittelfeld","Mittelfeld","Sturm","Sturm","Sturm","Abwehr","Mittelfeld","Mittelfeld","Sturm"]
+    };
+
+    const DEMO_OPPONENTS_MALE = ["FC Waldtal","TSV Bergheim","SV Rotation","Sportfreunde Eichenbach"];
+    const DEMO_OPPONENTS_FEMALE = ["FC Waldtal Damen","TSV Bergheim Frauen","SV Rotation Damen","Sportfreunde Eichenbach Frauen"];
+
+    const DEMO_TRAINING_TITLES = [
+      "Koordinationstraining","Zweikampf & Pressing","Passspiel & Kombinationen",
+      "Standards & Freistöße","Abschlussübungen","Kondition & Ausdauer","Taktiktraining"
+    ];
+    const DEMO_LOCATIONS = ["Sportplatz Hauptstraße","Halle Schillerweg","Kunstrasen Nord","Stadion Mitte"];
+
+    function demoDateStr(offsetDays) {
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      return d.toISOString().slice(0,10);
+    }
+
+    function loadDemoData(gender) {
+      if (!canManage()) return;
+      const sport = currentClub().sport || "Fussball";
+      const names = gender === "male" ? DEMO_NAMES_MALE : DEMO_NAMES_FEMALE;
+      const opponents = gender === "male" ? DEMO_OPPONENTS_MALE : DEMO_OPPONENTS_FEMALE;
+      const positions = DEMO_POSITIONS[sport] || DEMO_POSITIONS["Andere Sportart"];
+
+      // Spieler anlegen (nur wenn Name noch nicht vorhanden)
+      let addedPlayers = 0;
+      names.forEach((name, i) => {
+        if (state.players.some(p => p.name === name)) return;
+        const player = normalizePlayer({
+          id: crypto.randomUUID(),
+          name,
+          memberRoles: ["Spieler"],
+          groups: ["Mannschaft"],
+          group: "Mannschaft",
+          position: positions[i] || "",
+          jerseyNumber: String(i + 1),
+          starterFactor: i < (currentClub().maxFieldPlayers || 11) ? (i < 5 ? 1 : 2) : 3,
+          notes: DEMO_TAG,
+          createdAt: new Date().toISOString()
+        });
+        state.players.push(player);
+        addedPlayers++;
+      });
+
+      // 7 Trainingseinheiten (ab heute, alle 2-3 Tage)
+      let addedEvents = 0;
+      const trainingOffsets = [-14, -10, -7, -4, -1, 3, 7];
+      DEMO_TRAINING_TITLES.forEach((title, i) => {
+        const existing = state.events.find(e => e.title === title && e.type === "Training" && e.notes === DEMO_TAG);
+        if (existing) return;
+        state.events.push(normalizeEvent({
+          id: crypto.randomUUID(),
+          type: "Training",
+          title,
+          date: demoDateStr(trainingOffsets[i] || i * 3),
+          time: "18:30",
+          location: DEMO_LOCATIONS[i % DEMO_LOCATIONS.length],
+          notes: DEMO_TAG,
+          coach: names[0]
+        }));
+        addedEvents++;
+      });
+
+      // 3 Spiele gegen fiktive Gegner
+      const gameOffsets = [-21, 5, 14];
+      opponents.slice(0, 3).forEach((opp, i) => {
+        const title = `Spiel gegen ${opp}`;
+        const existing = state.events.find(e => e.title === title && e.type === "Spiel" && e.notes === DEMO_TAG);
+        if (existing) return;
+        const isHome = i % 2 === 0;
+        state.events.push(normalizeEvent({
+          id: crypto.randomUUID(),
+          type: "Spiel",
+          title,
+          date: demoDateStr(gameOffsets[i]),
+          time: "15:00",
+          location: isHome ? DEMO_LOCATIONS[0] : `Sportplatz ${opp}`,
+          gameVenue: isHome ? "Heimspiel" : "Auswärtsspiel",
+          notes: DEMO_TAG
+        }));
+        addedEvents++;
+      });
+
+      saveState();
+      render();
+      const status = document.getElementById("demoStatus");
+      if (status) status.textContent = `✓ ${addedPlayers} Spieler${gender==="female"?"innen":""} und ${addedEvents} Termine angelegt.`;
+    }
+
+    function clearDemoData() {
+      if (!canManage()) return;
+      if (!window.confirm("Alle Beispieldaten (Spieler und Termine mit Demo-Tag) löschen?")) return;
+      const beforeP = state.players.length;
+      const beforeE = state.events.length;
+      state.players = state.players.filter(p => p.notes !== DEMO_TAG);
+      state.events  = state.events.filter(e => e.notes !== DEMO_TAG);
+      const removedP = beforeP - state.players.length;
+      const removedE = beforeE - state.events.length;
+      saveState();
+      render();
+      const status = document.getElementById("demoStatus");
+      if (status) status.textContent = `✓ ${removedP} Spieler und ${removedE} Termine gelöscht.`;
+    }
+
     function saveClubs(options = {}) {
       localStorage.setItem(CLUBS_KEY, JSON.stringify(clubs));
       if (options.storeCurrent !== false) localStorage.setItem(CURRENT_CLUB_KEY, currentClubId);
@@ -6645,6 +6771,10 @@
       saveClubs();
       render();
     });
+
+    $("#loadDemoMaleBtn")?.addEventListener("click", () => loadDemoData("male"));
+    $("#loadDemoFemaleBtn")?.addEventListener("click", () => loadDemoData("female"));
+    $("#clearDemoBtn")?.addEventListener("click", clearDemoData);
 
     $("#showClubSignupBtn")?.addEventListener("click", openClubSignupModal);
     $("#closeClubSignupBtn")?.addEventListener("click", closeClubSignupModal);
