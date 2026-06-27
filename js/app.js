@@ -2514,9 +2514,22 @@
         if (existing) existing.remove();
         const script = document.createElement("script");
         script.id = "paypalSdkScript";
-        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(KADRIVO_PAYPAL_CLIENT_ID)}&vault=true&intent=subscription`;
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(KADRIVO_PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR`;
         script.dataset.sdkIntegrationSource = "button-factory";
-        script.onload = resolve;
+        script.onload = () => {
+          // Warten bis window.paypal.Buttons initialisiert ist (max. 3 Sekunden)
+          let attempts = 0;
+          const poll = setInterval(() => {
+            attempts++;
+            if (window.paypal && typeof window.paypal.Buttons === "function") {
+              clearInterval(poll);
+              resolve();
+            } else if (attempts > 60) {
+              clearInterval(poll);
+              reject(new Error("PayPal SDK geladen, aber Buttons-Funktion nicht verfuegbar. Bitte Seite neu laden."));
+            }
+          }, 50);
+        };
         script.onerror = () => reject(new Error("PayPal SDK konnte nicht geladen werden."));
         document.head.appendChild(script);
       }).finally(() => { paypalLoading = null; });
