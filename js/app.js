@@ -6003,7 +6003,9 @@
     };
     window.deleteCurrentTacticBoard   = deleteCurrentTacticBoard;
     window.linkTacticEvent            = linkTacticEvent;
+    window.unlinkTacticEvent          = unlinkTacticEvent;
     window.onTacticBoardSelectChange  = onTacticBoardSelectChange;
+    window.onTacticEventSelectChange  = onTacticEventSelectChange;
 
     function currentTacticMode() {
       return $("#tactic-panel-2d")?.style.display === "" ? "2d" : "3d";
@@ -6445,22 +6447,60 @@
       }).join("");
     }
 
-    // Spiel zuordnen
+    // Welche Taktik ist diesem Spiel zugeordnet? (ein Spiel = max. eine Taktik)
+    function tacticForEvent(eventId) {
+      if (!eventId) return null;
+      return (state.tacticBoards||[]).find(b => (b.eventIds||[]).includes(eventId)) || null;
+    }
+
+    // Auswahl im Spiele-Dropdown → zugehörige Taktik oben anzeigen
+    function onTacticEventSelectChange() {
+      const eventId = $("#tacticEventSelect")?.value || "";
+      if (!eventId) return;
+      const owner = tacticForEvent(eventId);
+      // Wenn das Spiel bereits eine Taktik hat → diese oben auswählen
+      selectedTacticBoardId = owner ? owner.id : "";
+      selectedTacticElementId = "";
+      tacticUndoStack = [];
+      renderTacticBoard();
+      // Spiel-Auswahl im Dropdown beibehalten (renderTacticBoard setzt sie zurück)
+      const evSel = $("#tacticEventSelect");
+      if (evSel) evSel.value = eventId;
+    }
+
+    // Spiel der aktuell gewählten Taktik zuordnen (entfernt es aus jeder anderen Taktik)
     function linkTacticEvent() {
       const eventId = $("#tacticEventSelect")?.value; if (!eventId) return;
-      const board = currentTacticBoard(); if (!board) return;
-      board.eventIds = board.eventIds||[];
-      if (board.eventIds.includes(eventId)) { $("#tacticEventSelect").value=""; return; }
-      board.eventIds.push(eventId);
-      board.eventId = board.eventIds[0]||"";
-      $("#tacticEventSelect").value = "";
+      const board = state.tacticBoards.find(b => b.id === selectedTacticBoardId);
+      if (!board) {
+        alert("Bitte zuerst eine Taktik wählen oder speichern, bevor ein Spiel zugeordnet wird.");
+        return;
+      }
+      // Spiel aus allen anderen Taktiken entfernen
+      (state.tacticBoards||[]).forEach(b => {
+        if (b.id !== board.id && Array.isArray(b.eventIds)) {
+          b.eventIds = b.eventIds.filter(id => id !== eventId);
+          b.eventId = b.eventIds[0] || "";
+        }
+      });
+      board.eventIds = board.eventIds || [];
+      if (!board.eventIds.includes(eventId)) board.eventIds.push(eventId);
+      board.eventId = board.eventIds[0] || "";
       renderTacticLinkedChips(board);
       saveState();
     }
 
-    // Spiel-Zuordnung entfernen
-    function unlinkTacticEvent(eventId) {
-      const board = currentTacticBoard(); if (!board) return;
+    // Spiel-Zuordnung entfernen (akzeptiert eventId oder (board, eventId))
+    function unlinkTacticEvent(arg1, arg2) {
+      let board, eventId;
+      if (typeof arg1 === "string") {
+        eventId = arg1;
+        board = state.tacticBoards.find(b => b.id === selectedTacticBoardId);
+      } else {
+        board = arg1 || state.tacticBoards.find(b => b.id === selectedTacticBoardId);
+        eventId = arg2;
+      }
+      if (!board || !eventId) return;
       board.eventIds = (board.eventIds||[]).filter(id=>id!==eventId);
       board.eventId = board.eventIds[0]||"";
       renderTacticLinkedChips(board);
