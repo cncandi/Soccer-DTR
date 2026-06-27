@@ -1322,23 +1322,23 @@ function importState(saved,players){
   kadrivoPlayers=players||[];
   if(_drag) return;
 
-  if(saved&&(saved.objects?.length||saved.drawLines?.length)){
-    objects=saved.objects||[];
-    drawLines=saved.drawLines||[];
-    showNames=saved.showNames||false;
-    arrowColor=saved.arrowColor||'#ffffff';
-    arrowStyle=saved.arrowStyle||'solid';
-    scenes2d=saved.scenes||[];
-    currentScene2d=saved.currentScene??-1;
+  if(saved && typeof saved === 'object' && (saved.objects?.length || saved.drawLines?.length)){
+    objects   = saved.objects   || [];
+    drawLines = saved.drawLines || [];
+    showNames = saved.showNames || false;
+    arrowColor= saved.arrowColor|| '#ffffff';
+    arrowStyle= saved.arrowStyle|| 'solid';
+    scenes2d  = saved.scenes    || [];
+    currentScene2d = saved.currentScene ?? -1;
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o','')); if(n>maxId) maxId=n; });
     oidSeq=maxId+1;
-  } else if(kadrivoPlayers.length){
-    // Kein gespeicherter State → Auto-Aufstellung
-    objects=[]; drawLines=[];
-    setTimeout(()=>autoPlace2d(),100);
   } else {
+    // Kein State oder leer → Board sauber leeren
     objects=[]; drawLines=[];
+    if(kadrivoPlayers.length){
+      setTimeout(()=>autoPlace2d(),150);
+    }
   }
   updateSidebar(); updatePlayerCount(); updateSceneUI2d(); render();
 }
@@ -1361,7 +1361,8 @@ window.addEventListener('message',event=>{
   if(data.players) kadrivoPlayers=data.players;
   updateFormationBar();
   kadrivoHydrating=true;
-  try{ importState(data.saved,data.players||[]); }
+  // 2D-Board verwendet saved2d, nicht saved (saved = 3D-State)
+  try{ importState(data.saved2d||null, data.players||[]); }
   finally{ kadrivoHydrating=false; }
 });
 

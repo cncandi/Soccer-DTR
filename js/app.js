@@ -919,6 +919,7 @@
         notesHtml: sanitizeRichText(board.notesHtml || board.notes || ""),
         elements: Array.isArray(board.elements) ? board.elements : [],
         threeData: board.threeData || null,
+        twoData:   board.twoData   || null,
         createdAt: board.createdAt || new Date().toISOString(),
         updatedAt: board.updatedAt || new Date().toISOString()
       };
@@ -5841,6 +5842,7 @@
         },
         players,
         saved: board.threeData || null,
+        saved2d: board.twoData || null,
         teamColor: board.teamColor || currentClub().color || "#155e3b",
         homeColor: board.teamColor || currentClub().color || "#155e3b",
         awayColor: "#e63946",
@@ -7698,7 +7700,20 @@
     });
     window.addEventListener("message", (event) => {
       if (event.origin !== window.location.origin) return;
-      if (event.data?.type === "kadrivo:tactic-save") scheduleTactic3dSave(event.data);
+      if (event.data?.type === "kadrivo:tactic-save") {
+        const data = event.data;
+        const board = currentTacticBoard();
+        if (!board || data.boardId !== board.id) return;
+        // Unterscheide 2D vs 3D anhand des Source-Frames
+        const src = event.source;
+        const is2d = src === $("#tactic2dFrame")?.contentWindow || src === $("#tactic2dModalFrame")?.contentWindow;
+        if (is2d) {
+          board.twoData  = data.state || null;
+        } else {
+          board.threeData = data.state || null;
+        }
+        scheduleTactic3dSave(data);
+      }
     });
     $("#tacticTool")?.addEventListener("change", () => {
       updateTacticOptionPanels();
