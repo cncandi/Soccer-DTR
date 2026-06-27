@@ -6,7 +6,7 @@
 <title>2D Taktikboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#ccc}
 
 /* Layout */
 #app{display:flex;width:100%;height:100%}
@@ -811,6 +811,13 @@ function onMouseDown(e){
     return;
   }
 
+  // Active tool placement mode
+  if(activeTool){
+    const fp = canvasToField(p.x,p.y);
+    placeActiveTool(fp.x, fp.y);
+    return;
+  }
+
   if(drawMode){
     const fp = canvasToField(p.x,p.y);
     if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; return; }
@@ -1020,9 +1027,58 @@ function addBenchPlayer(player){
   updatePlayerCount();
 }
 
-function addTrainingPlayer(color){
-  addObject({type:'player',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,color,name:'',num:''});
+// ── ACTIVE TOOL MODE ─────────────────────────────────────────
+// Wie im 3D-Board: Tool aktivieren → endlos platzieren bis ESC
+let activeTool = null; // {type, ...params}
+
+function setActiveTool(toolId, params){
+  // Toggle: nochmal klicken deaktiviert
+  if(activeTool && activeTool.id === toolId){
+    activeTool = null;
+    document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
+    canvas.style.cursor = 'default';
+    document.getElementById('s-mode').textContent = 'Modus: Auswahl';
+    return;
+  }
+  activeTool = {id: toolId, ...params};
+  // Zeichenmodus deaktivieren
+  drawMode = null; drawStart = null;
+  document.querySelectorAll('.draw-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
+  const btn = document.getElementById('atool-'+toolId);
+  if(btn) btn.classList.add('active');
+  canvas.style.cursor = 'crosshair';
+  document.getElementById('s-mode').textContent = 'Modus: Platzieren – Klick auf Feld, ESC zum Beenden';
+  render();
 }
+
+function placeActiveTool(fx, fy){
+  if(!activeTool) return;
+  const t = activeTool;
+  let obj = null;
+  if(t.type==='ball')    obj={type:'ball',id:newId(),fx,fy};
+  if(t.type==='cone')    obj={type:'cone',id:newId(),fx,fy,color:t.color||'#ff5500'};
+  if(t.type==='pole')    obj={type:'pole',id:newId(),fx,fy,horizontal:t.horizontal||false,color:'#cc0000'};
+  if(t.type==='goal')    obj={type:'goal',id:newId(),fx,fy,goalW:t.goalW||7.32,goalH:t.goalH||2.44};
+  if(t.type==='trainingPlayer') obj={type:'player',id:newId(),fx,fy,color:t.color||'#e63946',name:'',num:''};
+  if(obj){ pushUndo(); objects.push(obj); render(); scheduleKadrivoSave(); }
+}
+
+function cancelActiveTool(){
+  activeTool = null;
+  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
+  canvas.style.cursor = 'default';
+  document.getElementById('s-mode').textContent = 'Modus: Auswahl';
+  render();
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    if(activeTool){ cancelActiveTool(); return; }
+    if(drawMode){ setDrawMode(null); return; }
+    if(drawStart){ drawStart=null; mousePos=null; render(); }
+  }
+});
 
 function addCone(color){ addObject({type:'cone',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,color:color||'#ff5500'}); }
 function addBall(){      addObject({type:'ball',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2}); }
@@ -1099,29 +1155,34 @@ function buildPlayersSidebar(){
     html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.</div>`;
   }
   html+=`<div class="section-head">Trainingsspieler</div>
-  <div class="tool-item" onclick="openTrainingColorPicker('home')"><span class="ticon">🔴</span>Heim-Spieler</div>
-  <div class="tool-item" onclick="openTrainingColorPicker('away')"><span class="ticon">🔵</span>Gegner-Spieler</div>
-  <div class="tool-item" onclick="openTrainingColorPicker('gk')"><span class="ticon">🟡</span>Torwart</div>`;
+  <div class="tool-item" onclick="setActiveTool('tp-home',{type:'trainingPlayer',color:'${homeColor}'})"><span class="ticon">🔴</span>Heim-Spieler</div>
+  <div class="tool-item" onclick="setActiveTool('tp-away',{type:'trainingPlayer',color:'${awayColor}'})"><span class="ticon">🔵</span>Gegner-Spieler</div>
+  <div class="tool-item" onclick="setActiveTool('tp-gk',{type:'trainingPlayer',color:'${gkColor}'})"><span class="ticon">🟡</span>Torwart</div>
+  <div class="tool-item" onclick="openTrainingColorPicker()"><span class="ticon">🎨</span>Farbe wählen…</div>
+  <p class="meta" style="padding:6px;font-size:9px;color:#666">Klick auf Feld platziert · ESC zum Beenden</p>`;
   return html;
 }
 
 function buildToolsSidebar(){
+  const at = activeTool;
+  function cls(id){ return 'tool-item'+(at&&at.id===id?' active':''); }
   return `
   <div class="section-head">Bälle</div>
-  <div class="tool-item" onclick="addBall()"><span class="ticon">⚽</span>Ball</div>
+  <div class="${cls('ball')}" id="atool-ball" onclick="setActiveTool('ball',{type:'ball'})"><span class="ticon">⚽</span>Ball</div>
   <div class="section-head">Hütchen</div>
-  <div class="tool-item" onclick="addCone('#ff5500')"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
-  <div class="tool-item" onclick="addCone('#ffff00')"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
-  <div class="tool-item" onclick="addCone('#ff0000')"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
-  <div class="tool-item" onclick="addCone('#0077ff')"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
+  <div class="${cls('cone-orange')}" id="atool-cone-orange" onclick="setActiveTool('cone-orange',{type:'cone',color:'#ff5500'})"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
+  <div class="${cls('cone-yellow')}" id="atool-cone-yellow" onclick="setActiveTool('cone-yellow',{type:'cone',color:'#ffff00'})"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
+  <div class="${cls('cone-red')}" id="atool-cone-red" onclick="setActiveTool('cone-red',{type:'cone',color:'#ff0000'})"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
+  <div class="${cls('cone-blue')}" id="atool-cone-blue" onclick="setActiveTool('cone-blue',{type:'cone',color:'#0077ff'})"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
   <div class="tool-item" onclick="openConeColorPicker()"><span class="ticon">🎨</span>Farbe wählen…</div>
   <div class="section-head">Stangen</div>
-  <div class="tool-item" onclick="addPole(false)"><span class="ticon">▍</span>Stange</div>
-  <div class="tool-item" onclick="addPole(true)"><span class="ticon">▬</span>Stange quer</div>
+  <div class="${cls('pole-v')}" id="atool-pole-v" onclick="setActiveTool('pole-v',{type:'pole',horizontal:false})"><span class="ticon">▍</span>Stange</div>
+  <div class="${cls('pole-h')}" id="atool-pole-h" onclick="setActiveTool('pole-h',{type:'pole',horizontal:true})"><span class="ticon">▬</span>Stange quer</div>
   <div class="section-head">Tore</div>
-  <div class="tool-item" onclick="addGoalObj(2,1)"><span class="ticon">🥅</span>Klein (2m)</div>
-  <div class="tool-item" onclick="addGoalObj(5,2)"><span class="ticon">🥅</span>Mittel (5m)</div>
-  <div class="tool-item" onclick="addGoalObj(7.32,2.44)"><span class="ticon">🥅</span>Normal</div>
+  <div class="${cls('goal-mini')}" id="atool-goal-mini" onclick="setActiveTool('goal-mini',{type:'goal',goalW:2,goalH:1})"><span class="ticon">🥅</span>Klein (2m)</div>
+  <div class="${cls('goal-mid')}" id="atool-goal-mid" onclick="setActiveTool('goal-mid',{type:'goal',goalW:5,goalH:2})"><span class="ticon">🥅</span>Mittel (5m)</div>
+  <div class="${cls('goal-full')}" id="atool-goal-full" onclick="setActiveTool('goal-full',{type:'goal',goalW:7.32,goalH:2.44})"><span class="ticon">🥅</span>Normal</div>
+  <p class="meta" style="padding:6px;font-size:9px;color:#666">Klick auf Feld platziert · ESC oder nochmal klicken zum Beenden</p>
   `;
 }
 
@@ -1188,8 +1249,8 @@ function openConeColorPicker(){
   _colorPickerType='cone';
   showColorPopup('Hütchenfarbe');
 }
-function openTrainingColorPicker(team){
-  _colorPickerType='training-'+team;
+function openTrainingColorPicker(){
+  _colorPickerType='training';
   showColorPopup('Spielerfarbe');
 }
 
@@ -1213,14 +1274,16 @@ function selectColorSwatch(c){
 function colorPopupOk(){
   const c=document.getElementById('color-custom').value;
   document.getElementById('color-popup').style.display='none';
-  if(_colorPickerType==='cone') addCone(c);
-  else if(_colorPickerType && _colorPickerType.startsWith('training-')){
-    addTrainingPlayer(c);
+  if(_colorPickerType==='cone'){
+    setActiveTool('cone-custom',{type:'cone',color:c});
+  } else if(_colorPickerType==='training'){
+    setActiveTool('tp-custom',{type:'trainingPlayer',color:c});
   } else if(_colorPickerType==='ctx' && ctxTarget){
     ctxTarget.color=c;
     render(); scheduleKadrivoSave();
   }
   _colorPickerType=null;
+  updateSidebar();
 }
 function colorPopupCancel(){ document.getElementById('color-popup').style.display='none'; _colorPickerType=null; }
 
