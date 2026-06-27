@@ -4690,8 +4690,19 @@
       return optionList(["", ...options], selected || "");
     }
 
+    const SPORT_POSITIONS = {
+      Fussball:         ["Tor", "Abwehr", "Mittelfeld", "Sturm", "Trainer", "Betreuer"],
+      Handball:         ["Tor", "Abwehr", "Rückraum", "Außen", "Kreis", "Trainer", "Betreuer"],
+      Basketball:       ["Center", "Forward", "Guard", "Trainer", "Betreuer"],
+      Eishockey:        ["Tor", "Verteidiger", "Stürmer", "Trainer", "Betreuer"],
+      Volleyball:       ["Außenangreifer", "Diagonal", "Mittelblocker", "Zuspiel", "Libero", "Trainer", "Betreuer"],
+      "Andere Sportart":["Tor", "Abwehr", "Mittelfeld", "Sturm", "Trainer", "Betreuer"]
+    };
+
     function positionOptions(selected) {
-      return optionList(["Tor", "Abwehr", "Mittelfeld", "Sturm", "Trainer", "Betreuer"], selected);
+      const sport = currentClub().sport || "Fussball";
+      const list = SPORT_POSITIONS[sport] || SPORT_POSITIONS["Fussball"];
+      return optionList(list, selected);
     }
 
     function groupOptions(selected) {
@@ -4993,7 +5004,7 @@
         </div>
         </div>
         ${isRosterPlayer && fullAccess ? `<div class="player-tab-panel form-grid" data-player-tab-panel="performance">
-            <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="z.B. Abwehr, Sturm"></div>
+            <div class="field full"><label>Alternativpositionen</label><input name="alternatePositions" value="${escapeAttr((player.alternatePositions || []).join(", "))}" placeholder="${(()=>{ const s=currentClub().sport||'Fussball'; const p=SPORT_POSITIONS[s]||SPORT_POSITIONS['Fussball']; return 'z.B. '+p.slice(1,3).join(', '); })()}"></div>
             ${GRADE_FIELDS.map((field) => `
               <div class="field"><label>${PERFORMANCE_LABELS[field]}</label><select name="${field}">${gradeOptions(player.performance?.[field])}</select></div>
             `).join("")}
