@@ -5886,9 +5886,14 @@
     }
 
     async function requestTactic3dState(board = currentTacticBoard()) {
-      const modalOpen = $("#tactic3dModal")?.classList.contains("open");
-      const frame = modalOpen ? $("#tactic3dModalFrame") : $("#tactic3dFrame");
-      if (!frame?.contentWindow) return null;
+      const modal3dOpen = $("#tactic3dModal")?.classList.contains("open");
+      const modal2dOpen = $("#tactic2dModal")?.classList.contains("open");
+      const frame3d = modal3dOpen ? $("#tactic3dModalFrame") : $("#tactic3dFrame");
+      const frame2d = modal2dOpen ? $("#tactic2dModalFrame") : $("#tactic2dFrame");
+      const msg = { type: "kadrivo:tactic-export-request", boardId: board.id };
+      if (frame3d?.contentWindow) frame3d.contentWindow.postMessage(msg, window.location.origin);
+      if (frame2d?.contentWindow) frame2d.contentWindow.postMessage(msg, window.location.origin);
+      if (!frame3d?.contentWindow && !frame2d?.contentWindow) return null;
       return new Promise((resolve) => {
         if (tactic3dSaveRequest) {
           window.clearTimeout(tactic3dSaveRequest.timer);
@@ -5899,10 +5904,6 @@
           resolve(null);
         }, 1200);
         tactic3dSaveRequest = { boardId: board.id, resolve, timer };
-        frame.contentWindow.postMessage({
-          type: "kadrivo:tactic-export-request",
-          boardId: board.id
-        }, window.location.origin);
       });
     }
 
@@ -6410,8 +6411,9 @@
       try {
         let board = currentTacticBoard();
 
-        // Noch keine Taktik gewählt → Name abfragen → neu anlegen
-        if (!board) {
+        // Kein Board explizit gewählt → Name abfragen → neu anlegen
+        const hasSelection = selectedTacticBoardId && state.tacticBoards.some(b => b.id === selectedTacticBoardId);
+        if (!hasSelection) {
           const name = window.prompt("Name der Taktik:", "");
           if (!name?.trim()) return;
           board = normalizeTacticBoard({
