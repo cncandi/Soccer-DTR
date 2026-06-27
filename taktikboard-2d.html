@@ -179,86 +179,106 @@ canvas{display:block}
 </div>
 
 <script>
+'use strict';
 // ============================================================
-// CONFIG
+// KONSTANTEN & SPORT-KONFIGURATION
 // ============================================================
-// Echte Spielfeldmaße je Sportart (Meter)
-const SPORT_FIELD_SIZES = {
-  Fussball:        { w: 105, h: 68  }, // FIFA
-  Handball:        { w: 40,  h: 20  }, // IHF
-  Basketball:      { w: 28,  h: 15  }, // FIBA
-  Eishockey:       { w: 60,  h: 26  }, // IIHF
-  Volleyball:      { w: 18,  h: 9   }, // FIVB
-  'Andere Sportart':{ w: 100, h: 60  }
-};
-
-let FIELD = { w: 105, h: 68 }; // wird per Sport gesetzt
-
-function updateFieldDimensions(){
-  const size = SPORT_FIELD_SIZES[currentSport] || SPORT_FIELD_SIZES['Andere Sportart'];
-  FIELD = { w: size.w, h: size.h };
-}
-const GOAL_W = 7.32, GOAL_H = 2.44;
-
 const COLORS_HOME = '#e63946';
 const COLORS_AWAY = '#457b9d';
 const COLORS_GK   = '#f4a261';
 
-const PRESET_COLORS = [
-  '#e63946','#457b9d','#f4a261','#2a9d8f','#e9c46a','#ffffff',
-  '#6a0572','#023e8a','#1b4332','#ffb703','#333333','#aaaaaa'
-];
+const SPORT_FIELD_SIZES = {
+  Fussball:          { w: 105, h: 68 },
+  Handball:          { w: 40,  h: 20 },
+  Basketball:        { w: 28,  h: 15 },
+  Eishockey:         { w: 60,  h: 26 },
+  Volleyball:        { w: 18,  h: 9  },
+  'Andere Sportart': { w: 100, h: 60 }
+};
+
+const SPORT_AUTO_FORMATIONS = {
+  Handball:   { gk:[[3,10]],   field:[[12,4],[12,10],[12,16],[20,4],[20,10],[20,16],[28,4],[28,10],[28,16],[32,5],[32,15],[16,7],[16,13],[24,7],[24,13]] },
+  Basketball: { gk:[],         field:[[3,7.5],[8,3],[8,12],[13,3],[13,12],[19,7.5],[16,4],[16,11],[10,7.5],[5,4],[5,11],[21,4],[21,11],[24,4],[24,11]] },
+  Eishockey:  { gk:[[4,13]],   field:[[14,7],[14,13],[14,19],[22,7],[22,13],[22,19],[30,7],[30,13],[30,19],[38,7],[38,13],[38,19],[8,9],[8,17],[18,10]] },
+  Volleyball: { gk:[],         field:[[3,1.5],[3,4.5],[3,7.5],[8,1.5],[8,4.5],[8,7.5],[5.5,1.5],[5.5,4.5],[5.5,7.5],[1.5,3],[1.5,6],[10,3],[10,6],[6.5,3],[6.5,6]] }
+};
+
+const FORMATIONS = {
+  '4-3-3':   { slots:[[5,34],[20,12],[20,26],[20,42],[20,56],[40,20],[40,34],[40,48],[65,17],[65,34],[65,51]] },
+  '4-4-2':   { slots:[[5,34],[20,12],[20,26],[20,42],[20,56],[42,12],[42,26],[42,42],[42,56],[65,24],[65,44]] },
+  '4-2-3-1': { slots:[[5,34],[20,12],[20,26],[20,42],[20,56],[35,24],[35,44],[52,14],[52,34],[52,54],[68,34]] },
+  '3-5-2':   { slots:[[5,34],[20,20],[20,34],[20,48],[35,10],[38,24],[40,34],[38,44],[35,58],[65,24],[65,44]] },
+  '5-3-2':   { slots:[[5,34],[18,8],[18,22],[18,34],[18,46],[18,60],[40,20],[40,34],[40,48],[65,24],[65,44]] },
+  '3-4-3':   { slots:[[5,34],[20,20],[20,34],[20,48],[38,12],[38,27],[38,41],[38,56],[65,17],[65,34],[65,51]] },
+  '4-1-4-1': { slots:[[5,34],[20,12],[20,26],[20,42],[20,56],[32,34],[50,12],[50,26],[50,42],[50,56],[68,34]] },
+  '4-3-2-1': { slots:[[5,34],[20,12],[20,26],[20,42],[20,56],[38,20],[38,34],[38,48],[54,24],[54,44],[68,34]] }
+};
+
+const GOAL_W = 7.32, GOAL_H = 2.44;
 
 // ============================================================
-// STATE
+// ZUSTAND
 // ============================================================
-let objects   = [];   // all canvas objects
-let drawLines = [];   // drawn arrows/lines
-let selected  = null; // selected object id
+let objects   = [];
+let drawLines = [];
+let selected  = null;
 let undoStack = [];
-
-let zoom      = 1;
-
+let mousePos  = null;
 let currentTab   = 'players';
-let drawMode     = null; // null | 'arrow' | 'dashed' | 'wave' | 'text'
+let drawMode     = null;
 let drawStart    = null;
 let arrowColor   = '#ffffff';
-let arrowStyle   = 'solid'; // solid | dashed | wave
+let arrowStyle   = 'solid';
 let showNames    = false;
-
-let colorPopupCallback = null;
-let colorPopupMode     = null; // 'player' | 'cone' | 'arrow'
-
-let ctxTarget = null;
-
+let activeTool   = null;
+let ctxTarget    = null;
+let _colorPickerMode = null;
+let _colorPickerFx = 0, _colorPickerFy = 0;
+let _textFx = 0, _textFy = 0;
 let kadrivoBoardId = null;
 let kadrivoReady   = false;
 let kadrivoHydrating = false;
 let kadrivoSaveTimer = null;
-
 let kadrivoPlayers = [];
 let homeColor = COLORS_HOME;
 let awayColor = COLORS_AWAY;
 let gkColor   = COLORS_GK;
-
-// Object id counter
+let fieldLimit = 11;
+let benchLimit = 9;
+let currentSport = 'Fussball';
+let currentFormation = '4-3-3';
+let FIELD = { w: 105, h: 68 };
 let oidSeq = 1;
-function newId(){ return 'o' + (oidSeq++); }
+let scenes2d = [];
+let currentScene2d = -1;
+let isPlaying2d = false;
+let playTimer2d = null;
+const MORPH_MS = 600;
+// Drag
+let _drag = null;
+let isPanning = false;
+let panStart  = {x:0,y:0};
+let panOff    = {x:0,y:0};
 
 // ============================================================
 // CANVAS SETUP
 // ============================================================
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
+let fieldRect = {x:0,y:0,w:0,h:0};
 
-let fieldRect = {x:0,y:0,w:0,h:0}; // canvas pixels
+function newId(){ return 'o'+(oidSeq++); }
+
+function updateFieldDimensions(){
+  const s = SPORT_FIELD_SIZES[currentSport] || SPORT_FIELD_SIZES['Andere Sportart'];
+  FIELD = { w: s.w, h: s.h };
+}
 
 function resize(){
   const wrap = document.getElementById('canvas-wrap');
   canvas.width  = wrap.clientWidth;
   canvas.height = wrap.clientHeight;
   panOff = {x:0,y:0};
-  zoom = 1;
   calcFieldRect();
   render();
 }
@@ -270,40 +290,20 @@ function calcFieldRect(){
   let fw = cw - pad*2, fh = ch - pad*2;
   if(fw/fh > aspect) fw = fh * aspect;
   else fh = fw / aspect;
-  fieldRect = {
-    x: (cw - fw)/2 + panOff.x,
-    y: (ch - fh)/2 + panOff.y,
-    w: fw * zoom,
-    h: fh * zoom
-  };
+  fieldRect = { x:(cw-fw)/2+panOff.x, y:(ch-fh)/2+panOff.y, w:fw, h:fh };
 }
 
-// ============================================================
-// COORDINATE HELPERS
-// ============================================================
-// field coords [0..FIELD.w, 0..FIELD.h] ↔ canvas pixels
-function fieldToCanvas(fx, fy){
-  return {
-    x: fieldRect.x + (fx / FIELD.w) * fieldRect.w,
-    y: fieldRect.y + (fy / FIELD.h) * fieldRect.h
-  };
-}
-function canvasToField(cx, cy){
-  return {
-    x: ((cx - fieldRect.x) / fieldRect.w) * FIELD.w,
-    y: ((cy - fieldRect.y) / fieldRect.h) * FIELD.h
-  };
-}
-function fieldScale(){ return fieldRect.w / FIELD.w; }
+function fieldToCanvas(fx,fy){ return { x:fieldRect.x+(fx/FIELD.w)*fieldRect.w, y:fieldRect.y+(fy/FIELD.h)*fieldRect.h }; }
+function canvasToField(cx,cy){ return { x:((cx-fieldRect.x)/fieldRect.w)*FIELD.w, y:((cy-fieldRect.y)/fieldRect.h)*FIELD.h }; }
+function fieldScale(){ return fieldRect.w/FIELD.w; }
 
 // ============================================================
 // RENDER
 // ============================================================
 function render(){
   calcFieldRect();
-  const cw = canvas.width, ch = canvas.height;
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fillRect(0,0,cw,ch);
+  ctx.fillStyle='#1a1a2e';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
   drawField();
   drawLines.forEach(drawArrow);
   objects.forEach(drawObj);
@@ -322,148 +322,107 @@ function drawField(){
 
 // ── FUSSBALL ─────────────────────────────────────────────────
 function drawSoccerField(){
-  const {x,y,w,h} = fieldRect;
-  const s = fieldScale();
-  const stripes=10, sw=w/stripes;
-  for(let i=0;i<stripes;i++){
-    ctx.fillStyle=i%2===0?'#3a7a22':'#428a28';
-    ctx.fillRect(x+i*sw,y,sw,h);
-  }
+  const {x,y,w,h}=fieldRect, s=fieldScale();
+  for(let i=0;i<10;i++){ ctx.fillStyle=i%2===0?'#3a7a22':'#428a28'; ctx.fillRect(x+i*w/10,y,w/10,h); }
   ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
   ctx.strokeRect(x,y,w,h);
   ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
   ctx.beginPath(); ctx.arc(x+w/2,y+h/2,9.15*s,0,Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
-  ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
-  drawSoccerPenaltyArea(x,y,w,h,s,'left');
-  drawSoccerPenaltyArea(x,y,w,h,s,'right');
-  drawSoccerGoal(x,y,w,h,s,'left');
-  drawSoccerGoal(x,y,w,h,s,'right');
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
+  drawSoccerEnd(x,y,w,h,s,'left'); drawSoccerEnd(x,y,w,h,s,'right');
 }
-function drawSoccerPenaltyArea(x,y,w,h,s,side){
-  const pw=16.5*s,ph=40.32*s,px=side==='left'?x:x+w-pw,py=y+(h-ph)/2;
+function drawSoccerEnd(x,y,w,h,s,side){
+  const flip=side==='right';
+  const ex=flip?x+w:x;
   ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
+  // Strafraum
+  const pw=16.5*s,ph=40.32*s,px=flip?x+w-pw:x,py=y+(h-ph)/2;
   ctx.strokeRect(px,py,pw,ph);
-  const gaw=5.5*s,gah=18.32*s,gax=side==='left'?x:x+w-gaw,gay=y+(h-gah)/2;
-  ctx.strokeRect(gax,gay,gaw,gah);
-  const spotX=side==='left'?x+11*s:x+w-11*s,spotY=y+h/2;
-  ctx.beginPath(); ctx.arc(spotX,spotY,3,0,Math.PI*2);
-  ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
-  const aS=side==='left'?-0.93:Math.PI-0.93,aE=side==='left'?0.93:Math.PI+0.93;
-  ctx.beginPath(); ctx.arc(spotX,spotY,9.15*s,aS,aE); ctx.stroke();
-  const corners=side==='left'?[{cx:x,cy:y},{cx:x,cy:y+h}]:[{cx:x+w,cy:y},{cx:x+w,cy:y+h}];
-  corners.forEach(({cx,cy},i)=>{
-    const sa=side==='left'?(i===0?0:-Math.PI/2):(i===0?Math.PI/2:Math.PI);
-    ctx.beginPath(); ctx.arc(cx,cy,s,sa,sa+Math.PI/2); ctx.stroke();
-  });
-}
-function drawSoccerGoal(x,y,w,h,s,side){
-  const gw=GOAL_H*s,gh=GOAL_W*s,gx=side==='left'?x-gw:x+w,gy=y+(h-gh)/2;
-  ctx.strokeStyle='rgba(220,220,220,0.7)'; ctx.lineWidth=2;
+  // Torraum
+  const gw=5.5*s,gh=18.32*s,gx=flip?x+w-gw:x,gy=y+(h-gh)/2;
   ctx.strokeRect(gx,gy,gw,gh);
-  ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(gx,gy,gw,gh);
+  // Elfmeterpunkt
+  const spotX=flip?x+w-11*s:x+11*s;
+  ctx.beginPath(); ctx.arc(spotX,y+h/2,3,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
+  // Elfmeterkreis
+  const aS=flip?Math.PI-0.93:-0.93, aE=flip?Math.PI+0.93:0.93;
+  ctx.beginPath(); ctx.arc(spotX,y+h/2,9.15*s,aS,aE); ctx.stroke();
+  // Tor
+  const gw2=GOAL_H*s,gh2=GOAL_W*s,gx2=flip?x+w:x-gw2,gy2=y+(h-gh2)/2;
+  ctx.strokeStyle='rgba(220,220,220,0.7)'; ctx.strokeRect(gx2,gy2,gw2,gh2);
+  ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(gx2,gy2,gw2,gh2);
 }
 
 // ── HANDBALL ─────────────────────────────────────────────────
-// 40×20m | Torraum 6m | Freiwurflinie 9m | Tor 3×2m
 function drawHandballField(){
   const {x,y,w,h}=fieldRect, s=fieldScale();
-  const stripes=10, sw=w/stripes;
-  for(let i=0;i<stripes;i++){
-    ctx.fillStyle=i%2===0?'#c8a05a':'#d4aa60';
-    ctx.fillRect(x+i*sw,y,sw,h);
-  }
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  for(let i=0;i<10;i++){ ctx.fillStyle=i%2===0?'#c8a05a':'#d4aa60'; ctx.fillRect(x+i*w/10,y,w/10,h); }
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
-  ctx.fillStyle='#fff'; ctx.fill();
   ['left','right'].forEach(side=>{
-    const cx=side==='left'?x:x+w, cy=y+h/2;
-    const r6=6*s;
-    ctx.fillStyle='rgba(200,160,60,0.4)';
+    const cx2=side==='left'?x:x+w, cy2=y+h/2;
+    ctx.fillStyle='rgba(200,160,60,0.4)'; ctx.beginPath();
+    if(side==='left'){ctx.moveTo(cx2,cy2-6*s);ctx.arc(cx2,cy2,6*s,-Math.PI/2,Math.PI/2);}
+    else{ctx.moveTo(cx2,cy2-6*s);ctx.arc(cx2,cy2,6*s,-Math.PI/2,Math.PI/2,true);}
+    ctx.closePath(); ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    ctx.setLineDash([8,6]); ctx.lineWidth=1.5;
     ctx.beginPath();
-    if(side==='left'){ ctx.moveTo(cx,cy-r6); ctx.arc(cx,cy,r6,-Math.PI/2,Math.PI/2); }
-    else { ctx.moveTo(cx,cy-r6); ctx.arc(cx,cy,r6,-Math.PI/2,Math.PI/2,true); }
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
-    const r9=9*s;
-    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.setLineDash([8,6]);
-    ctx.beginPath();
-    if(side==='left') ctx.arc(cx,cy,r9,-Math.PI/2,Math.PI/2);
-    else ctx.arc(cx,cy,r9,-Math.PI/2,Math.PI/2,true);
+    if(side==='left') ctx.arc(cx2,cy2,9*s,-Math.PI/2,Math.PI/2);
+    else ctx.arc(cx2,cy2,9*s,-Math.PI/2,Math.PI/2,true);
     ctx.stroke(); ctx.setLineDash([]);
     const m7x=side==='left'?x+7*s:x+w-7*s;
-    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(m7x,cy-0.5*s); ctx.lineTo(m7x,cy+0.5*s); ctx.stroke();
-    const gTw=3*s,gTh=2*s,gTx=side==='left'?x-gTh:x+w,gTy=cy-gTw/2;
-    ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(gTx,gTy,gTh,gTw);
+    ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(m7x,cy2-0.5*s); ctx.lineTo(m7x,cy2+0.5*s); ctx.stroke();
+    const gTw=3*s,gTh=2*s,gTx=side==='left'?x-gTh:x+w,gTy=cy2-gTw/2;
+    ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(gTx,gTy,gTh,gTw);
     ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.5; ctx.strokeRect(gTx,gTy,gTh,gTw);
   });
 }
 
 // ── BASKETBALL ───────────────────────────────────────────────
-// 28×15m | 3-Punkt r=6.75m | Key 5.8×4.9m
 function drawBasketballField(){
   const {x,y,w,h}=fieldRect, s=fieldScale();
-  const stripes=14, sh=h/stripes;
-  for(let i=0;i<stripes;i++){
-    ctx.fillStyle=i%2===0?'#d4916a':'#c8845f';
-    ctx.fillRect(x,y+i*sh,w,sh);
-  }
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  for(let i=0;i<14;i++){ ctx.fillStyle=i%2===0?'#d4916a':'#c8845f'; ctx.fillRect(x,y+i*h/14,w,h/14); }
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
   ctx.beginPath(); ctx.arc(x+w/2,y+h/2,1.8*s,0,Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
-  ctx.fillStyle='#fff'; ctx.fill();
   ['left','right'].forEach(side=>{
-    const ex=side==='left'?x:x+w, cy=y+h/2;
-    const kw=5.8*s,kh=4.9*s,kx=side==='left'?x:x+w-kw,ky=cy-kh/2;
-    ctx.fillStyle='rgba(200,130,80,0.4)'; ctx.fillRect(kx,ky,kw,kh);
-    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(kx,ky,kw,kh);
+    const ex=side==='left'?x:x+w, cy2=y+h/2;
+    const kw=5.8*s,kh=4.9*s,kx=side==='left'?x:x+w-kw,ky=cy2-kh/2;
+    ctx.fillStyle='rgba(200,130,80,0.35)'; ctx.fillRect(kx,ky,kw,kh);
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(kx,ky,kw,kh);
     const fwx=side==='left'?x+kw:x+w-kw;
+    ctx.setLineDash([5,4]);
     ctx.beginPath();
-    if(side==='left') ctx.arc(fwx,cy,kh/2,-Math.PI/2,Math.PI/2);
-    else ctx.arc(fwx,cy,kh/2,Math.PI/2,-Math.PI/2);
-    ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
-    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+    if(side==='left') ctx.arc(fwx,cy2,kh/2,-Math.PI/2,Math.PI/2);
+    else ctx.arc(fwx,cy2,kh/2,Math.PI/2,-Math.PI/2);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth=2;
     ctx.beginPath();
-    if(side==='left'){ ctx.moveTo(x,y+0.9*s); ctx.lineTo(x,cy-3*s); ctx.arc(ex,cy,6.75*s,Math.PI*1.5,Math.PI*0.5); ctx.lineTo(x,y+h-0.9*s); }
-    else { ctx.moveTo(x+w,y+0.9*s); ctx.lineTo(x+w,cy-3*s); ctx.arc(ex,cy,6.75*s,Math.PI*0.5,Math.PI*1.5); ctx.lineTo(x+w,y+h-0.9*s); }
+    if(side==='left'){ctx.moveTo(x,y+0.9*s);ctx.lineTo(x,cy2-3*s);ctx.arc(ex,cy2,6.75*s,Math.PI*1.5,Math.PI*0.5);ctx.lineTo(x,y+h-0.9*s);}
+    else{ctx.moveTo(x+w,y+0.9*s);ctx.lineTo(x+w,cy2-3*s);ctx.arc(ex,cy2,6.75*s,Math.PI*0.5,Math.PI*1.5);ctx.lineTo(x+w,y+h-0.9*s);}
     ctx.stroke();
     const bx=side==='left'?x+1.575*s:x+w-1.575*s;
     ctx.strokeStyle='rgba(255,180,50,0.9)'; ctx.lineWidth=2.5;
-    ctx.beginPath(); ctx.arc(bx,cy,0.45*s,0,Math.PI*2); ctx.stroke();
-    const bW=1.83*s,bH=1.07*s,bX=side==='left'?x-bH:x+w;
-    ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.5;
-    ctx.strokeRect(bX,cy-bW/2,bH,bW);
+    ctx.beginPath(); ctx.arc(bx,cy2,0.45*s,0,Math.PI*2); ctx.stroke();
   });
 }
 
 // ── EISHOCKEY ────────────────────────────────────────────────
-// 60×26m (NHL) | Abgerundete Ecken | Rot/Blau Linien
 function drawEishockeyField(){
-  const {x,y,w,h}=fieldRect, s=fieldScale();
-  const r=8.5*s;
-  ctx.save();
-  ctx.beginPath();
+  const {x,y,w,h}=fieldRect, s=fieldScale(), r=8.5*s;
+  ctx.save(); ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
   ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
   ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
   ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
-  ctx.closePath();
-  ctx.fillStyle='#d0e8f5'; ctx.fill();
-  ctx.strokeStyle='#1a5276'; ctx.lineWidth=3; ctx.stroke();
-  ctx.restore();
+  ctx.closePath(); ctx.fillStyle='#d0e8f5'; ctx.fill();
+  ctx.strokeStyle='#1a5276'; ctx.lineWidth=3; ctx.stroke(); ctx.restore();
   ctx.strokeStyle='#cc0000'; ctx.lineWidth=4;
   ctx.beginPath(); ctx.moveTo(x+w/2,y+4); ctx.lineTo(x+w/2,y+h-4); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,0.3*s,0,Math.PI*2);
-  ctx.fillStyle='#cc0000'; ctx.fill();
   ctx.strokeStyle='#0044aa'; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(x+w/2,y+h/2,4.5*s,0,Math.PI*2); ctx.stroke();
   ctx.strokeStyle='#0044aa'; ctx.lineWidth=4;
-  // Blaue Linien: 7.3m von der Mittellinie (IIHF)
-  const bl1=x+w/2-7.3*s, bl2=x+w/2+7.3*s;
-  [[bl1,y+4,bl1,y+h-4],[bl2,y+4,bl2,y+h-4]].forEach(([x1,y1,x2,y2])=>{
+  [[x+w/2-7.3*s,y+4,x+w/2-7.3*s,y+h-4],[x+w/2+7.3*s,y+4,x+w/2+7.3*s,y+h-4]].forEach(([x1,y1,x2,y2])=>{
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   });
   ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
@@ -471,1325 +430,892 @@ function drawEishockeyField(){
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   });
   ['left','right'].forEach(side=>{
-    const ex=side==='left'?x:x+w, cy=y+h/2;
-    const gw2=1.22*s,gh2=1.83*s,gx2=side==='left'?x+4*s-gw2:x+w-4*s,gy2=cy-gh2/2;
-    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(gx2,gy2,gw2,gh2);
-    ctx.strokeStyle='rgba(255,60,60,0.9)'; ctx.lineWidth=2.5; ctx.strokeRect(gx2,gy2,gw2,gh2);
-    ctx.fillStyle='rgba(0,68,170,0.15)';
+    const cy2=y+h/2;
     const goalX=side==='left'?x+4*s:x+w-4*s;
-    ctx.beginPath();
-    if(side==='left') ctx.arc(goalX,cy,1.83*s,-Math.PI/2,Math.PI/2);
-    else ctx.arc(goalX,cy,1.83*s,-Math.PI/2,Math.PI/2,true);
-    ctx.fill();
-    ctx.strokeStyle='#cc0000'; ctx.lineWidth=1.5; ctx.stroke();
-    // Anspielpunkte: 7m von Torlinie (bei 4m Torlinie → 11m vom Ende), ±6.7m von Mitte
+    const gw2=1.22*s,gh2=1.83*s,gx2=side==='left'?goalX-gw2:goalX,gy2=cy2-gh2/2;
+    ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(gx2,gy2,gw2,gh2);
+    ctx.strokeStyle='rgba(255,60,60,0.9)'; ctx.lineWidth=2.5; ctx.strokeRect(gx2,gy2,gw2,gh2);
     const dotX=side==='left'?x+11*s:x+w-11*s;
-    [cy-6.7*s,cy+6.7*s].forEach(dy=>{
+    [cy2-6.7*s,cy2+6.7*s].forEach(dy=>{
       ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(dotX,dy,1.8*s,0,Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(dotX,dy,0.15*s,0,Math.PI*2);
-      ctx.fillStyle='#cc0000'; ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(dotX-0.4*s,dy); ctx.lineTo(dotX+0.4*s,dy);
-      ctx.moveTo(dotX,dy-0.4*s); ctx.lineTo(dotX,dy+0.4*s);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(dotX,dy,0.15*s,0,Math.PI*2); ctx.fillStyle='#cc0000'; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(dotX-0.4*s,dy); ctx.lineTo(dotX+0.4*s,dy); ctx.moveTo(dotX,dy-0.4*s); ctx.lineTo(dotX,dy+0.4*s); ctx.stroke();
     });
   });
-  // Neutrale Zone: 4 Anspielpunkte (±1.5m von Mittellinie, ±6.7m von Mitte)
-  [[x+w/2-1.5*s,y+h/2-6.7*s],[x+w/2+1.5*s,y+h/2-6.7*s],
-   [x+w/2-1.5*s,y+h/2+6.7*s],[x+w/2+1.5*s,y+h/2+6.7*s]].forEach(([dx,dy])=>{
-    ctx.beginPath(); ctx.arc(dx,dy,0.15*s,0,Math.PI*2);
-    ctx.fillStyle='#cc0000'; ctx.fill();
+  [[x+w/2-1.5*s,y+h/2-6.7*s],[x+w/2+1.5*s,y+h/2-6.7*s],[x+w/2-1.5*s,y+h/2+6.7*s],[x+w/2+1.5*s,y+h/2+6.7*s]].forEach(([dx,dy])=>{
+    ctx.beginPath(); ctx.arc(dx,dy,0.15*s,0,Math.PI*2); ctx.fillStyle='#cc0000'; ctx.fill();
   });
 }
 
 // ── VOLLEYBALL ───────────────────────────────────────────────
-// 18×9m | Mittellinie+Netz | Angriffslinie 3m vom Netz
 function drawVolleyballField(){
   const {x,y,w,h}=fieldRect, s=fieldScale();
-  // Außenbereich (3m Freizone = 0.5m visuell damit Feld sichtbar bleibt)
-  ctx.fillStyle='#2980b9'; ctx.fillRect(x,y,w,h);
-  // Spielfläche (das gesamte fieldRect ist schon das 18×9m Feld)
   ctx.fillStyle='#5dade2'; ctx.fillRect(x,y,w,h);
-  // Feldrand
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
-  // Mittellinie/Netz
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   const netX=x+w/2;
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.moveTo(netX,y); ctx.lineTo(netX,y+h); ctx.stroke();
-  // Netz-Pfosten
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(netX,y); ctx.lineTo(netX,y+h); ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,0.9)';
-  ctx.fillRect(netX-0.12*s,y-0.5*s,0.24*s,1*s);
-  ctx.fillRect(netX-0.12*s,y+h-0.5*s,0.24*s,1*s);
-  // Angriffslinie (3m vom Netz auf jeder Seite)
-  const att1=x+w/2-3*s, att2=x+w/2+3*s;
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
-  ctx.beginPath(); ctx.moveTo(att1,y); ctx.lineTo(att1,y+h); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(att2,y); ctx.lineTo(att2,y+h); ctx.stroke();
-  ctx.setLineDash([]);
-  // Service-Zone Marker (kleine Striche am Rand)
-  [-0.9*s,0.9*s].forEach(dy=>{
-    ctx.fillStyle='rgba(255,255,255,0.8)';
-    ctx.fillRect(x-0.1*s,y+h/2+dy-0.08*s,0.6*s,0.16*s);
-    ctx.fillRect(x+w-0.5*s,y+h/2+dy-0.08*s,0.6*s,0.16*s);
+  ctx.fillRect(netX-0.12*s,y-0.5*s,0.24*s,1*s); ctx.fillRect(netX-0.12*s,y+h-0.5*s,0.24*s,1*s);
+  [x+w/2-3*s,x+w/2+3*s].forEach(ax=>{
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+    ctx.beginPath(); ctx.moveTo(ax,y); ctx.lineTo(ax,y+h); ctx.stroke(); ctx.setLineDash([]);
   });
 }
 
-
 // ============================================================
-// DRAW OBJECTS
+// OBJEKTE ZEICHNEN
 // ============================================================
 function drawObj(obj){
-  if(obj.hidden) return;   // Bankspieler werden nicht auf dem Feld gezeichnet
-  const {x,y,w,h} = fieldRect;
-  const s = fieldScale();
-  const p = fieldToCanvas(obj.fx, obj.fy);
-  const sel = obj.id === selected;
-
-  ctx.save();
-  ctx.translate(p.x, p.y);
-
-  if(sel){
-    ctx.shadowColor = '#ffff00';
-    ctx.shadowBlur  = 12;
+  if(obj.hidden) return;
+  const p=fieldToCanvas(obj.fx,obj.fy);
+  const sel=obj.id===selected;
+  if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,20,0,Math.PI*2); ctx.fillStyle='rgba(100,180,255,0.25)'; ctx.fill(); }
+  switch(obj.type){
+    case 'player': drawPlayer(obj,p,sel); break;
+    case 'cone':   drawCone(obj,p,sel); break;
+    case 'ball':   drawBall(obj,p,sel); break;
+    case 'pole':   drawPole(obj,p,sel); break;
+    case 'goal':   drawGoalObj(obj,p,sel); break;
+    case 'text':   drawTextObj(obj,p,sel); break;
   }
-
-  if(obj.type === 'player')      drawPlayer(obj, s, sel);
-  else if(obj.type === 'cone')   drawCone(obj, s);
-  else if(obj.type === 'ball')   drawBall(obj, s);
-  else if(obj.type === 'pole')   drawPole(obj, s);
-  else if(obj.type === 'goal')   drawGoalObj(obj, s);
-  else if(obj.type === 'text')   drawTextObj(obj, s);
-
-  ctx.restore();
 }
 
-function drawPlayer(obj, s, sel){
-  const r = obj.isBench ? 10 : 14;
-  const col = obj.color || '#e63946';
-  // Shadow
-  ctx.beginPath();
-  ctx.ellipse(0, r*0.7, r*0.7, r*0.25, 0, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fill();
-  // Body circle - bench players get dashed border
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI*2);
-  ctx.fillStyle = col;
-  ctx.fill();
-  if(obj.isBench){
-    ctx.save();
-    ctx.setLineDash([3,2]);
-    ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.stroke();
-    ctx.restore();
-    // "B" label overlay for bench
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath();
-    ctx.arc(r-2, -r+2, 5, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = '#ffcc00';
-    ctx.font = 'bold 6px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('B', r-2, -r+2);
-  } else {
-    ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = sel ? 2.5 : 1.5;
-    ctx.beginPath();
-    ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.stroke();
-  }
-  // Number / initials
-  const label = obj.num ? String(obj.num) : (obj.name || '?').substring(0,2).toUpperCase();
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${r > 12 ? 11 : 9}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowBlur = 0;
-  ctx.fillText(label, 0, 0);
-  // Name below
+function drawPlayer(obj,p,sel){
+  const s=fieldScale();
+  const r=14;
+  ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
+  ctx.fillStyle=obj.color||homeColor; ctx.fill();
+  if(sel){ ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke(); }
+  ctx.fillStyle='#fff'; ctx.font=`bold ${r-2}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(obj.num||'', p.x, p.y+0.5);
   if(showNames && obj.name){
-    ctx.font = '9px sans-serif';
-    ctx.fillStyle = obj.isBench ? '#ffcc00' : '#fff';
-    ctx.shadowColor = '#000';
-    ctx.shadowBlur = 3;
-    ctx.fillText(obj.name, 0, r+9);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.font=`9px sans-serif`;
+    ctx.fillText(obj.name.split(' ').pop(), p.x, p.y+r+7);
   }
 }
 
-function drawCone(obj, s){
-  const c = obj.color || '#ff5500';
-  const sz = 10;
-  // Triangle shape
-  ctx.beginPath();
-  ctx.moveTo(0, -sz);
-  ctx.lineTo(-sz*0.7, sz*0.4);
-  ctx.lineTo(sz*0.7,  sz*0.4);
-  ctx.closePath();
-  ctx.fillStyle = c;
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  // Base shadow
-  ctx.beginPath();
-  ctx.ellipse(0, sz*0.4, sz*0.7, sz*0.2, 0, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fill();
+function drawCone(obj,p,sel){
+  const s=fieldScale()*0.6;
+  ctx.beginPath(); ctx.moveTo(p.x,p.y-8*s/6); ctx.lineTo(p.x-6*s,p.y+5*s); ctx.lineTo(p.x+6*s,p.y+5*s); ctx.closePath();
+  ctx.fillStyle=obj.color||'#ff5500'; ctx.fill();
+  if(sel){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); }
 }
 
-function drawBall(obj, s){
-  const r = 9;
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI*2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
-  // Pentagon pattern (simplified as arcs)
-  ctx.fillStyle = '#111';
-  for(let i=0;i<5;i++){
-    const a = (i/5)*Math.PI*2;
-    const bx = Math.cos(a)*r*0.45, by = Math.sin(a)*r*0.45;
-    ctx.beginPath();
-    ctx.arc(bx, by, r*0.22, 0, Math.PI*2);
-    ctx.fill();
-  }
-  ctx.beginPath();
-  ctx.arc(0,0,r*0.18,0,Math.PI*2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(0,0,r,0,Math.PI*2);
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+function drawBall(obj,p,sel){
+  const r=7;
+  ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
+  ctx.fillStyle='#f0f0f0'; ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
+  if(sel){ ctx.strokeStyle='rgba(100,180,255,0.9)'; ctx.lineWidth=2; ctx.stroke(); }
 }
 
-function drawPole(obj, s){
-  const c = obj.color || '#cc0000';
-  const isH = obj.horizontal;
-  ctx.strokeStyle = c;
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  if(isH){ ctx.moveTo(-20,0); ctx.lineTo(20,0); }
-  else    { ctx.moveTo(0,-20); ctx.lineTo(0,20); }
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  if(isH){ ctx.moveTo(-18,-1); ctx.lineTo(18,-1); }
-  else    { ctx.moveTo(-1,-18); ctx.lineTo(-1,18); }
-  ctx.stroke();
+function drawPole(obj,p,sel){
+  const s=fieldScale();
+  ctx.strokeStyle=obj.color||'#cc0000'; ctx.lineWidth=3;
+  if(obj.horizontal){ ctx.beginPath(); ctx.moveTo(p.x-12,p.y); ctx.lineTo(p.x+12,p.y); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.moveTo(p.x,p.y-12); ctx.lineTo(p.x,p.y+12); ctx.stroke(); }
+  if(sel){ ctx.strokeStyle='rgba(100,180,255,0.7)'; ctx.lineWidth=5; ctx.globalAlpha=0.4;
+    if(obj.horizontal){ ctx.beginPath(); ctx.moveTo(p.x-12,p.y); ctx.lineTo(p.x+12,p.y); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(p.x,p.y-12); ctx.lineTo(p.x,p.y+12); ctx.stroke(); }
+    ctx.globalAlpha=1; }
 }
 
-function drawGoalObj(obj, s){
-  const sw = obj.goalW || 7.32;
-  const sh = obj.goalH || 2.44;
-  const pw = sw * fieldScale() * 0.5;
-  const ph = sh * fieldScale() * 0.5;
-  ctx.strokeStyle = 'rgba(220,220,220,0.9)';
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(-pw/2, -ph/2, pw, ph);
-  ctx.fillStyle = 'rgba(255,255,255,0.07)';
-  ctx.fillRect(-pw/2, -ph/2, pw, ph);
+function drawGoalObj(obj,p,sel){
+  const s=fieldScale();
+  const gw=(obj.goalW||3)*s/2, gh=(obj.goalH||1)*s;
+  ctx.strokeStyle=sel?'#88ccff':'rgba(200,200,200,0.9)'; ctx.lineWidth=2.5;
+  ctx.strokeRect(p.x-gw,p.y-gh/2,gw*2,gh);
+  ctx.fillStyle='rgba(255,255,255,0.08)'; ctx.fillRect(p.x-gw,p.y-gh/2,gw*2,gh);
 }
 
-function drawTextObj(obj, s){
-  const txt = obj.text || '';
-  const fs = obj.fontSize || 14;
-  ctx.font = `${obj.bold?'bold ':''} ${fs}px sans-serif`;
-  ctx.fillStyle = obj.color || '#ffff00';
-  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-  ctx.lineWidth = 3;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowBlur = 0;
-  ctx.strokeText(txt, 0, 0);
-  ctx.fillText(txt, 0, 0);
+function drawTextObj(obj,p,sel){
+  const fs=Math.max(10,(obj.fontSize||14)*fieldScale()/5);
+  ctx.font=`bold ${fs}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(sel){ ctx.strokeStyle='rgba(100,180,255,0.6)'; ctx.lineWidth=4; ctx.strokeText(obj.text||'',p.x,p.y); }
+  ctx.fillStyle=obj.color||'#ffff00';
+  ctx.fillText(obj.text||'',p.x,p.y);
 }
 
 // ============================================================
-// DRAW ARROWS / LINES
+// PFEILE
 // ============================================================
 function drawArrow(line){
-  const a = fieldToCanvas(line.x1, line.y1);
-  const b = fieldToCanvas(line.x2, line.y2);
-  const col  = line.color || '#ffffff';
-  const style= line.style || 'solid';
-  const lw   = 2.5;
-  const isSel = line.id === selected;
-
-  ctx.save();
-  // Selection-Glow
-  if(isSel){
-    ctx.strokeStyle='rgba(100,180,255,0.5)';
-    ctx.lineWidth=lw+6; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-  }
-  ctx.strokeStyle = col;
-  ctx.lineWidth   = lw;
-  ctx.lineCap     = 'round';
-
-  if(style === 'dashed'){
-    ctx.setLineDash([8,5]);
-  } else if(style === 'wave'){
-    drawWaveLine(a.x, a.y, b.x, b.y, col, lw);
-    ctx.restore();
-    return;
-  } else {
-    ctx.setLineDash([]);
-  }
-
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
-  ctx.stroke();
+  const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
+  const col=line.color||'#ffffff', style=line.style||'solid';
+  const isSel=line.id===selected;
+  ctx.save(); ctx.lineCap='round';
+  if(isSel){ ctx.strokeStyle='rgba(100,180,255,0.4)'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  ctx.strokeStyle=col; ctx.lineWidth=2.5;
+  ctx.setLineDash(style==='dashed'?[10,6]:style==='wave'?[6,3]:[]);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
   ctx.setLineDash([]);
-
-  // Arrowhead
-  if(line.arrow !== false){
-    const ang = Math.atan2(b.y-a.y, b.x-a.x);
-    const hs = 12;
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.moveTo(b.x, b.y);
-    ctx.lineTo(b.x - hs*Math.cos(ang-0.4), b.y - hs*Math.sin(ang-0.4));
-    ctx.lineTo(b.x - hs*Math.cos(ang+0.4), b.y - hs*Math.sin(ang+0.4));
-    ctx.closePath();
-    ctx.fill();
+  if(line.arrow!==false){
+    const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
+    if(len>5){
+      const ux=dx/len, uy=dy/len, ah=10, aw=6;
+      const tx=b.x-ux*ah, ty=b.y-uy*ah;
+      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-uy*aw,ty+ux*aw); ctx.lineTo(tx+uy*aw,ty-ux*aw); ctx.closePath();
+      ctx.fillStyle=col; ctx.fill();
+    }
   }
   ctx.restore();
 }
 
-function drawWaveLine(x1,y1,x2,y2,col,lw){
-  const dx=x2-x1, dy=y2-y1;
-  const len=Math.sqrt(dx*dx+dy*dy);
-  const steps=Math.max(4,Math.floor(len/10));
-  const amp=6;
-  const nx=-dy/len, ny=dx/len;
-  ctx.save();
-  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round';
-  ctx.beginPath();
-  for(let i=0;i<=steps;i++){
-    const t=i/steps;
-    const wave=Math.sin(t*Math.PI*4)*amp*(1-t*0.3);
-    const px=x1+dx*t+nx*wave;
-    const py=y1+dy*t+ny*wave;
-    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-  }
-  ctx.stroke();
-  // Arrowhead
-  const ang=Math.atan2(y2-y1,x2-x1);
-  const hs=12;
-  ctx.fillStyle=col;
-  ctx.beginPath();
-  ctx.moveTo(x2,y2);
-  ctx.lineTo(x2-hs*Math.cos(ang-0.4),y2-hs*Math.sin(ang-0.4));
-  ctx.lineTo(x2-hs*Math.cos(ang+0.4),y2-hs*Math.sin(ang+0.4));
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawPreviewLine(start, end){
-  const a = fieldToCanvas(start.x, start.y);
-  const b = end;
-  ctx.save();
-  ctx.strokeStyle = arrowColor;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([5,4]);
-  ctx.globalAlpha = 0.6;
-  ctx.beginPath();
-  ctx.moveTo(a.x,a.y);
-  ctx.lineTo(b.x,b.y);
-  ctx.stroke();
-  ctx.restore();
+function drawPreviewLine(start,canvasPos){
+  const a=fieldToCanvas(start.x,start.y);
+  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(canvasPos.x,canvasPos.y); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
 }
 
 // ============================================================
 // HIT TEST
 // ============================================================
 function hitTest(cx,cy){
-  // Prüfe objects (Spieler, Text, Utensilien)
   for(let i=objects.length-1;i>=0;i--){
     const obj=objects[i];
+    if(obj.hidden) continue;
     const p=fieldToCanvas(obj.fx,obj.fy);
-    const r = obj.type==='player' ? 16 : obj.type==='text' ? 22 : 14;
-    const dx=cx-p.x, dy=cy-p.y;
-    if(dx*dx+dy*dy <= r*r) return {src:'obj', obj};
+    const r=obj.type==='player'?16:obj.type==='text'?22:14;
+    if((cx-p.x)**2+(cy-p.y)**2<=r*r) return {src:'obj',obj};
   }
-  // Prüfe drawLines (Pfeile/Linien) – Abstand zum Liniensegment
   for(let i=drawLines.length-1;i>=0;i--){
     const l=drawLines[i];
-    const p1=fieldToCanvas(l.x1,l.y1);
-    const p2=fieldToCanvas(l.x2,l.y2);
-    if(distToSegment(cx,cy,p1.x,p1.y,p2.x,p2.y) <= 8) return {src:'line', obj:l};
+    const p1=fieldToCanvas(l.x1,l.y1), p2=fieldToCanvas(l.x2,l.y2);
+    if(distToSegment(cx,cy,p1.x,p1.y,p2.x,p2.y)<=8) return {src:'line',obj:l};
   }
   return null;
 }
 
 function distToSegment(px,py,ax,ay,bx,by){
-  const dx=bx-ax, dy=by-ay;
-  const lenSq=dx*dx+dy*dy;
+  const dx=bx-ax,dy=by-ay,lenSq=dx*dx+dy*dy;
   if(lenSq===0) return Math.hypot(px-ax,py-ay);
-  let t=((px-ax)*dx+(py-ay)*dy)/lenSq;
-  t=Math.max(0,Math.min(1,t));
-  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+  const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/lenSq));
+  return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
 }
 
 // ============================================================
-// MOUSE / TOUCH
+// CANVAS-KOORDINATEN
 // ============================================================
-let mousePos = null;
-
-canvas.addEventListener('wheel', onWheel, {passive:false});
-
 function canvasXY(e){
   const r=canvas.getBoundingClientRect();
-  return {x:e.clientX-r.left, y:e.clientY-r.top};
+  const t=e.touches?.[0]||e.changedTouches?.[0];
+  return {x:(t?t.clientX:e.clientX)-r.left, y:(t?t.clientY:e.clientY)-r.top};
 }
 
 // ============================================================
-// MOUSE / TOUCH – komplett neu, sauber, ohne Zustandsfehler
+// MOUSE / TOUCH HANDLER
 // ============================================================
-// Drag-State
-let _drag = null;
-// {obj, src:'obj'|'line', startFx, startFy, offX, offY,
-//  lineDx, lineDy,   // für Linienpfeil: akkumulierter Delta
-//  moved}
-
-let isPanning  = false;
-let panStart   = {x:0,y:0};
-let panOff     = {x:0,y:0};
-let _clickCount = 0;  // für Doppelklick-Erkennung
-let _clickTimer = null;
-
-// Hilfsfunktion: Canvas-Koordinaten aus Event
-
 canvas.addEventListener('mousedown',  onPointerDown);
 canvas.addEventListener('mousemove',  onPointerMove);
 canvas.addEventListener('mouseup',    onPointerUp);
+canvas.addEventListener('mouseleave', ()=>{ if(_drag) onPointerUp({button:0}); isPanning=false; });
 canvas.addEventListener('dblclick',   onDblClick);
 canvas.addEventListener('contextmenu',onContextMenu);
-canvas.addEventListener('mouseleave', onPointerUp); // Maus verlässt Canvas → stoppe Drag
-
-canvas.addEventListener('touchstart', e=>{ e.preventDefault(); onPointerDown(e.touches[0]); },{passive:false});
-canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); onPointerMove(e.touches[0]); },{passive:false});
-canvas.addEventListener('touchend',   e=>{ e.preventDefault(); onPointerUp(e.changedTouches[0]); },{passive:false});
+canvas.addEventListener('wheel',      onWheel, {passive:false});
+canvas.addEventListener('touchstart', e=>{e.preventDefault();onPointerDown(e.touches[0]);},{passive:false});
+canvas.addEventListener('touchmove',  e=>{e.preventDefault();onPointerMove(e.touches[0]);},{passive:false});
+canvas.addEventListener('touchend',   e=>{e.preventDefault();onPointerUp(e.changedTouches[0]);},{passive:false});
 
 function onPointerDown(e){
-  // Nur Linksklick (bei Maus)
-  if(e.button !== undefined && e.button !== 0) return;
+  if(e.button!==undefined&&e.button!==0) return;
   closeContextMenu();
-  const p = canvasXY(e);
-
-  // 1. Immer zuerst HitTest
-  const hit = hitTest(p.x, p.y);
+  const p=canvasXY(e);
+  const hit=hitTest(p.x,p.y);
 
   if(hit){
-    cancelActiveTool();
-    drawStart = null;
-    const obj = hit.obj;
-    selected  = obj.id;
-
-    if(hit.src === 'obj'){
-      const cp = fieldToCanvas(obj.fx, obj.fy);
-      _drag = {
-        obj,
-        src:    'obj',
-        startFx: obj.fx,
-        startFy: obj.fy,
-        offX:   p.x - cp.x,
-        offY:   p.y - cp.y,
-        moved:  false
-      };
+    cancelActiveTool(); drawStart=null;
+    const obj=hit.obj; selected=obj.id;
+    if(hit.src==='obj'){
+      const cp=fieldToCanvas(obj.fx,obj.fy);
+      _drag={obj,src:'obj',startFx:obj.fx,startFy:obj.fy,offX:p.x-cp.x,offY:p.y-cp.y,moved:false};
     } else {
-      // Pfeil/Linie: Mittelpunkt des Segments berechnen
-      const cp1 = fieldToCanvas(obj.x1, obj.y1);
-      const cp2 = fieldToCanvas(obj.x2, obj.y2);
-      const mx  = (cp1.x + cp2.x) / 2;
-      const my  = (cp1.y + cp2.y) / 2;
-      _drag = {
-        obj,
-        src:    'line',
-        startX1: obj.x1, startY1: obj.y1,
-        startX2: obj.x2, startY2: obj.y2,
-        offX:   p.x - mx,
-        offY:   p.y - my,
-        moved:  false
-      };
+      const mx=(fieldToCanvas(obj.x1,obj.y1).x+fieldToCanvas(obj.x2,obj.y2).x)/2;
+      const my=(fieldToCanvas(obj.x1,obj.y1).y+fieldToCanvas(obj.x2,obj.y2).y)/2;
+      _drag={obj,src:'line',startX1:obj.x1,startY1:obj.y1,startX2:obj.x2,startY2:obj.y2,offX:p.x-mx,offY:p.y-my,moved:false};
     }
-    render();
-    return;
+    render(); return;
   }
 
-  // 2. Kein Hit → Tool / Zeichnen / Pan
-  if(activeTool){
-    const fp = canvasToField(p.x, p.y);
-    placeActiveTool(fp.x, fp.y);
-    return;
-  }
-  if(drawMode === 'text'){
-    const fp = canvasToField(p.x, p.y);
-    openTextPopup(fp.x, fp.y);
-    return;
-  }
+  if(activeTool){ placeActiveTool(canvasToField(p.x,p.y)); return; }
+  if(drawMode==='text'){ openTextPopup(canvasToField(p.x,p.y)); return; }
   if(drawMode){
-    const fp = canvasToField(p.x, p.y);
-    if(!drawStart){
-      drawStart = {x: fp.x, y: fp.y};
-      mousePos  = p;
-    } else {
+    const fp=canvasToField(p.x,p.y);
+    if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; }
+    else{
       pushUndo();
-      drawLines.push({
-        id: newId(), x1: drawStart.x, y1: drawStart.y,
-        x2: fp.x, y2: fp.y,
-        color: arrowColor, style: arrowStyle, arrow: true
-      });
-      drawStart = null; mousePos = null;
+      drawLines.push({id:newId(),x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,arrow:true});
+      drawStart=null; mousePos=null;
       render(); scheduleKadrivoSave();
     }
     return;
   }
-
-  // Pan
-  selected = null; _drag = null;
-  isPanning = true;
-  panStart  = {x: e.clientX - panOff.x, y: e.clientY - panOff.y};
+  selected=null; _drag=null;
+  isPanning=true; panStart={x:e.clientX-panOff.x,y:e.clientY-panOff.y};
   render();
 }
 
 function onPointerMove(e){
-  const p = canvasXY(e);
-  mousePos = p;
-
-  if(isPanning && !_drag){
-    panOff = {x: e.clientX - panStart.x, y: e.clientY - panStart.y};
-    calcFieldRect();
-    render();
-    return;
-  }
-
+  const p=canvasXY(e); mousePos=p;
+  if(isPanning&&!_drag){ panOff={x:e.clientX-panStart.x,y:e.clientY-panStart.y}; calcFieldRect(); render(); return; }
   if(_drag){
-    const d = _drag;
-    if(d.src === 'obj'){
-      // Feldkoordinaten des neuen Mittelpunkts
-      const fp = canvasToField(p.x - d.offX, p.y - d.offY);
-      d.obj.fx = Math.max(0, Math.min(FIELD.w, fp.x));
-      d.obj.fy = Math.max(0, Math.min(FIELD.h, fp.y));
-      d.moved  = true;
+    const d=_drag;
+    if(d.src==='obj'){
+      const fp=canvasToField(p.x-d.offX,p.y-d.offY);
+      d.obj.fx=Math.max(0,Math.min(FIELD.w,fp.x));
+      d.obj.fy=Math.max(0,Math.min(FIELD.h,fp.y));
     } else {
-      // Pfeil: verschiebe beide Punkte relativ zum Ursprungs-Mittelpunkt
-      const fp = canvasToField(p.x - d.offX, p.y - d.offY);
-      // fp ist der aktuelle Mittelpunkt in Feldkoordinaten
-      const origMx = (d.startX1 + d.startX2) / 2;
-      const origMy = (d.startY1 + d.startY2) / 2;
-      // Ursprüngliche Ausdehnung
-      const halfDx = (d.startX2 - d.startX1) / 2;
-      const halfDy = (d.startY2 - d.startY1) / 2;
-      // Neuer Mittelpunkt
-      const origCenter = fieldToCanvas(origMx, origMy);
-      const newCenter  = canvasToField(p.x - d.offX, p.y - d.offY);
-      d.obj.x1 = Math.max(0, Math.min(FIELD.w, newCenter.x - halfDx));
-      d.obj.y1 = Math.max(0, Math.min(FIELD.h, newCenter.y - halfDy));
-      d.obj.x2 = Math.max(0, Math.min(FIELD.w, newCenter.x + halfDx));
-      d.obj.y2 = Math.max(0, Math.min(FIELD.h, newCenter.y + halfDy));
-      d.moved  = true;
+      const fp=canvasToField(p.x-d.offX,p.y-d.offY);
+      const halfDx=(d.startX2-d.startX1)/2, halfDy=(d.startY2-d.startY1)/2;
+      d.obj.x1=Math.max(0,Math.min(FIELD.w,fp.x-halfDx));
+      d.obj.y1=Math.max(0,Math.min(FIELD.h,fp.y-halfDy));
+      d.obj.x2=Math.max(0,Math.min(FIELD.w,fp.x+halfDx));
+      d.obj.y2=Math.max(0,Math.min(FIELD.h,fp.y+halfDy));
     }
-    render();
-    return;
+    d.moved=true; render(); return;
   }
-
-  if(drawMode && drawStart){ render(); }
+  if(drawMode&&drawStart) render();
 }
 
 function onPointerUp(e){
-  if(e.button !== undefined && e.button !== 0 && e.button !== undefined){
-    if(e.button === 1){ isPanning = false; return; }
-    if(e.button !== 0) return;
-  }
-
-  if(isPanning){ isPanning = false; return; }
-
+  if(e.button!==undefined&&e.button!==0) return;
+  isPanning=false;
   if(_drag){
-    const d = _drag;
+    const d=_drag;
     if(d.moved){
-      if(d.src === 'obj'){
-        // Undo-Eintrag: speichere Zustand VOR dem Drag
-        // Wir setzen die Position kurz zurück, klonen, setzen dann wieder
-        const curFx = d.obj.fx, curFy = d.obj.fy;
-        d.obj.fx = d.startFx; d.obj.fy = d.startFy;
-        const snap = {
-          objects:   JSON.parse(JSON.stringify(objects)),
-          drawLines: JSON.parse(JSON.stringify(drawLines))
-        };
-        undoStack.push(snap);
-        if(undoStack.length > 40) undoStack.shift();
-        // Finale Position setzen
-        d.obj.fx = curFx; d.obj.fy = curFy;
+      if(d.src==='obj'){
+        const fx=d.obj.fx,fy=d.obj.fy;
+        d.obj.fx=d.startFx; d.obj.fy=d.startFy;
+        const snap={objects:JSON.parse(JSON.stringify(objects)),drawLines:JSON.parse(JSON.stringify(drawLines))};
+        undoStack.push(snap); if(undoStack.length>40) undoStack.shift();
+        d.obj.fx=fx; d.obj.fy=fy;
       } else {
-        // Pfeil-Undo
-        const cx1=d.obj.x1,cy1=d.obj.y1,cx2=d.obj.x2,cy2=d.obj.y2;
-        d.obj.x1=d.startX1; d.obj.y1=d.startY1;
-        d.obj.x2=d.startX2; d.obj.y2=d.startY2;
-        const snap = {
-          objects:   JSON.parse(JSON.stringify(objects)),
-          drawLines: JSON.parse(JSON.stringify(drawLines))
-        };
-        undoStack.push(snap);
-        if(undoStack.length > 40) undoStack.shift();
-        d.obj.x1=cx1; d.obj.y1=cy1;
-        d.obj.x2=cx2; d.obj.y2=cy2;
+        const x1=d.obj.x1,y1=d.obj.y1,x2=d.obj.x2,y2=d.obj.y2;
+        d.obj.x1=d.startX1; d.obj.y1=d.startY1; d.obj.x2=d.startX2; d.obj.y2=d.startY2;
+        const snap={objects:JSON.parse(JSON.stringify(objects)),drawLines:JSON.parse(JSON.stringify(drawLines))};
+        undoStack.push(snap); if(undoStack.length>40) undoStack.shift();
+        d.obj.x1=x1; d.obj.y1=y1; d.obj.x2=x2; d.obj.y2=y2;
       }
       scheduleKadrivoSave();
     }
-    _drag = null;
-    render();
-    // Jetzt erst speichern (nach _drag=null, damit importState nicht blockiert wird)
-    if(d.moved) scheduleKadrivoSave();
-    return;
+    _drag=null; render();
   }
 }
 
 function onDblClick(e){
-  // Drag-State komplett zurücksetzen
-  _drag     = null;
-  isPanning = false;
-
-  const p   = canvasXY(e);
-  const hit = hitTest(p.x, p.y);
+  _drag=null; isPanning=false;
+  const p=canvasXY(e), hit=hitTest(p.x,p.y);
   if(!hit) return;
-
-  const obj = hit.obj;
-
-  if(hit.src === 'line'){
-    pushUndo();
-    drawLines = drawLines.filter(l => l.id !== obj.id);
-    selected  = null;
-    render(); scheduleKadrivoSave();
-    return;
+  const obj=hit.obj;
+  if(hit.src==='line'){
+    pushUndo(); drawLines=drawLines.filter(l=>l.id!==obj.id);
+    selected=null; render(); scheduleKadrivoSave(); return;
   }
-
-  // Spieler mit playerId → Feld↔Bank wechseln
-  if(obj.type === 'player' && obj.playerId && !obj.playerId.startsWith('away_')){
-    swapPlayerFieldBench(obj);
-    return;
+  if(obj.type==='player'&&obj.playerId&&!obj.playerId.startsWith('away_')){
+    // Spieler vom Feld nehmen → Sidebar aktualisiert sich automatisch
+    removePlayerFromField(obj.playerId); return;
   }
-
-  // Alle anderen Objekte → löschen
-  pushUndo();
-  objects  = objects.filter(o => o.id !== obj.id);
-  selected = null;
-  render(); scheduleKadrivoSave();
+  pushUndo(); objects=objects.filter(o=>o.id!==obj.id);
+  selected=null; render(); scheduleKadrivoSave();
 }
 
 function onContextMenu(e){
   e.preventDefault();
-  const hit=hitTest(canvasXY(e).x, canvasXY(e).y);
+  const p=canvasXY(e), hit=hitTest(p.x,p.y);
   if(!hit){ closeContextMenu(); return; }
-  const obj=hit.obj;
-  selected=obj.id;
-  ctxTarget=obj;
+  selected=hit.obj.id; ctxTarget=hit;
   const menu=document.getElementById('ctx-menu');
-  document.getElementById('ctx-color').style.display = (obj.type==='text'||obj.type==='player'||obj.type==='cone'||obj.type==='pole'||hit.src==='line') ? '' : 'none';
-  document.getElementById('ctx-label').style.display = (obj.type==='player'||obj.type==='text') ? '' : 'none';
-  menu.style.left=e.clientX+'px';
-  menu.style.top =e.clientY+'px';
-  menu.style.display='block';
+  document.getElementById('ctx-color').style.display=(hit.obj.type==='text'||hit.obj.type==='player'||hit.obj.type==='cone'||hit.src==='line')?'':'none';
+  document.getElementById('ctx-label').style.display=(hit.obj.type==='player'||hit.obj.type==='text')?'':'none';
+  menu.style.left=e.clientX+'px'; menu.style.top=e.clientY+'px'; menu.style.display='block';
   render();
 }
+
+function closeContextMenu(){ document.getElementById('ctx-menu').style.display='none'; ctxTarget=null; }
 
 function onWheel(e){
   e.preventDefault();
-  const delta = e.deltaY>0 ? 0.9 : 1.1;
-  zoom = Math.max(0.5, Math.min(3, zoom*delta));
-  calcFieldRect(); render();
-}
-
-function closeContextMenu(){ document.getElementById('ctx-menu').style.display='none'; }
-document.addEventListener('click', (e)=>{ if(!e.target.closest('#ctx-menu')) closeContextMenu(); });
-
-// ============================================================
-// OBJECT MANAGEMENT
-// ============================================================
-function addObject(obj){
-  pushUndo();
-  if(!obj.id) obj.id=newId();
-  objects.push(obj);
-  render();
-  updateSidebar();
-  scheduleKadrivoSave();
-}
-
-function removeObject(id){
-  pushUndo();
-  const idx=objects.findIndex(o=>o.id===id);
-  if(idx>=0){
-    const o=objects[idx];
-    if(o.playerId){
-      // mark player as off-field in sidebar
-      const el=document.querySelector(`.player-item[data-pid="${o.playerId}"]`);
-      if(el) el.classList.remove('on-field');
-    }
-    objects.splice(idx,1);
-  }
-  if(selected===id) selected=null;
-  render();
-  updatePlayerCount();
-  scheduleKadrivoSave();
-}
-
-function clearAll(){
-  if(!confirm('Alle Objekte und Zeichnungen entfernen?')) return;
-  pushUndo();
-  objects=[];
-  drawLines=[];
-  selected=null;
-  document.querySelectorAll('.player-item').forEach(el=>el.classList.remove('on-field'));
-  render();
-  updatePlayerCount();
-  scheduleKadrivoSave();
+  // kein Zoom – nur Pan mit Scroll
 }
 
 // ============================================================
-// UNDO
+// UNDO / OBJEKTE
 // ============================================================
 function pushUndo(){
-  undoStack.push({
-    objects: JSON.parse(JSON.stringify(objects)),
-    drawLines: JSON.parse(JSON.stringify(drawLines))
-  });
+  undoStack.push({objects:JSON.parse(JSON.stringify(objects)),drawLines:JSON.parse(JSON.stringify(drawLines))});
   if(undoStack.length>40) undoStack.shift();
 }
 
 function undo(){
   if(!undoStack.length) return;
   const state=undoStack.pop();
-  objects=state.objects;
-  drawLines=state.drawLines;
-  selected=null;
-  document.querySelectorAll('.player-item').forEach(el=>{
-    const pid=el.dataset.pid;
-    const onField=objects.some(o=>o.playerId===pid);
-    el.classList.toggle('on-field',onField);
-  });
-  render();
-  updatePlayerCount();
-  scheduleKadrivoSave();
+  objects=state.objects; drawLines=state.drawLines;
+  selected=null; updateSidebar(); render();
 }
 
-// ============================================================
-// TOOLS / PLACEMENT
-// ============================================================
-// ============================================================
-// SPIELER-FELD-MANAGEMENT (nach 3D-Modell)
-// ============================================================
+function clearAll(){
+  pushUndo(); objects=[]; drawLines=[]; selected=null;
+  updateSidebar(); render(); scheduleKadrivoSave();
+}
 
-// Ist Spieler gerade auf dem Feld? (hat sichtbares object-Eintrag)
+function addObject(obj){ pushUndo(); objects.push(obj); render(); scheduleKadrivoSave(); }
+
+function removeObject(id){
+  const obj=objects.find(o=>o.id===id);
+  if(!obj) return;
+  pushUndo();
+  if(obj.playerId) objects=objects.filter(o=>o.id!==id);
+  else objects=objects.filter(o=>o.id!==id);
+  updateSidebar(); render(); scheduleKadrivoSave();
+}
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='Escape'){
+    if(activeTool){ cancelActiveTool(); return; }
+    if(drawMode){ setDrawMode(null); return; }
+    if(drawStart){ drawStart=null; mousePos=null; render(); return; }
+    selected=null; render(); return;
+  }
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(!selected) return; e.preventDefault();
+    const line=drawLines.find(l=>l.id===selected);
+    if(line){ pushUndo(); drawLines=drawLines.filter(l=>l.id!==selected); selected=null; render(); scheduleKadrivoSave(); return; }
+    const obj=objects.find(o=>o.id===selected);
+    if(obj){
+      if(obj.type==='player'&&obj.playerId) removePlayerFromField(obj.playerId);
+      else removeObject(selected);
+      selected=null;
+    }
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
+});
+
+// ============================================================
+// SPIELER-FELD-MANAGEMENT (1:1 nach 3D-Board)
+// ============================================================
+function positionRole(pos){
+  const v=String(pos||'').toLowerCase();
+  if(/tor|keeper|goal|^tw$|^gk$|torwart/.test(v)) return 'keeper';
+  if(/abwehr|verteid|def|back|^iv$|^av$|^lv$|^rv$|^cb$|^lb$|^rb$/.test(v)) return 'defense';
+  if(/sturm|angriff|forward|striker|außen|kreis|center|libero|diagonal/.test(v)) return 'attack';
+  return 'midfield';
+}
+
 function isOnField(pid){
-  return objects.some(o=>o.type==='player'&&o.playerId===pid&&!o.hidden&&!o.playerId?.startsWith('away_')===!pid?.startsWith('away_'));
+  return objects.some(o=>o.type==='player'&&o.playerId===pid&&!o.hidden);
 }
 
-// Spieler aufs Feld – findet passenden freien Slot
 function addPlayerToField(player){
-  if(!player||!player.id) return;
-  // Schon auf dem Feld?
-  const existing=objects.find(o=>o.playerId===player.id&&!o.hidden);
-  if(existing){ selected=existing.id; render(); return; }
+  if(!player?.id) return;
+  // Schon auf dem Feld? → markieren
+  if(isOnField(player.id)){
+    const obj=objects.find(o=>o.playerId===player.id&&!o.hidden);
+    if(obj){ selected=obj.id; render(); } return;
+  }
+  const isAway=player.team==='away'||String(player.id).startsWith('away_');
   // Feldlimit prüfen
-  const onField=objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench&&!o.playerId?.startsWith('away_'));
-  const isAway=player.id?.startsWith('away_')||player.team==='away';
-  if(!isAway && onField.length>=fieldLimit){
-    document.getElementById('s-mode').textContent=`Feld voll (max. ${fieldLimit})`;
-    setTimeout(()=>document.getElementById('s-mode').textContent='',2000);
-    return;
+  const onFieldCount=objects.filter(o=>o.type==='player'&&!o.hidden&&!(o.playerId?.startsWith('away_'))).length;
+  if(!isAway&&onFieldCount>=fieldLimit){
+    showStatus(`Feld voll (max. ${fieldLimit})`); return;
   }
   pushUndo();
-  // Finde freien Formation-Slot
+  // Freien Formations-Slot finden
   const role=positionRole(player.pos);
   const slots=currentSport==='Fussball'?formation2dSlots(currentFormation):[];
-  const usedPositions=objects.filter(o=>o.type==='player'&&!o.hidden).map(o=>({fx:o.fx,fy:o.fy}));
-  function slotFree(s){ return !usedPositions.some(u=>Math.hypot(u.fx-s.x,u.fy-s.y)<4); }
-  // Slot nach Rolle
+  const usedPos=objects.filter(o=>o.type==='player'&&!o.hidden).map(o=>({fx:o.fx,fy:o.fy}));
+  const slotFree=s=>!usedPos.some(u=>Math.hypot(u.fx-s.x,u.fy-s.y)<4);
   const byRole=slots.find(s=>s.role===role&&slotFree(s));
   const anyFree=slots.find(s=>slotFree(s));
-  const defaultPos=isAway
-    ?{fx:FIELD.w*0.7+Math.random()*10-5,fy:FIELD.h/2+Math.random()*20-10}
-    :{fx:FIELD.w*0.3+Math.random()*10-5,fy:FIELD.h/2+Math.random()*20-10};
-  const pos=byRole?{fx:byRole.x,fy:byRole.y}:anyFree?{fx:anyFree.x,fy:anyFree.y}:defaultPos;
+  const defPos=isAway?{fx:FIELD.w*0.7,fy:FIELD.h/2}:{fx:FIELD.w*0.3,fy:FIELD.h/2};
+  const pos=byRole?{fx:byRole.x,fy:byRole.y}:anyFree?{fx:anyFree.x,fy:anyFree.y}:defPos;
   const col=player.color||(isAway?awayColor:role==='keeper'?gkColor:homeColor);
-  // Entferne alten hidden/bench Eintrag falls vorhanden
   objects=objects.filter(o=>o.playerId!==player.id);
-  objects.push({type:'player',id:newId(),fx:pos.fx,fy:pos.fy,
-    color:col,name:player.name,num:player.num||'',
-    playerId:player.id,starter:true,isBench:false,hidden:false});
+  objects.push({type:'player',id:newId(),fx:pos.fx+Math.random()*2-1,fy:pos.fy+Math.random()*2-1,
+    color:col,name:player.name||'',num:player.num||'',playerId:player.id,hidden:false});
   updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
 
-// Spieler vom Feld entfernen
 function removePlayerFromField(pid){
-  const obj=objects.find(o=>o.playerId===pid);
-  if(!obj) return;
+  if(!objects.some(o=>o.playerId===pid&&!o.hidden)) return;
   pushUndo();
   objects=objects.filter(o=>o.playerId!==pid);
   updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
 
-// Spieler Feld↔Bank tauschen (Doppelklick auf Canvas-Objekt)
-function swapPlayerFieldBench(obj){
-  if(!obj||obj.type!=='player'||!obj.playerId) return;
-  if(obj.playerId.startsWith('away_')){ removePlayerFromField(obj.playerId); return; }
-  removePlayerFromField(obj.playerId);
-}
-
 function updatePlayerCount(){
-  const onF=objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench&&!o.playerId?.startsWith('away_')).length;
-  document.getElementById('s-players').textContent=`Feld: ${onF}/${fieldLimit}`;
+  const n=objects.filter(o=>o.type==='player'&&!o.hidden&&!String(o.playerId||'').startsWith('away_')).length;
+  document.getElementById('s-players').textContent=`Feld: ${n}/${fieldLimit}`;
 }
 
-function buildPlayersSidebar(){
-  const home=kadrivoPlayers.filter(p=>p.team!=='away');
-  const away=kadrivoPlayers.filter(p=>p.team==='away');
-
-  // Wer ist wirklich auf dem Feld?
-  const onFieldIds=new Set(objects.filter(o=>o.type==='player'&&!o.hidden&&!o.isBench).map(o=>o.playerId));
-  const onField=home.filter(p=>onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
-  const notOnField=home.filter(p=>!onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
-  const bench=notOnField.slice(0,benchLimit);
-  const reserve=notOnField.slice(benchLimit);
-
-  const pItem=(p,isOnF)=>{
-    const isGk=positionRole(p.pos)==='keeper';
-    const col=p.color||(isGk?gkColor:homeColor);
-    const action=isOnF
-      ?`removePlayerFromField('${p.id}')`
-      :`addPlayerToField(${JSON.stringify(p).replace(/\"/g,'&quot;')})`;
-    const hint=isOnF?'Doppelklick = vom Feld':'Doppelklick = aufs Feld';
-    return `<div class="player-item${isOnF?' on-field':''}" data-pid="${p.id}"
-      ondblclick="${action}" title="${hint}"
-      onclick="highlightPlayerOnField('${p.id}')">
-      <div class="pnum" style="background:${col};${!isOnF?'opacity:0.5':''}">
-        ${p.num||'?'}</div>
-      <span class="pname">${escapeHtml(p.name||'Spieler')}</span>
-      <span class="ppos">${p.pos||''}</span>
-    </div>`;
-  };
-
-  let html='';
-  html+=`<div class="section-head">Feld (${onField.length}/${fieldLimit})</div>`;
-  if(onField.length) html+=onField.map(p=>pItem(p,true)).join('');
-  else html+=`<div style="color:#555;font-size:10px;padding:4px">Niemand auf dem Feld</div>`;
-
-  html+=`<div class="section-head" style="color:#ffcc00">Bank (${bench.length}/${benchLimit})</div>`;
-  if(bench.length) html+=bench.map(p=>pItem(p,false)).join('');
-
-  if(reserve.length){
-    html+=`<div class="section-head" style="color:#888">Reserve (${reserve.length})</div>`;
-    html+=reserve.map(p=>pItem(p,false)).join('');
-  }
-
-  if(away.length){
-    const awayOnF=away.filter(p=>onFieldIds.has(p.id));
-    const awayOff=away.filter(p=>!onFieldIds.has(p.id));
-    html+=`<div class="section-head">Gegner</div>`;
-    html+=awayOnF.map(p=>{
-      const col=p.color||awayColor;
-      return `<div class="player-item on-field" data-pid="${p.id}"
-        ondblclick="removePlayerFromField('${p.id}')" onclick="highlightPlayerOnField('${p.id}')">
-        <div class="pnum" style="background:${col}">${p.num||'?'}</div>
-        <span class="pname">${p.name||'Gegner'}</span>
-        <span class="ppos">${p.pos||''}</span>
-      </div>`;
-    }).join('');
-    html+=awayOff.map(p=>{
-      const col=p.color||awayColor;
-      return `<div class="player-item" data-pid="${p.id}"
-        ondblclick="addPlayerToField(${JSON.stringify(p).replace(/\"/g,'&quot;')})"
-        onclick="highlightPlayerOnField('${p.id}')">
-        <div class="pnum" style="background:${col};opacity:0.5">${p.num||'?'}</div>
-        <span class="pname">${p.name||'Gegner'}</span>
-        <span class="ppos">${p.pos||''}</span>
-      </div>`;
-    }).join('');
-  }
-
-  if(!home.length&&!away.length){
-    html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.</div>`;
-  }
-
-  html+=`<div class="section-head">Trainingsspieler</div>
-  <div class="tool-item" onclick="setActiveTool('tp-home',{type:'trainingPlayer',color:'${homeColor}'})"><span class="ticon">🔴</span>Heim</div>
-  <div class="tool-item" onclick="setActiveTool('tp-away',{type:'trainingPlayer',color:'${awayColor}'})"><span class="ticon">🔵</span>Gegner</div>
-  <div class="tool-item" onclick="setActiveTool('tp-gk',{type:'trainingPlayer',color:'${gkColor}'})"><span class="ticon">🟡</span>Torwart</div>`;
-  return html;
+// ============================================================
+// SIDEBAR
+// ============================================================
+function showTab(tab){
+  currentTab=tab;
+  ['players','tools','draw'].forEach(t=>{
+    document.getElementById('tab-'+t)?.classList.toggle('active',t===tab);
+  });
+  updateSidebar();
 }
 
-function highlightPlayerOnField(pid){
-  const obj=objects.find(o=>o.playerId===pid&&!o.hidden);
-  if(obj){ selected=obj.id; render(); }
+function updateSidebar(){
+  const c=document.getElementById('sidebar-content');
+  if(!c) return;
+  if(currentTab==='players') c.innerHTML=buildPlayersSidebar();
+  else if(currentTab==='tools') c.innerHTML=buildToolsSidebar();
+  else if(currentTab==='draw') c.innerHTML=buildDrawSidebar();
 }
 
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+function buildPlayersSidebar(){
+  const home=kadrivoPlayers.filter(p=>p.team!=='away');
+  const away=kadrivoPlayers.filter(p=>p.team==='away');
+  const onFieldIds=new Set(objects.filter(o=>o.type==='player'&&!o.hidden).map(o=>o.playerId));
+  const homeOnField=home.filter(p=>onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
+  const homeOff=home.filter(p=>!onFieldIds.has(p.id)).sort((a,b)=>Number(a.num||99)-Number(b.num||99));
+  const bench=homeOff.slice(0,benchLimit), reserve=homeOff.slice(benchLimit);
+
+  const pBtn=(p,on)=>{
+    const col=p.color||(positionRole(p.pos)==='keeper'?gkColor:p.team==='away'?awayColor:homeColor);
+    const pj=JSON.stringify(p).replace(/"/g,'&quot;');
+    const action=on?`removePlayerFromField('${p.id}')`:`addPlayerToField(${pj})`;
+    return `<div class="player-item${on?' on-field':''}" data-pid="${p.id}"
+      ondblclick="${action}" onclick="highlightPlayer('${p.id}')" title="${on?'Doppelklick = vom Feld nehmen':'Doppelklick = aufs Feld stellen'}">
+      <div class="pnum" style="background:${col}">${escapeHtml(String(p.num||'?'))}</div>
+      <span class="pname">${escapeHtml(p.name||'Spieler')}</span>
+      <span class="ppos">${escapeHtml(p.pos||'')}</span>
+    </div>`;
+  };
+
+  let html='';
+  html+=`<div class="section-head">Feld (${homeOnField.length}/${fieldLimit})</div>`;
+  html+=homeOnField.length ? homeOnField.map(p=>pBtn(p,true)).join('') : '<div style="color:#555;font-size:10px;padding:4px 6px">Niemand auf dem Feld</div>';
+  html+=`<div class="section-head" style="color:#ffcc00">Bank (${bench.length})</div>`;
+  html+=bench.map(p=>pBtn(p,false)).join('');
+  if(reserve.length){ html+=`<div class="section-head" style="color:#888">Reserve (${reserve.length})</div>`+reserve.map(p=>pBtn(p,false)).join(''); }
+  if(away.length){
+    const awayOn=away.filter(p=>onFieldIds.has(p.id)), awayOff=away.filter(p=>!onFieldIds.has(p.id));
+    html+=`<div class="section-head">Gegner</div>`+awayOn.map(p=>pBtn(p,true)).join('')+awayOff.map(p=>pBtn(p,false)).join('');
+  }
+  if(!home.length&&!away.length) html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.</div>`;
+  html+=`<div class="section-head">Trainingsspieler</div>
+  <div class="tool-item" ondblclick="setActiveTool('tp-home',{type:'player',color:'${homeColor}'})"><span class="ticon">🔴</span>Heim</div>
+  <div class="tool-item" ondblclick="setActiveTool('tp-away',{type:'player',color:'${awayColor}'})"><span class="ticon">🔵</span>Gegner</div>
+  <div class="tool-item" ondblclick="setActiveTool('tp-gk',{type:'player',color:'${gkColor}'})"><span class="ticon">🟡</span>Torwart</div>`;
+  return html;
+}
+
+function highlightPlayer(pid){
+  const obj=objects.find(o=>o.playerId===pid&&!o.hidden);
+  if(obj){ selected=obj.id; render(); }
+}
+
 function buildToolsSidebar(){
-  const at = activeTool;
-  function cls(id){ return 'tool-item'+(at&&at.id===id?' active':''); }
-  return `
-  <div class="section-head">Bälle</div>
+  const at=activeTool;
+  const cls=id=>'tool-item'+(at&&at.id===id?' active':'');
+  return `<div class="section-head">Bälle</div>
   <div class="${cls('ball')}" id="atool-ball" onclick="setActiveTool('ball',{type:'ball'})"><span class="ticon">⚽</span>Ball</div>
   <div class="section-head">Hütchen</div>
-  <div class="${cls('cone-orange')}" id="atool-cone-orange" onclick="setActiveTool('cone-orange',{type:'cone',color:'#ff5500'})"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
-  <div class="${cls('cone-yellow')}" id="atool-cone-yellow" onclick="setActiveTool('cone-yellow',{type:'cone',color:'#ffff00'})"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
-  <div class="${cls('cone-red')}" id="atool-cone-red" onclick="setActiveTool('cone-red',{type:'cone',color:'#ff0000'})"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
-  <div class="${cls('cone-blue')}" id="atool-cone-blue" onclick="setActiveTool('cone-blue',{type:'cone',color:'#0077ff'})"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
-  <div class="tool-item" onclick="openConeColorPicker()"><span class="ticon">🎨</span>Farbe wählen…</div>
+  <div class="${cls('cone-or')}" id="atool-cone-or" onclick="setActiveTool('cone-or',{type:'cone',color:'#ff5500'})"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
+  <div class="${cls('cone-ye')}" id="atool-cone-ye" onclick="setActiveTool('cone-ye',{type:'cone',color:'#ffff00'})"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
+  <div class="${cls('cone-re')}" id="atool-cone-re" onclick="setActiveTool('cone-re',{type:'cone',color:'#ff0000'})"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
+  <div class="${cls('cone-bl')}" id="atool-cone-bl" onclick="setActiveTool('cone-bl',{type:'cone',color:'#0077ff'})"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
+  <div class="tool-item" onclick="openConeColorPicker()"><span class="ticon">🎨</span>Farbe…</div>
   <div class="section-head">Stangen</div>
   <div class="${cls('pole-v')}" id="atool-pole-v" onclick="setActiveTool('pole-v',{type:'pole',horizontal:false})"><span class="ticon">▍</span>Stange</div>
-  <div class="${cls('pole-h')}" id="atool-pole-h" onclick="setActiveTool('pole-h',{type:'pole',horizontal:true})"><span class="ticon">▬</span>Stange quer</div>
+  <div class="${cls('pole-h')}" id="atool-pole-h" onclick="setActiveTool('pole-h',{type:'pole',horizontal:true})"><span class="ticon">▬</span>Quer</div>
   <div class="section-head">Tore</div>
-  <div class="${cls('goal-mini')}" id="atool-goal-mini" onclick="setActiveTool('goal-mini',{type:'goal',goalW:2,goalH:1})"><span class="ticon">🥅</span>Klein (2m)</div>
-  <div class="${cls('goal-mid')}" id="atool-goal-mid" onclick="setActiveTool('goal-mid',{type:'goal',goalW:5,goalH:2})"><span class="ticon">🥅</span>Mittel (5m)</div>
-  <div class="${cls('goal-full')}" id="atool-goal-full" onclick="setActiveTool('goal-full',{type:'goal',goalW:7.32,goalH:2.44})"><span class="ticon">🥅</span>Normal</div>
-  <p class="meta" style="padding:6px;font-size:9px;color:#666">Klick auf Feld platziert · ESC oder nochmal klicken zum Beenden</p>
-  `;
+  <div class="${cls('goal-s')}" id="atool-goal-s" onclick="setActiveTool('goal-s',{type:'goal',goalW:2,goalH:1})"><span class="ticon">🥅</span>Klein 2m</div>
+  <div class="${cls('goal-m')}" id="atool-goal-m" onclick="setActiveTool('goal-m',{type:'goal',goalW:5,goalH:2})"><span class="ticon">🥅</span>Mittel 5m</div>
+  <div class="${cls('goal-l')}" id="atool-goal-l" onclick="setActiveTool('goal-l',{type:'goal',goalW:7.32,goalH:2.44})"><span class="ticon">🥅</span>Normal</div>
+  <p style="font-size:9px;color:#555;padding:6px">Klick auf Feld platziert · ESC zum Beenden</p>`;
 }
 
 function buildDrawSidebar(){
-  const colors=['#ffffff','#ffff00','#ff3333','#33aaff','#33ff66','#ff9900'];
-  const swatches=colors.map(c=>`<span class="arrow-swatch${arrowColor===c?' sel':''}" style="background:${c}" onclick="setArrowColor('${c}')"></span>`).join('');
-  return `
-  <div class="section-head">Pfeile / Linien</div>
-  <div id="draw-color-row">
-    <label>Farbe:</label>
-    ${swatches}
-    <input type="color" id="draw-color-custom" value="${arrowColor}" onchange="setArrowColor(this.value)">
+  const dc=id=>'draw-item'+(drawMode===id?' active':'');
+  return `<div class="section-head">Pfeile / Linien</div>
+  <div style="display:flex;gap:4px;padding:2px 0 6px;flex-wrap:wrap" id="draw-color-row">
+    ${['#ffffff','#ffff00','#ff3333','#44aaff','#44ff88','#ff8800'].map(c=>`<div onclick="setArrowColor('${c}')" style="width:18px;height:18px;border-radius:3px;background:${c};cursor:pointer;border:2px solid ${arrowColor===c?'#fff':'transparent'}"></div>`).join('')}
   </div>
-  <div id="draw-style-row">
-    <button class="${arrowStyle==='solid'?'active':''}" onclick="setArrowStyle('solid')">—</button>
-    <button class="${arrowStyle==='dashed'?'active':''}" onclick="setArrowStyle('dashed')">- -</button>
-    <button class="${arrowStyle==='wave'?'active':''}" onclick="setArrowStyle('wave')">〜</button>
-  </div>
-  <div class="draw-item${drawMode==='arrow'?' active':''}" onclick="setDrawMode('arrow')"><span style="font-size:14px">→</span> Pfeil zeichnen</div>
-  <div class="draw-item${drawMode===null?' active':''}" onclick="setDrawMode(null)"><span style="font-size:14px">✋</span> Auswahl</div>
-
+  <div class="${dc('solid')} draw-item" onclick="setArrowStyle('solid')"><span style="width:20px;height:2px;background:#fff;display:inline-block"></span> Linie</div>
+  <div class="${dc('dashed')} draw-item" onclick="setArrowStyle('dashed')"><span style="width:20px;height:2px;background:#fff;display:inline-block;border-top:2px dashed #fff"></span> Gestrichelt</div>
+  <div class="draw-item${drawMode?'':(activeTool?'':' active')}" onclick="setDrawMode('solid')">→ Pfeil zeichnen</div>
+  <div class="draw-item" style="${!drawMode&&!activeTool?'border-color:#44ccff;background:#003044':''}" onclick="setDrawMode(null)">✋ Auswahl</div>
   <div class="section-head">Text</div>
-  <div class="draw-item${drawMode==='text'?' active':''}" onclick="setDrawMode('text')"><span style="font-size:14px">T</span> Text platzieren</div>
-
+  <div class="draw-item" onclick="setDrawMode('text')">T Text platzieren</div>
   <div class="section-head">Löschen</div>
-  <div class="draw-item" onclick="clearLastLine()"><span style="font-size:14px">↩</span> Letzte Linie</div>
-  <div class="draw-item" onclick="clearLines()"><span style="font-size:14px">🗑</span> Alle Linien</div>
-  `;
+  <div class="draw-item" onclick="clearLastLine()">↩ Letzte Linie</div>
+  <div class="draw-item" onclick="clearLines()">🗑 Alle Linien</div>`;
 }
 
-function setArrowColor(c){
-  arrowColor=c;
-  updateSidebar();
-}
-function setArrowStyle(s){
-  arrowStyle=s;
-  updateSidebar();
-}
-function setDrawMode(m){
-  drawMode=m;
-  drawStart=null;
-  mousePos=null;
-  document.getElementById('s-mode').textContent = m
-    ? (m==='text' ? 'Modus: Text platzieren (Klick auf Feld)' : 'Modus: Pfeil zeichnen (Klick Start → Klick Ende)')
-    : 'Modus: Auswahl';
-  updateSidebar();
+// ============================================================
+// TOOL-MODUS
+// ============================================================
+function setActiveTool(id,params){
+  if(activeTool?.id===id){ cancelActiveTool(); return; }
+  activeTool={id,...params};
+  drawMode=null; drawStart=null;
+  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('atool-'+id)?.classList.add('active');
+  canvas.style.cursor='crosshair';
+  showStatus('Platzieren – Klick auf Feld · ESC zum Beenden');
   render();
 }
-function clearLastLine(){
-  if(drawLines.length){ pushUndo(); drawLines.pop(); render(); scheduleKadrivoSave(); }
+
+function cancelActiveTool(){
+  activeTool=null;
+  document.querySelectorAll('.tool-item').forEach(el=>el.classList.remove('active'));
+  canvas.style.cursor='default';
+  showStatus('');
+  render();
 }
-function clearLines(){
-  if(!drawLines.length) return;
-  pushUndo(); drawLines=[]; render(); scheduleKadrivoSave();
+
+function placeActiveTool(fp){
+  if(!activeTool) return;
+  const t=activeTool;
+  let obj=null;
+  if(t.type==='ball')   obj={type:'ball',id:newId(),fx:fp.x,fy:fp.y};
+  if(t.type==='cone')   obj={type:'cone',id:newId(),fx:fp.x,fy:fp.y,color:t.color||'#ff5500'};
+  if(t.type==='pole')   obj={type:'pole',id:newId(),fx:fp.x,fy:fp.y,horizontal:t.horizontal||false,color:'#cc0000'};
+  if(t.type==='goal')   obj={type:'goal',id:newId(),fx:fp.x,fy:fp.y,goalW:t.goalW||3,goalH:t.goalH||1};
+  if(t.type==='player') obj={type:'player',id:newId(),fx:fp.x,fy:fp.y,color:t.color||homeColor,name:'',num:'',playerId:null};
+  if(obj){ pushUndo(); objects.push(obj); render(); scheduleKadrivoSave(); }
 }
 
 // ============================================================
-// COLOR PICKER
+// ZEICHEN-MODUS
 // ============================================================
-let _colorPickerTarget=null;
-let _colorPickerType=null; // 'cone'|'training'|'ctx'
-
-function openConeColorPicker(){
-  _colorPickerType='cone';
-  showColorPopup('Hütchenfarbe');
-}
-function openTrainingColorPicker(){
-  _colorPickerType='training';
-  showColorPopup('Spielerfarbe');
+function setDrawMode(mode){
+  drawMode=mode; drawStart=null; cancelActiveTool();
+  if(currentTab==='draw') updateSidebar();
+  showStatus(mode?`Zeichnen: ${mode}`:'');
 }
 
-function showColorPopup(title){
-  const popup=document.getElementById('color-popup');
-  document.getElementById('color-popup-title').textContent=title;
-  const sw=document.getElementById('color-swatches');
-  sw.innerHTML=PRESET_COLORS.map(c=>`<div class="swatch" style="background:${c}" onclick="selectColorSwatch('${c}')"></div>`).join('');
-  document.getElementById('color-custom').value='#ff6600';
-  popup.style.left='180px';
-  popup.style.top='100px';
-  popup.style.display='block';
+function setArrowColor(c){ arrowColor=c; if(currentTab==='draw') updateSidebar(); }
+function setArrowStyle(s){ arrowStyle=s; if(currentTab==='draw') updateSidebar(); }
+
+function clearLastLine(){ if(drawLines.length){ pushUndo(); drawLines.pop(); render(); scheduleKadrivoSave(); } }
+function clearLines(){ if(!drawLines.length) return; pushUndo(); drawLines=[]; render(); scheduleKadrivoSave(); }
+
+// ============================================================
+// FARBWÄHLER
+// ============================================================
+function openConeColorPicker(){ _colorPickerMode='cone'; showColorPopup(); }
+function openTrainingColorPicker(){ _colorPickerMode='training'; showColorPopup(); }
+
+function showColorPopup(){
+  const swatches=['#ff5500','#ffff00','#ff0000','#0077ff','#00cc44','#cc00cc'];
+  document.getElementById('color-swatches').innerHTML=swatches.map(c=>
+    `<div onclick="selectColorSwatch('${c}')" style="width:22px;height:22px;border-radius:3px;background:${c};cursor:pointer;border:2px solid transparent"></div>`
+  ).join('');
+  document.getElementById('color-popup').style.display='flex';
 }
 
-function selectColorSwatch(c){
-  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
-  event.target.classList.add('sel');
-  document.getElementById('color-custom').value=c;
-}
+function selectColorSwatch(c){ document.getElementById('color-custom').value=c; }
 
 function colorPopupOk(){
   const c=document.getElementById('color-custom').value;
   document.getElementById('color-popup').style.display='none';
-  if(_colorPickerType==='cone'){
-    setActiveTool('cone-custom',{type:'cone',color:c});
-  } else if(_colorPickerType==='training'){
-    setActiveTool('tp-custom',{type:'trainingPlayer',color:c});
-  } else if(_colorPickerType==='ctx' && ctxTarget){
-    ctxTarget.color=c;
-    render(); scheduleKadrivoSave();
+  if(_colorPickerMode==='cone') setActiveTool('cone-custom',{type:'cone',color:c});
+  else if(_colorPickerMode==='training') setActiveTool('tp-custom',{type:'player',color:c});
+  else if(_colorPickerMode==='ctx'&&ctxTarget){
+    ctxTarget.obj.color=c; render(); scheduleKadrivoSave();
   }
-  _colorPickerType=null;
-  updateSidebar();
+  _colorPickerMode=null; updateSidebar();
 }
-function colorPopupCancel(){ document.getElementById('color-popup').style.display='none'; _colorPickerType=null; }
+
+function colorPopupCancel(){ document.getElementById('color-popup').style.display='none'; _colorPickerMode=null; }
 
 // ============================================================
-// TEXT POPUP
+// TEXTPOPUP
 // ============================================================
-let _textPos=null;
-function openTextPopup(fx,fy){
-  _textPos={fx,fy};
+function openTextPopup(fp){
+  _textFx=fp.x; _textFy=fp.y;
   document.getElementById('text-input').value='';
-  document.getElementById('text-popup').style.left='200px';
-  document.getElementById('text-popup').style.top='120px';
-  document.getElementById('text-popup').style.display='block';
+  document.getElementById('text-popup').style.display='flex';
   setTimeout(()=>document.getElementById('text-input').focus(),50);
 }
+
 function textPopupOk(){
-  const txt=document.getElementById('text-input').value.trim();
+  const t=document.getElementById('text-input').value.trim();
   document.getElementById('text-popup').style.display='none';
-  if(txt && _textPos) addTextAtPos(_textPos.fx,_textPos.fy,txt);
-  _textPos=null;
+  if(!t) return;
+  pushUndo(); objects.push({type:'text',id:newId(),fx:_textFx,fy:_textFy,text:t,color:'#ffff00',fontSize:14});
+  render(); scheduleKadrivoSave();
 }
-function textPopupCancel(){
-  document.getElementById('text-popup').style.display='none';
-  _textPos=null;
-}
-document.getElementById('text-input').addEventListener('keydown',e=>{ if(e.key==='Enter') textPopupOk(); if(e.key==='Escape') textPopupCancel(); });
+
+function textPopupCancel(){ document.getElementById('text-popup').style.display='none'; }
+
+document.getElementById('text-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter') textPopupOk();
+  if(e.key==='Escape') textPopupCancel();
+});
 
 // ============================================================
-// CONTEXT MENU ACTIONS
+// KONTEXTMENÜ
 // ============================================================
-function ctxDelete(){ if(ctxTarget) removeObject(ctxTarget.id); ctxTarget=null; closeContextMenu(); }
+function ctxDelete(){
+  if(!ctxTarget) return;
+  pushUndo();
+  if(ctxTarget.src==='line') drawLines=drawLines.filter(l=>l.id!==ctxTarget.obj.id);
+  else { if(ctxTarget.obj.playerId) removePlayerFromField(ctxTarget.obj.playerId); else objects=objects.filter(o=>o.id!==ctxTarget.obj.id); }
+  selected=null; closeContextMenu(); render(); scheduleKadrivoSave();
+}
+
 function ctxColor(){
   if(!ctxTarget) return;
-  _colorPickerType='ctx';
-  showColorPopup('Farbe ändern');
-  closeContextMenu();
+  _colorPickerMode='ctx'; document.getElementById('color-custom').value=ctxTarget.obj.color||'#ffffff';
+  showColorPopup(); closeContextMenu();
 }
+
 function ctxLabel(){
-  if(!ctxTarget) return;
-  const v=prompt('Name:', ctxTarget.text||ctxTarget.name||'');
-  if(v!==null){
-    if(ctxTarget.type==='text') ctxTarget.text=v;
-    else ctxTarget.name=v;
-    render(); scheduleKadrivoSave();
-  }
-  closeContextMenu();
+  if(!ctxTarget?.obj) return;
+  const label=prompt('Bezeichnung:',ctxTarget.obj.name||ctxTarget.obj.text||'');
+  if(label===null) return;
+  if(ctxTarget.obj.type==='text') ctxTarget.obj.text=label;
+  else ctxTarget.obj.name=label;
+  closeContextMenu(); render(); scheduleKadrivoSave();
 }
+
 function ctxFront(){
   if(!ctxTarget) return;
-  const i=objects.indexOf(ctxTarget);
-  if(i<objects.length-1){ objects.splice(i,1); objects.push(ctxTarget); render(); }
-  closeContextMenu();
+  const idx=objects.findIndex(o=>o.id===ctxTarget.obj.id);
+  if(idx>=0){ objects.push(objects.splice(idx,1)[0]); } else { const i=drawLines.findIndex(l=>l.id===ctxTarget.obj.id); if(i>=0) drawLines.push(drawLines.splice(i,1)[0]); }
+  closeContextMenu(); render(); scheduleKadrivoSave();
 }
+
 function ctxBack(){
   if(!ctxTarget) return;
-  const i=objects.indexOf(ctxTarget);
-  if(i>0){ objects.splice(i,1); objects.unshift(ctxTarget); render(); }
-  closeContextMenu();
+  const idx=objects.findIndex(o=>o.id===ctxTarget.obj.id);
+  if(idx>=0){ objects.unshift(objects.splice(idx,1)[0]); } else { const i=drawLines.findIndex(l=>l.id===ctxTarget.obj.id); if(i>=0) drawLines.unshift(drawLines.splice(i,1)[0]); }
+  closeContextMenu(); render(); scheduleKadrivoSave();
 }
 
 // ============================================================
-// TOOLBAR ACTIONS
+// STATUS
+// ============================================================
+function showStatus(msg){ document.getElementById('s-mode').textContent=msg||'Modus: Auswahl'; }
+
+// ============================================================
+// NAMEN TOGGLE
 // ============================================================
 function toggleNames(){
   showNames=!showNames;
   document.getElementById('btn-names').textContent='Namen: '+(showNames?'Ein':'Aus');
-  document.getElementById('btn-names').classList.toggle('active',showNames);
   render();
 }
 
+// ============================================================
+// PNG EXPORT
+// ============================================================
 function exportPng(){
   const link=document.createElement('a');
-  link.download='taktik-2d.png';
-  link.href=canvas.toDataURL('image/png');
+  link.download='taktik.png'; link.href=canvas.toDataURL('image/png');
   link.click();
 }
 
-function updatePlayerCount(){
-  const n=objects.filter(o=>o.type==='player').length;
-  document.getElementById('s-players').textContent=`Feld: ${n} Spieler`;
-}
-
 // ============================================================
-// FORMATIONS (Fussball 11er)
+// FORMATION & AUTO-AUFSTELLUNG
 // ============================================================
-// Formationen für Fußball (105×68m Feld, Spielrichtung links→rechts)
-// Slot[0] = Torwart (bei x≈5), dann Abwehr, Mittelfeld, Sturm
-// x = Tiefe (0=eigenes Tor, 105=gegnerisches Tor)
-// y = Breite (0=oben, 68=unten, 34=Mitte)
-const FORMATIONS = {
-  '4-3-3': {
-    slots:[
-      [5,34],                              // TW
-      [20,12],[20,26],[20,42],[20,56],     // 4er Abwehr
-      [40,20],[40,34],[40,48],             // 3er Mittelfeld
-      [65,17],[65,34],[65,51]              // 3er Sturm
-    ]
-  },
-  '4-4-2': {
-    slots:[
-      [5,34],
-      [20,12],[20,26],[20,42],[20,56],
-      [42,12],[42,26],[42,42],[42,56],
-      [65,24],[65,44]
-    ]
-  },
-  '4-2-3-1': {
-    slots:[
-      [5,34],
-      [20,12],[20,26],[20,42],[20,56],
-      [35,24],[35,44],
-      [52,14],[52,34],[52,54],
-      [68,34]
-    ]
-  },
-  '3-5-2': {
-    slots:[
-      [5,34],
-      [20,20],[20,34],[20,48],
-      [35,10],[38,24],[40,34],[38,44],[35,58],
-      [65,24],[65,44]
-    ]
-  },
-  '5-3-2': {
-    slots:[
-      [5,34],
-      [18,8],[18,22],[18,34],[18,46],[18,60],
-      [40,20],[40,34],[40,48],
-      [65,24],[65,44]
-    ]
-  },
-  '3-4-3': {
-    slots:[
-      [5,34],
-      [20,20],[20,34],[20,48],
-      [38,12],[38,27],[38,41],[38,56],
-      [65,17],[65,34],[65,51]
-    ]
-  },
-  '4-1-4-1': {
-    slots:[
-      [5,34],
-      [20,12],[20,26],[20,42],[20,56],
-      [32,34],
-      [50,12],[50,26],[50,42],[50,56],
-      [68,34]
-    ]
-  },
-  '4-3-2-1': {
-    slots:[
-      [5,34],
-      [20,12],[20,26],[20,42],[20,56],
-      [38,20],[38,34],[38,48],
-      [54,24],[54,44],
-      [68,34]
-    ]
-  }
-};
-
-// Generic formations for other player counts
-// Positionsrolle wie im 3D-Board
-function positionRole(pos){
-  const v=String(pos||'').toLowerCase();
-  if(/tor|keeper|goal|^tw$|^gk$|torwart/.test(v)) return 'keeper';
-  if(/abwehr|verteid|def|back|^iv$|^av$|^lv$|^rv$|^cb$|^lb$|^rb$/.test(v)) return 'defense';
-  if(/sturm|angriff|forward|striker|wing|außen|^la$|^ra$|^cf$|kreis|center|libero|diagonal/.test(v)) return 'attack';
-  return 'midfield';
-}
-
-// Gruppen aus Formation-Slots ableiten (für Rollenverteilung)
-function formation2dSlots(formationName){
-  const F=FORMATIONS[formationName]||FORMATIONS['4-3-3'];
+function formation2dSlots(name){
+  const F=FORMATIONS[name]||FORMATIONS['4-3-3'];
   const slots=F.slots;
-  if(!slots||!slots.length) return [];
-  // Slot 0 = TW
+  if(!slots?.length) return [];
   const result=[{x:slots[0][0],y:slots[0][1],role:'keeper',playerId:''}];
-  // Restliche Slots: gruppiere nach ähnlichem x (±7m = gleiche Reihe)
-  const rest=slots.slice(1).slice().sort((a,b)=>a[0]-b[0]);
+  const rest=slots.slice(1).sort((a,b)=>a[0]-b[0]);
   const rows=[];
-  rest.forEach(s=>{
-    const row=rows.find(r=>Math.abs(r[0][0]-s[0])<7);
-    if(row) row.push(s); else rows.push([s]);
-  });
-  const nRows=rows.length;
+  rest.forEach(s=>{ const row=rows.find(r=>Math.abs(r[0][0]-s[0])<7); if(row) row.push(s); else rows.push([s]); });
   rows.forEach((row,ri)=>{
-    const role=ri===nRows-1?'attack':ri===0?'defense':'midfield';
+    const role=ri===rows.length-1?'attack':ri===0?'defense':'midfield';
     row.forEach(s=>result.push({x:s[0],y:s[1],role,playerId:''}));
   });
   return result;
 }
 
+function applyFormation2d(name){
+  currentFormation=name;
+  document.querySelectorAll('.fbtn2d').forEach(b=>b.classList.remove('active'));
+  document.getElementById('fbtn-'+name)?.classList.add('active');
+  autoPlace2d();
+}
+
 function autoPlace2d(){
   // Alle Heimspieler entfernen
-  objects.filter(o=>o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')).forEach(o=>{
-    document.querySelector(`.player-item[data-pid="${o.playerId}"]`)?.classList.remove('on-field');
-  });
-  objects=objects.filter(o=>!(o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')));
-
+  objects=objects.filter(o=>!(o.type==='player'&&o.playerId&&!String(o.playerId).startsWith('away_')));
   const allHome=kadrivoPlayers.filter(p=>p.team!=='away');
-  const bench=allHome.slice(fieldLimit,fieldLimit+benchLimit);
 
   if(currentSport==='Fussball'){
     const slots=formation2dSlots(currentFormation);
-    // Spieler sortieren: StarterFaktor 1 zuerst, dann nach Nummer
-    const pool=[...allHome].sort((a,b)=>
-      Number(a.starterFactor||2)-Number(b.starterFactor||2)
-      ||Number(a.num||999)-Number(b.num||999)
-      ||String(a.name||'').localeCompare(String(b.name||''),'de')
-    );
+    const pool=[...allHome].sort((a,b)=>Number(a.starterFactor||2)-Number(b.starterFactor||2)||Number(a.num||999)-Number(b.num||999));
     const used=new Set();
-
-    // Pass 1: StarterFaktor 1, passende Rolle bevorzugt
+    // Pass 1: StarterFaktor 1 nach Rolle
     pool.filter(p=>Number(p.starterFactor||2)===1).forEach(p=>{
-      const role=positionRole(p.pos);
-      const slot=slots.find(s=>!s.playerId&&s.role===role)||slots.find(s=>!s.playerId);
-      if(slot&&!used.has(p.id)){slot.playerId=p.id;used.add(p.id);}
+      const s=slots.find(s=>!s.playerId&&s.role===positionRole(p.pos))||slots.find(s=>!s.playerId);
+      if(s&&!used.has(p.id)){ s.playerId=p.id; used.add(p.id); }
     });
-    // Pass 2: restliche Slots nach Rolle füllen
+    // Pass 2: Rest nach Rolle
     slots.forEach(slot=>{
       if(slot.playerId) return;
-      const p=pool.find(p=>!used.has(p.id)&&positionRole(p.pos)===slot.role)
-             ||pool.find(p=>!used.has(p.id));
-      if(p){slot.playerId=p.id;used.add(p.id);}
+      const p=pool.find(p=>!used.has(p.id)&&positionRole(p.pos)===slot.role)||pool.find(p=>!used.has(p.id));
+      if(p){ slot.playerId=p.id; used.add(p.id); }
     });
-    // Objekte erzeugen
     slots.filter(s=>s.playerId).forEach(s=>{
       const p=allHome.find(p=>p.id===s.playerId); if(!p) return;
-      objects.push({type:'player',id:newId(),fx:s.x,fy:s.y,
-        color:p.color||(s.role==='keeper'?gkColor:homeColor),
-        name:p.name,num:p.num||'',playerId:p.id,starter:true});
-      document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
+      const col=p.color||(s.role==='keeper'?gkColor:homeColor);
+      objects.push({type:'player',id:newId(),fx:s.x,fy:s.y,color:col,name:p.name,num:p.num||'',playerId:p.id});
     });
-
   } else {
-    // Andere Sportarten
-    const formation=SPORT_AUTO_FORMATIONS[currentSport];
-    const starters=allHome.slice(0,fieldLimit);
-    const gks=starters.filter(p=>positionRole(p.pos)==='keeper');
-    const flds=starters.filter(p=>positionRole(p.pos)!=='keeper');
-    if(formation){
-      gks.forEach((p,i)=>{
-        const sl=formation.gk[i]; if(!sl) return;
-        objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],
-          color:p.color||gkColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
-      });
-      flds.forEach((p,i)=>{
-        const sl=formation.field[i]; if(!sl) return;
-        objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],
-          color:p.color||homeColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
-      });
-    } else {
-      const sls=genericFormation(starters.length);
-      starters.forEach((p,i)=>{
-        const pos=sls[i]||[FIELD.w/2,FIELD.h/2];
-        objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],
-          color:p.color||(positionRole(p.pos)==='keeper'?gkColor:homeColor),
-          name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
-      });
+    const f=SPORT_AUTO_FORMATIONS[currentSport];
+    const gks=allHome.filter(p=>positionRole(p.pos)==='keeper'), flds=allHome.filter(p=>positionRole(p.pos)!=='keeper');
+    if(f){
+      gks.forEach((p,i)=>{ const sl=f.gk[i]; if(!sl) return; objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],color:p.color||gkColor,name:p.name,num:p.num||'',playerId:p.id}); });
+      flds.slice(0,fieldLimit-(f.gk.length)).forEach((p,i)=>{ const sl=f.field[i]; if(!sl) return; objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],color:p.color||homeColor,name:p.name,num:p.num||'',playerId:p.id}); });
     }
   }
-
-  // Bankspieler: nur Sidebar, nicht auf Feld
-  bench.forEach(p=>{
-    if(!objects.some(o=>o.playerId===p.id)){
-      objects.push({type:'player',id:newId(),fx:-99,fy:-99,
-        color:'#555555',name:p.name,num:p.num||'',playerId:p.id,
-        starter:false,isBench:true,hidden:true});
-    }
-    document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
-  });
-
-  render(); updatePlayerCount(); scheduleKadrivoSave();
+  updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
 }
 
+function updateFormationBar(){
+  const bar=document.getElementById('formation-bar-2d');
+  if(!bar) return;
+  bar.style.display=(currentSport==='Fussball'&&fieldLimit===11)?'flex':'none';
+}
 
 // ============================================================
-// KADRIVO PROTOCOL (same as 3D board)
+// SZENEN-SYSTEM
+// ============================================================
+function getSnapshot2d(){ return {objects:JSON.parse(JSON.stringify(objects)),drawLines:JSON.parse(JSON.stringify(drawLines))}; }
+
+function applySnapshot2d(snap,animate,fromSnap){
+  drawLines=JSON.parse(JSON.stringify(snap.drawLines||[]));
+  if(!animate||!fromSnap){ objects=JSON.parse(JSON.stringify(snap.objects||[])); render(); return; }
+  const start=performance.now(), from=fromSnap.objects||[], to=snap.objects||[];
+  function step(now){
+    const t=Math.min(1,(now-start)/MORPH_MS), et=t<0.5?2*t*t:(4-2*t)*t-1;
+    objects=to.map(o=>{ const f=from.find(x=>x.id===o.id); return f?{...o,fx:f.fx+(o.fx-f.fx)*et,fy:f.fy+(o.fy-f.fy)*et}:{...o}; });
+    render(); if(t<1) requestAnimationFrame(step); else { objects=JSON.parse(JSON.stringify(to)); render(); }
+  }
+  requestAnimationFrame(step);
+}
+
+function addScene2d(){
+  const snap=getSnapshot2d();
+  scenes2d.splice(currentScene2d+1,0,snap);
+  currentScene2d++; updateSceneUI2d(); scheduleKadrivoSave();
+}
+
+function gotoScene2d(idx,animate){
+  if(idx<0||idx>=scenes2d.length) return;
+  const from=animate&&currentScene2d>=0?getSnapshot2d():null;
+  currentScene2d=idx; applySnapshot2d(scenes2d[idx],animate,from); updateSceneUI2d();
+}
+
+function goPrevScene2d(){ if(currentScene2d>0) gotoScene2d(currentScene2d-1,true); }
+function goNextScene2d(){ if(currentScene2d<scenes2d.length-1) gotoScene2d(currentScene2d+1,true); }
+
+function deleteCurrentScene2d(){
+  if(currentScene2d<0||!scenes2d.length) return;
+  scenes2d.splice(currentScene2d,1);
+  currentScene2d=Math.min(currentScene2d,scenes2d.length-1);
+  updateSceneUI2d(); scheduleKadrivoSave();
+}
+
+function togglePlay2d(){
+  isPlaying2d=!isPlaying2d;
+  const btn=document.getElementById('btn-play2d');
+  if(btn){ btn.textContent=isPlaying2d?'⏸ Pause':'▶ Play'; btn.style.background=isPlaying2d?'#163316':''; }
+  if(isPlaying2d) playStep2d(); else { clearTimeout(playTimer2d); playTimer2d=null; }
+}
+
+function playStep2d(){
+  if(!isPlaying2d) return;
+  gotoScene2d(currentScene2d>=scenes2d.length-1?0:currentScene2d+1,true);
+  playTimer2d=setTimeout(playStep2d,MORPH_MS+400);
+}
+
+function updateSceneUI2d(){
+  const c=document.getElementById('scene-counter2d');
+  if(c) c.textContent=`${scenes2d.length} Szene${scenes2d.length===1?'':'n'}`;
+  const t=document.getElementById('scene-thumbs2d');
+  if(!t) return;
+  t.innerHTML=scenes2d.map((s,i)=>`<canvas class="scene-thumb2d${i===currentScene2d?' active':''}" id="sthumb2d-${i}" width="36" height="24" onclick="gotoScene2d(${i},true)" title="Szene ${i+1}"></canvas>`).join('');
+  scenes2d.forEach((s,i)=>setTimeout(()=>drawThumb2d(i,s),0));
+}
+
+function drawThumb2d(i,snap){
+  const c=document.getElementById('sthumb2d-'+i); if(!c) return;
+  const tc=c.getContext('2d'); const tw=36,th=24;
+  tc.fillStyle='#2d5a1b'; tc.fillRect(0,0,tw,th);
+  tc.strokeStyle='rgba(255,255,255,0.3)'; tc.lineWidth=0.5; tc.strokeRect(0,0,tw,th);
+  (snap.drawLines||[]).forEach(l=>{
+    const x1=(l.x1/FIELD.w)*tw,y1=(l.y1/FIELD.h)*th,x2=(l.x2/FIELD.w)*tw,y2=(l.y2/FIELD.h)*th;
+    tc.strokeStyle=l.color||'#fff'; tc.lineWidth=1; tc.setLineDash(l.style==='dashed'?[3,2]:[]);
+    tc.beginPath(); tc.moveTo(x1,y1); tc.lineTo(x2,y2); tc.stroke(); tc.setLineDash([]);
+  });
+  (snap.objects||[]).filter(o=>o.type==='player'&&!o.hidden).forEach(o=>{
+    tc.beginPath(); tc.arc((o.fx/FIELD.w)*tw,(o.fy/FIELD.h)*th,2.5,0,Math.PI*2);
+    tc.fillStyle=o.color||'#e63946'; tc.fill();
+  });
+}
+
+function toggleSceneBar(){
+  const bar=document.getElementById('scene-bar2d');
+  if(!bar) return;
+  const v=bar.style.display==='flex';
+  bar.style.display=v?'none':'flex';
+  document.getElementById('btn-scenes')?.classList.toggle('active',!v);
+  if(!v) updateSceneUI2d();
+}
+
+// ============================================================
+// KADRIVO KOMMUNIKATION
 // ============================================================
 function scheduleKadrivoSave(){
-  if(!kadrivoReady||kadrivoHydrating||!kadrivoBoardId) return;
-  if(_drag) return; // Nicht während Drag speichern
+  if(!kadrivoReady||kadrivoHydrating||!kadrivoBoardId||_drag) return;
   clearTimeout(kadrivoSaveTimer);
-  kadrivoSaveTimer=setTimeout(postKadrivoSave,400);
+  kadrivoSaveTimer=setTimeout(postKadrivoSave,600);
 }
 
 function postKadrivoSave(){
   if(!kadrivoReady||!kadrivoBoardId||!window.parent||window.parent===window) return;
-  window.parent.postMessage({
-    type:'kadrivo:tactic-save',
-    boardId:kadrivoBoardId,
-    state:exportState()
-  }, window.location.origin);
+  window.parent.postMessage({type:'kadrivo:tactic-save',boardId:kadrivoBoardId,state:exportState()},window.location.origin);
 }
 
 function exportState(){
-  return {objects, drawLines, showNames, arrowColor, arrowStyle, scenes:scenes2d, currentScene:currentScene2d};
+  return {objects,drawLines,showNames,arrowColor,arrowStyle,scenes:scenes2d,currentScene:currentScene2d};
 }
 
-function importState(saved, players){
-  kadrivoPlayers = players||[];
-  if(_drag) return; // Nicht während Drag
+function importState(saved,players){
+  kadrivoPlayers=players||[];
+  if(_drag) return;
 
-  if(saved && (saved.objects?.length || saved.drawLines?.length)){
-    // Gespeicherten State laden
-    objects       = saved.objects   || [];
-    drawLines     = saved.drawLines || [];
-    showNames     = saved.showNames || false;
-    arrowColor    = saved.arrowColor|| '#ffffff';
-    arrowStyle    = saved.arrowStyle|| 'solid';
-    scenes2d      = saved.scenes    || [];
-    currentScene2d= saved.currentScene ?? -1;
+  if(saved&&(saved.objects?.length||saved.drawLines?.length)){
+    objects=saved.objects||[];
+    drawLines=saved.drawLines||[];
+    showNames=saved.showNames||false;
+    arrowColor=saved.arrowColor||'#ffffff';
+    arrowStyle=saved.arrowStyle||'solid';
+    scenes2d=saved.scenes||[];
+    currentScene2d=saved.currentScene??-1;
     let maxId=0;
-    [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o',''));if(n>maxId)maxId=n; });
+    [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o','')); if(n>maxId) maxId=n; });
     oidSeq=maxId+1;
+  } else if(kadrivoPlayers.length){
+    // Kein gespeicherter State → Auto-Aufstellung
+    objects=[]; drawLines=[];
+    setTimeout(()=>autoPlace2d(),100);
   } else {
-    // Kein gespeicherter State → automatisch aufstellen
-    objects   = [];
-    drawLines = [];
-    // Spieler die laut Payload onField=true haben direkt platzieren
-    const onFieldPlayers = kadrivoPlayers.filter(p=>p.onField);
-    if(onFieldPlayers.length){
-      setTimeout(()=>{ autoPlace2d(); }, 50);
-    }
+    objects=[]; drawLines=[];
   }
-  updateSidebar();
-  updatePlayerCount();
-  updateSceneUI2d();
-  render();
+  updateSidebar(); updatePlayerCount(); updateSceneUI2d(); render();
 }
 
-window.addEventListener('message',(event)=>{
+window.addEventListener('message',event=>{
   if(event.origin!==window.location.origin) return;
   const data=event.data||{};
   if(data.type==='kadrivo:tactic-export-request'){
@@ -1799,244 +1325,25 @@ window.addEventListener('message',(event)=>{
   if(data.type!=='kadrivo:tactic-load') return;
   kadrivoBoardId=data.boardId||null;
   kadrivoReady=true;
-  if(data.players) kadrivoPlayers=data.players;
-  if(data.limits){
-    fieldLimit=data.limits.fieldPlayers||11;
-    benchLimit=data.limits.benchPlayers??9;
-  }
-  if(data.sport) { currentSport=data.sport; updateFieldDimensions(); }
-  homeColor=data.homeColor||COLORS_HOME;
+  if(data.limits){ fieldLimit=data.limits.fieldPlayers||11; benchLimit=data.limits.benchPlayers??9; }
+  if(data.sport){ currentSport=data.sport; updateFieldDimensions(); }
+  homeColor=data.homeColor||data.teamColor||COLORS_HOME;
   awayColor=data.awayColor||COLORS_AWAY;
   gkColor  =data.gkColor  ||COLORS_GK;
-  // Update formation bar visibility
+  if(data.players) kadrivoPlayers=data.players;
   updateFormationBar();
   kadrivoHydrating=true;
-  try{
-    importState(data.saved,data.players||[]);
-  } finally {
-    kadrivoHydrating=false;
-  }
+  try{ importState(data.saved,data.players||[]); }
+  finally{ kadrivoHydrating=false; }
 });
-
-function updateFormationBar(){
-  const bar=document.getElementById('formation-bar-2d');
-  if(!bar) return;
-  // Show formations only for Fussball with 11 players
-  bar.style.display=(currentSport==='Fussball'&&fieldLimit===11)?'flex':'none';
-}
-
-// ============================================================
-// SZENEN-SYSTEM
-// ============================================================
-let scenes2d = [];       // [{objects, drawLines}]
-let currentScene2d = -1;
-let isPlaying2d = false;
-let playTimer2d = null;
-const MORPH_MS = 600;    // Animations-Dauer in ms
-
-function getSnapshot2d(){
-  return {
-    objects:   JSON.parse(JSON.stringify(objects)),
-    drawLines: JSON.parse(JSON.stringify(drawLines))
-  };
-}
-
-function applySnapshot2d(snap, animate=false, fromSnap=null){
-  // drawLines immer sofort setzen (keine Animation für Pfeile/Texte)
-  drawLines = JSON.parse(JSON.stringify(snap.drawLines || []));
-
-  if(!animate || !fromSnap){
-    objects = JSON.parse(JSON.stringify(snap.objects || []));
-    render();
-    return;
-  }
-  // Animiertes Morphing nur für Spielerpositionen
-  const start = performance.now();
-  const fromObjs = fromSnap.objects || [];
-  const toObjs   = snap.objects || [];
-
-  function step(now){
-    const t = Math.min(1, (now - start) / MORPH_MS);
-    const et = t < 0.5 ? 2*t*t : (4-2*t)*t-1;
-    objects = toObjs.map(to=>{
-      const from = fromObjs.find(f=>f.id===to.id);
-      if(!from) return {...to};
-      return {...to,
-        fx: from.fx + (to.fx - from.fx) * et,
-        fy: from.fy + (to.fy - from.fy) * et
-      };
-    });
-    render();
-    if(t < 1) requestAnimationFrame(step);
-    else {
-      // Am Ende: finale Positionen setzen
-      objects = JSON.parse(JSON.stringify(snap.objects || []));
-      render();
-    }
-  }
-  requestAnimationFrame(step);
-}
-
-function addScene2d(){
-  const snap = getSnapshot2d();
-  if(currentScene2d < 0 || currentScene2d >= scenes2d.length-1){
-    scenes2d.push(snap);
-    currentScene2d = scenes2d.length - 1;
-  } else {
-    scenes2d.splice(currentScene2d+1, 0, snap);
-    currentScene2d++;
-  }
-  updateSceneUI2d();
-  scheduleKadrivoSave();
-}
-
-function gotoScene2d(idx, animate=false){
-  if(idx < 0 || idx >= scenes2d.length) return;
-  const from = animate && currentScene2d >= 0 ? getSnapshot2d() : null;
-  currentScene2d = idx;
-  applySnapshot2d(scenes2d[idx], animate, from);
-  updateSceneUI2d();
-}
-
-function goPrevScene2d(){ if(currentScene2d > 0) gotoScene2d(currentScene2d-1, true); }
-function goNextScene2d(){ if(currentScene2d < scenes2d.length-1) gotoScene2d(currentScene2d+1, true); }
-
-function deleteCurrentScene2d(){
-  if(currentScene2d < 0 || !scenes2d.length) return;
-  scenes2d.splice(currentScene2d, 1);
-  currentScene2d = Math.min(currentScene2d, scenes2d.length-1);
-  updateSceneUI2d();
-  scheduleKadrivoSave();
-}
-
-function togglePlay2d(){
-  isPlaying2d = !isPlaying2d;
-  const btn = document.getElementById('btn-play2d');
-  if(btn){ btn.textContent = isPlaying2d ? '⏸ Pause' : '▶ Play'; btn.style.background = isPlaying2d ? '#163316' : ''; }
-  if(isPlaying2d) playStep2d();
-  else { clearTimeout(playTimer2d); playTimer2d = null; }
-}
-
-function playStep2d(){
-  if(!isPlaying2d) return;
-  if(currentScene2d >= scenes2d.length-1){
-    gotoScene2d(0, false);
-  } else {
-    gotoScene2d(currentScene2d+1, true);
-  }
-  playTimer2d = setTimeout(playStep2d, MORPH_MS + 400);
-}
-
-function updateSceneUI2d(){
-  const counter = document.getElementById('scene-counter2d');
-  if(counter) counter.textContent = `${scenes2d.length} Szene${scenes2d.length===1?'':'n'}`;
-  const thumbs = document.getElementById('scene-thumbs2d');
-  if(!thumbs) return;
-  thumbs.innerHTML = scenes2d.map((s,i)=>`
-    <canvas class="scene-thumb2d${i===currentScene2d?' active':''}"
-      id="sthumb2d-${i}" width="36" height="24"
-      onclick="gotoScene2d(${i},true)" title="Szene ${i+1}"></canvas>
-  `).join('');
-  // Thumbs zeichnen
-  scenes2d.forEach((s,i)=>{ setTimeout(()=>drawThumb2d(i,s), 0); });
-}
-
-function drawThumb2d(i, snap){
-  const c = document.getElementById('sthumb2d-'+i);
-  if(!c) return;
-  const tc = c.getContext('2d');
-  const tw=36, th=24;
-  // Feld-Hintergrund
-  tc.fillStyle='#2d5a1b'; tc.fillRect(0,0,tw,th);
-  tc.strokeStyle='rgba(255,255,255,0.4)'; tc.lineWidth=0.5;
-  tc.strokeRect(0,0,tw,th);
-  tc.beginPath(); tc.moveTo(tw/2,0); tc.lineTo(tw/2,th); tc.stroke();
-  // Pfeile
-  (snap.drawLines||[]).forEach(l=>{
-    const x1=(l.x1/FIELD.w)*tw, y1=(l.y1/FIELD.h)*th;
-    const x2=(l.x2/FIELD.w)*tw, y2=(l.y2/FIELD.h)*th;
-    tc.strokeStyle=l.color||'#ffffff'; tc.lineWidth=1;
-    tc.setLineDash(l.style==='dashed'?[3,2]:[]);
-    tc.beginPath(); tc.moveTo(x1,y1); tc.lineTo(x2,y2); tc.stroke();
-    tc.setLineDash([]);
-  });
-  // Spieler als Punkte
-  (snap.objects||[]).forEach(o=>{
-    if(o.type!=='player') return;
-    const px=(o.fx/FIELD.w)*tw, py=(o.fy/FIELD.h)*th;
-    tc.beginPath(); tc.arc(px,py,o.isBench?1.5:2.5,0,Math.PI*2);
-    tc.fillStyle=o.color||'#e63946'; tc.fill();
-  });
-  // Texte als T-Symbol
-  (snap.objects||[]).forEach(o=>{
-    if(o.type!=='text') return;
-    const px=(o.fx/FIELD.w)*tw, py=(o.fy/FIELD.h)*th;
-    tc.fillStyle='#ffff00';
-    tc.font='4px sans-serif'; tc.textAlign='center';
-    tc.fillText('T',px,py);
-  });
-}
-
-function toggleSceneBar(){
-  const bar = document.getElementById('scene-bar2d');
-  if(!bar) return;
-  const visible = bar.style.display==='flex';
-  bar.style.display = visible ? 'none' : 'flex';
-  document.getElementById('btn-scenes').classList.toggle('active', !visible);
-  if(!visible) updateSceneUI2d();
-}
-
-// ============================================================
-// SPIELERWECHSEL (Doppelklick)
-// ============================================================
-function swapPlayerFieldBench(obj){
-  if(!obj || obj.type !== 'player' || !obj.playerId) return;
-
-  if(obj.isBench){
-    // Bank → Feld
-    const onField = objects.filter(o=>o.type==='player'&&o.playerId&&!o.isBench&&!o.playerId.startsWith('away_'));
-    if(onField.length >= fieldLimit){
-      document.getElementById('s-mode').textContent = `Feld voll (max. ${fieldLimit} Spieler)`;
-      setTimeout(()=>document.getElementById('s-mode').textContent='Modus: Auswahl',2000);
-      return;
-    }
-    pushUndo();
-    obj.isBench = false;
-    obj.starter = true;
-    obj.hidden  = false;
-    obj.color   = obj.origColor || homeColor;
-    // Feldmitte platzieren
-    obj.fx = FIELD.w * 0.4 + Math.random()*FIELD.w*0.15;
-    obj.fy = FIELD.h * 0.25 + Math.random()*FIELD.h*0.5;
-  } else {
-    // Feld → Bank
-    const onBench = objects.filter(o=>o.type==='player'&&o.playerId&&o.isBench&&!o.playerId.startsWith('away_'));
-    if(onBench.length >= benchLimit){
-      document.getElementById('s-mode').textContent = `Bank voll (max. ${benchLimit} Plätze)`;
-      setTimeout(()=>document.getElementById('s-mode').textContent='Modus: Auswahl',2000);
-      return;
-    }
-    pushUndo();
-    obj.origColor = obj.color;
-    obj.isBench = true;
-    obj.starter = false;
-    obj.hidden  = true;   // nicht auf dem Feld sichtbar
-    obj.color   = '#555555';
-    obj.fx = -99; obj.fy = -99;
-  }
-  render();
-  updatePlayerCount();
-  scheduleKadrivoSave();
-}
 
 // ============================================================
 // INIT
 // ============================================================
-window.addEventListener('resize', resize);
+window.addEventListener('resize',resize);
 updateFieldDimensions();
 resize();
-
-const PRESET_COLORS_GLOBAL = PRESET_COLORS;
+showTab('players');
+updateSceneUI2d();
 </script>
-</body>
 </html>
