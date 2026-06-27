@@ -13,7 +13,7 @@
     const PAYPAL_SETTINGS_FUNCTION = "paypal-settings";
     const PAYPAL_CREATE_ORDER_FUNCTION = "paypal-create-order";
     const PAYPAL_CAPTURE_ORDER_FUNCTION = "paypal-capture-order";
-    const KADRIVO_PAYPAL_CLIENT_ID = "AWfxrPGLIbqrihvp1jnmVHyAJgbeJTOG4wAn3LhgjJusOgEzEuwHbTAKN9yionKc7DD8z-20E_dMMhY_";
+    const KADRIVO_PAYPAL_CLIENT_ID = "AYPZW0x6ms2FuWT2kWu9ZMkAatqw9Ny8zZOUZJjae8aBNum-SoPORLA2IqAheTf4_JZXYmsHMQ78uG4R";
     const KADRIVO_SUBSCRIPTION_PACKAGES = {
       amateur: {
         label: "Kadrivo Amateur",
