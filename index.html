@@ -21,7 +21,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v169';
+      const EXPECTED = 'v170';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +45,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v169</span></h1>
+          <h1>Kadrivo <span class="app-version">v170</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v169</span></h1>
+          <h1>Kadrivo <span class="app-version">v170</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -875,6 +875,24 @@ Nein</textarea></div>
         <button class="btn-secondary" onclick="closeTacticChangeModal()">Abbrechen</button>
       </div>
     </div>
+  </div>
+
+  <!-- TAKTIK NAME MODAL -->
+  <div class="modal-backdrop" id="tacticNameModal" aria-hidden="true">
+    <section class="modal-panel compact-modal" role="dialog" aria-modal="true" style="max-width:420px">
+      <div class="modal-head">
+        <h3>Taktik speichern</h3>
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label style="display:block;margin-bottom:6px;font-size:13px;color:#555">Name der Taktik</label>
+        <input id="tacticNameInput" type="text" placeholder="z.B. 4-3-3 Pressing"
+          style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="mini" id="tacticNameCancelBtn" type="button">Abbrechen</button>
+        <button class="mini yes" id="tacticNameConfirmBtn" type="button">Speichern</button>
+      </div>
+    </section>
   </div>
 
 </body>

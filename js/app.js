@@ -6403,6 +6403,44 @@
       saveState();
     }
 
+    // Modal-basierter Name-Prompt (ersetzt window.prompt wegen iframe-Blockierung)
+    function promptTacticName(defaultValue) {
+      return new Promise((resolve) => {
+        const modal = $("#tacticNameModal");
+        const input = $("#tacticNameInput");
+        const confirmBtn = $("#tacticNameConfirmBtn");
+        const cancelBtn = $("#tacticNameCancelBtn");
+        if (!modal || !input) { resolve(null); return; }
+        input.value = defaultValue || "";
+        modal.classList.add("open");
+        modal.removeAttribute("aria-hidden");
+        setTimeout(() => input.focus(), 50);
+        function confirm() {
+          const val = input.value.trim();
+          cleanup();
+          resolve(val || null);
+        }
+        function cancel() {
+          cleanup();
+          resolve(null);
+        }
+        function onKey(e) {
+          if (e.key === "Enter") confirm();
+          if (e.key === "Escape") cancel();
+        }
+        function cleanup() {
+          modal.classList.remove("open");
+          modal.setAttribute("aria-hidden", "true");
+          confirmBtn.removeEventListener("click", confirm);
+          cancelBtn.removeEventListener("click", cancel);
+          input.removeEventListener("keydown", onKey);
+        }
+        confirmBtn.addEventListener("click", confirm);
+        cancelBtn.addEventListener("click", cancel);
+        input.addEventListener("keydown", onKey);
+      });
+    }
+
     // Taktik speichern – bei neuer Taktik Name abfragen, bei bestehender direkt überschreiben
     async function saveTacticBoardWithCheck() {
       const status = $("#tacticSaveStatus");
@@ -6412,8 +6450,8 @@
         // Explizit prüfen BEVOR currentTacticBoard() aufgerufen wird (das legt sonst auto an)
         const hasSelection = selectedTacticBoardId && state.tacticBoards.some(b => b.id === selectedTacticBoardId);
         if (!hasSelection) {
-          const name = window.prompt("Name der Taktik:", "");
-          if (!name?.trim()) return;
+          const name = await promptTacticName("");
+          if (!name) return;
           const newBoard = normalizeTacticBoard({
             id: crypto.randomUUID(),
             title: name.trim(),
