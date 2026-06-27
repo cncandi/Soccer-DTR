@@ -5,7 +5,7 @@ const BACKEND_SUPERADMIN_HASHES = new Set([
   "f0fcd7a64b3453653b139c45d04e1fd5f20e5b7c4fa95a5078af3d9c8c842fb1"
 ]);
 const BACKEND_SUPERADMIN_PASSWORD_FALLBACK = "RiMjI21pbGw1NQ==";
-const PUBLIC_APP_URL = "https://www.kadrivo.de/";
+const PUBLIC_APP_URL = "https://app.kadrivo.de/";
 const CLUB_URL_PARAM = "club";
 const TRIAL_DAYS = 21;
 const FULL_LICENSE_DAYS = 365;
