@@ -6309,6 +6309,511 @@
       return "";
     }
 
+    // ── NEUE TAKTIKBOARD-LOGIK ────────────────────────────────
+    let _tacticTab = "games";
+    let _selectedGameEventId = null;
+    let _libraryItems = [];       // gecachte Library-Items (global + lokal)
+    let _trainingPlan = null;     // { id, event_id, items[] }
+    let _libModalCallback = null;
+
+    function switchTacticTab(tab) {
+      _tacticTab = tab;
+      ["games","free","library"].forEach(t => {
+        const el = $(`#tacticTab-${t}`);
+        if (el) el.style.display = t === tab ? "" : "none";
+        const btn = document.querySelector(`[data-tactab="${t}"]`);
+        if (btn) {
+          btn.style.background = t === tab ? "#155e3b" : "#f5f5f5";
+          btn.style.color      = t === tab ? "#fff"    : "#333";
+        }
+      });
+      if (tab === "library") renderLibrary();
+      if (tab === "games")   renderGameEventList();
+      if (tab === "free")    renderFreeTacticList();
+    }
+
+    // ── SPIELE-TAB ───────────────────────────────────────────
+    function renderGameEventList() {
+      const el = $("#gameEventList");
+      if (!el) return;
+      const games = state.events.filter(e => normalizedEventType(e.type) === "Spiel")
+        .sort((a,b) => a.date < b.date ? 1 : -1);
+      if (!games.length) {
+        el.innerHTML = `<p class="meta">Keine Spiele vorhanden.</p>`; return;
+      }
+      el.innerHTML = games.map(g => {
+        const tacticCount = state.tacticBoards.filter(b => (b.eventIds||[]).includes(g.id) || b.eventId === g.id).length;
+        return `<div class="tactic-event-item" onclick="selectGameEvent('${g.id}')" style="padding:8px 10px;margin-bottom:4px;border:1px solid #ddd;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:13px">${escapeHtml(g.title||"Spiel")}</div>
+            <div style="font-size:11px;color:#888">${formatDate(g.date)} ${g.time||""}</div>
+          </div>
+          <span style="font-size:11px;background:#f0f0f0;border-radius:99px;padding:2px 8px">${tacticCount} Taktik${tacticCount!==1?"en":""}</span>
+        </div>`;
+      }).join("");
+    }
+
+    function selectGameEvent(eventId) {
+      _selectedGameEventId = eventId;
+      const ev = state.events.find(e => e.id === eventId);
+      $("#gameTacticEventLabel").textContent = ev ? `${ev.title} – ${formatDate(ev.date)}` : "";
+      $("#gameEventList").style.display = "none";
+      $("#gameTacticList").style.display = "";
+      renderGameTacticItems(eventId);
+      // Trainingsplan ausblenden (nur Training)
+      const tp = $("#trainingPlanSection");
+      if (tp) tp.style.display = "none";
+    }
+
+    function showGameEventList() {
+      _selectedGameEventId = null;
+      $("#gameEventList").style.display = "";
+      $("#gameTacticList").style.display = "none";
+      $("#tacticBoardDetails").style.display = "none";
+    }
+
+    function renderGameTacticItems(eventId) {
+      const el = $("#gameTacticItems"); if (!el) return;
+      const boards = state.tacticBoards.filter(b => (b.eventIds||[]).includes(eventId) || b.eventId === eventId);
+      if (!boards.length) {
+        el.innerHTML = `<p class="meta" style="font-size:12px">Noch keine Taktik für dieses Spiel.</p>`; return;
+      }
+      el.innerHTML = boards.map(b => `
+        <div class="tactic-board-item ${selectedTacticBoardId===b.id?"active":""}"
+          onclick="selectTacticBoard('${b.id}')"
+          style="padding:8px 10px;margin-bottom:4px;border:1px solid ${selectedTacticBoardId===b.id?"#155e3b":"#ddd"};border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;font-weight:${selectedTacticBoardId===b.id?700:400}">${escapeHtml(b.title||"Taktik")}</span>
+          <button class="mini no" onclick="event.stopPropagation();deleteTacticFromGame('${b.id}')" style="font-size:10px">✕</button>
+        </div>`).join("");
+    }
+
+    function selectTacticBoard(boardId) {
+      selectedTacticBoardId = boardId;
+      selectedTacticElementId = "";
+      const board = currentTacticBoard();
+      // Details anzeigen
+      const det = $("#tacticBoardDetails");
+      if (det) det.style.display = "";
+      if ($("#tacticBoardName") && document.activeElement !== $("#tacticBoardName"))
+        $("#tacticBoardName").value = board.title || "";
+      if ($("#tacticBoardNotes")) {
+        const saved = board.notesHtml || "";
+        if ($("#tacticBoardNotes").innerHTML !== saved) $("#tacticBoardNotes").innerHTML = saved;
+      }
+      // Event-Chips
+      renderTacticLinkedChips(board);
+      // Event-Select befüllen
+      if ($("#tacticEventSelect")) $("#tacticEventSelect").innerHTML = tacticEventOptions("");
+      // Board an iframes senden
+      setTimeout(() => sendTactic3dPayload(), 100);
+      // Titel aktualisieren
+      if ($("#tacticBoardTitle")) $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
+      // Liste neu rendern
+      if (_selectedGameEventId) renderGameTacticItems(_selectedGameEventId);
+      else renderFreeTacticList();
+    }
+
+    function renderTacticLinkedChips(board) {
+      const el = $("#tacticLinkedEvents"); if (!el) return;
+      const ids = board.eventIds || (board.eventId ? [board.eventId] : []);
+      el.innerHTML = ids.map(id => {
+        const ev = state.events.find(e => e.id === id);
+        return ev ? `<span class="chip">${escapeHtml(ev.title)} <button type="button" onclick="unlinkTacticEvent('${id}')">×</button></span>` : "";
+      }).join("");
+    }
+
+    function newTacticForEvent() {
+      const newBoard = normalizeTacticBoard({
+        id: crypto.randomUUID(),
+        title: "Neue Taktik",
+        eventIds: _selectedGameEventId ? [_selectedGameEventId] : [],
+        eventId:  _selectedGameEventId || ""
+      });
+      state.tacticBoards.push(newBoard);
+      selectedTacticBoardId = newBoard.id;
+      saveState();
+      renderGameTacticItems(_selectedGameEventId);
+      selectTacticBoard(newBoard.id);
+    }
+
+    function deleteTacticFromGame(boardId) {
+      if (!window.confirm("Taktik löschen?")) return;
+      state.tacticBoards = state.tacticBoards.filter(b => b.id !== boardId);
+      if (selectedTacticBoardId === boardId) {
+        selectedTacticBoardId = state.tacticBoards[0]?.id || "";
+        $("#tacticBoardDetails").style.display = "none";
+      }
+      saveState();
+      renderGameTacticItems(_selectedGameEventId);
+    }
+
+    // ── FREIE TAKTIKEN ───────────────────────────────────────
+    function renderFreeTacticList() {
+      const el = $("#freeTacticList"); if (!el) return;
+      const free = state.tacticBoards.filter(b => !b.eventIds?.length && !b.eventId);
+      if (!free.length) {
+        el.innerHTML = `<p class="meta">Keine freien Taktiken. Klicke „+ Neu".</p>`; return;
+      }
+      el.innerHTML = free.map(b => `
+        <div class="tactic-board-item ${selectedTacticBoardId===b.id?"active":""}"
+          onclick="selectTacticBoard('${b.id}')"
+          style="padding:8px 10px;margin-bottom:4px;border:1px solid ${selectedTacticBoardId===b.id?"#155e3b":"#ddd"};border-radius:8px;cursor:pointer">
+          <span style="font-size:13px;font-weight:${selectedTacticBoardId===b.id?700:400}">${escapeHtml(b.title||"Taktik")}</span>
+        </div>`).join("");
+    }
+
+    // ── TAKTIK ÄNDERN DIALOG ─────────────────────────────────
+    let _pendingTacticSave = null;
+
+    async function saveTacticBoardWithCheck() {
+      const board = currentTacticBoard();
+      const ids = board.eventIds || [];
+      const hasMultiple = ids.length > 1;
+      if (hasMultiple) {
+        _pendingTacticSave = { board, title: $("#tacticBoardName")?.value?.trim(), notesHtml: sanitizeRichText($("#tacticBoardNotes")?.innerHTML||"") };
+        openTacticChangeModal();
+      } else {
+        await doSaveTacticBoard("update");
+      }
+    }
+
+    function openTacticChangeModal() {
+      const m = $("#tacticChangeModal"); if (m) { m.style.display = "flex"; m.setAttribute("aria-hidden","false"); }
+    }
+    function closeTacticChangeModal() {
+      const m = $("#tacticChangeModal"); if (m) { m.style.display = "none"; m.setAttribute("aria-hidden","true"); }
+      _pendingTacticSave = null;
+    }
+
+    async function tacticChangeSave(mode) {
+      closeTacticChangeModal();
+      await doSaveTacticBoard(mode);
+    }
+
+    async function doSaveTacticBoard(mode) {
+      const status = $("#tacticSaveStatus");
+      const button = $("#saveTacticBoardBtn");
+      if (button) button.disabled = true;
+      try {
+        const board = currentTacticBoard();
+        const title = ($("#tacticBoardName")?.value||"").trim() || board.title || "Taktik";
+        const notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML||"");
+
+        if (mode === "copy") {
+          // Neue Kopie für aktuelles Spiel
+          const newBoard = normalizeTacticBoard({...JSON.parse(JSON.stringify(board)), id: crypto.randomUUID(), title: title + " (Kopie)", eventIds: _selectedGameEventId ? [_selectedGameEventId] : [], eventId: _selectedGameEventId||""});
+          newBoard.notesHtml = notesHtml;
+          state.tacticBoards.push(newBoard);
+          selectedTacticBoardId = newBoard.id;
+        } else if (mode === "unlink") {
+          // Von anderen Spielen entfernen, nur für aktuelles behalten
+          board.eventIds = _selectedGameEventId ? [_selectedGameEventId] : [];
+          board.eventId  = _selectedGameEventId || "";
+          board.title = title; board.notesHtml = notesHtml;
+        } else {
+          // Alle aktualisieren
+          board.title = title; board.notesHtml = notesHtml;
+        }
+
+        board.updatedAt = new Date().toISOString();
+        await requestTactic3dState(board);
+        flushTactic3dSave();
+        saveState();
+        syncWithSupabase({ silent: true });
+        renderTacticBoard();
+        if (status) status.textContent = "Gespeichert ✓";
+        setTimeout(() => { if (status) status.textContent = ""; }, 2000);
+      } catch(e) {
+        if (status) status.textContent = "Fehler: " + e.message;
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    // ── TRAINING-TAB-LOGIK ───────────────────────────────────
+    function checkTrainingPlanVisibility() {
+      // Wird vom Taktikboard aufgerufen wenn Event wechselt
+      const board = currentTacticBoard();
+      const eventId = board.eventId || board.eventIds?.[0] || "";
+      const ev = state.events.find(e => e.id === eventId);
+      const isTraining = ev && normalizedEventType(ev.type) === "Training";
+      const tp = $("#trainingPlanSection");
+      if (tp) tp.style.display = isTraining ? "" : "none";
+      if (isTraining) loadTrainingPlan(eventId);
+    }
+
+    async function loadTrainingPlan(eventId) {
+      const client = getSupabaseClient();
+      if (!client) { renderTrainingPlan(null); return; }
+      const { data } = await client.from("training_plans")
+        .select("*").eq("club_id", currentClubId).eq("event_id", eventId).limit(1);
+      _trainingPlan = data?.[0] || { club_id: currentClubId, event_id: eventId, items: [] };
+      renderTrainingPlan(_trainingPlan);
+    }
+
+    function renderTrainingPlan(plan) {
+      const el = $("#trainingPlanItems"); if (!el) return;
+      if (!plan || !plan.items?.length) {
+        el.innerHTML = `<p class="meta" style="font-size:12px">Noch keine Einheiten. Klicke „+ Hinzufügen".</p>`; return;
+      }
+      el.innerHTML = plan.items.map((item, i) => {
+        const lib = _libraryItems.find(l => l.id === item.library_id);
+        const typeIcon = {tactic:"📋",youtube:"▶️",image:"🖼️",training:"📚"}[lib?.type||""] || "📄";
+        return `<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <span style="font-size:13px;font-weight:600">${typeIcon} ${escapeHtml(lib?.title||item.library_id||"Einheit")}</span>
+            <button class="mini no" onclick="removePlanItem(${i})" style="font-size:10px">✕</button>
+          </div>
+          ${lib?.category?`<span style="font-size:10px;color:#888;background:#eee;border-radius:99px;padding:1px 6px">${escapeHtml(lib.category)}</span>`:""}
+          <textarea placeholder="Kommentar zur Einheit…" oninput="updatePlanItemComment(${i},this.value)"
+            style="width:100%;margin-top:6px;border:1px solid #ddd;border-radius:6px;padding:5px;font-size:12px;resize:vertical;min-height:40px;box-sizing:border-box">${escapeHtml(item.comment||"")}</textarea>
+          <div style="display:flex;gap:4px;margin-top:4px">
+            ${i>0?`<button class="mini" onclick="movePlanItem(${i},-1)" style="font-size:10px">↑</button>`:""}
+            ${i<plan.items.length-1?`<button class="mini" onclick="movePlanItem(${i},1)" style="font-size:10px">↓</button>`:""}
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function updatePlanItemComment(idx, val) {
+      if (!_trainingPlan?.items?.[idx]) return;
+      _trainingPlan.items[idx].comment = val;
+      schedulePlanSave();
+    }
+
+    function movePlanItem(idx, dir) {
+      if (!_trainingPlan) return;
+      const items = _trainingPlan.items;
+      const ni = idx + dir;
+      if (ni < 0 || ni >= items.length) return;
+      [items[idx], items[ni]] = [items[ni], items[idx]];
+      renderTrainingPlan(_trainingPlan);
+      schedulePlanSave();
+    }
+
+    function removePlanItem(idx) {
+      if (!_trainingPlan) return;
+      _trainingPlan.items.splice(idx, 1);
+      renderTrainingPlan(_trainingPlan);
+      schedulePlanSave();
+    }
+
+    let _planSaveTimer = null;
+    function schedulePlanSave() { clearTimeout(_planSaveTimer); _planSaveTimer = setTimeout(saveTrainingPlan, 800); }
+
+    async function saveTrainingPlan() {
+      if (!_trainingPlan) return;
+      const client = getSupabaseClient(); if (!client) return;
+      _trainingPlan.items.forEach((item, i) => item.sort_order = i);
+      await client.from("training_plans").upsert({ ...(_trainingPlan.id ? {id: _trainingPlan.id} : {}), club_id: _trainingPlan.club_id, event_id: _trainingPlan.event_id, items: _trainingPlan.items });
+    }
+
+    async function savePlanAsLibraryItem() {
+      if (!_trainingPlan?.items?.length) { alert("Der Trainingsplan ist leer."); return; }
+      const title = window.prompt("Name für dieses Komplett-Training:", "Training " + formatDate(new Date().toISOString().slice(0,10)));
+      if (!title?.trim()) return;
+      const cat = window.prompt("Kategorie:", "Komplett-Training") || "Komplett-Training";
+      const item = { club_id: currentClubId, title: title.trim(), category: cat, type: "training", content_data: { items: _trainingPlan.items }, is_global: false, created_by: state.loginUser || "" };
+      const client = getSupabaseClient();
+      if (client) await client.from("training_library").insert(item);
+      await fetchLibraryItems();
+      renderLibrary();
+      alert("Als Bibliotheks-Training gespeichert ✓");
+    }
+
+    // ── BIBLIOTHEK ───────────────────────────────────────────
+    async function fetchLibraryItems() {
+      const client = getSupabaseClient(); if (!client) return;
+      const { data } = await client.from("training_library")
+        .select("*")
+        .or(`is_global.eq.true,club_id.eq.${currentClubId}`)
+        .order("title");
+      _libraryItems = data || [];
+      updateLibraryCategoryFilter();
+    }
+
+    function updateLibraryCategoryFilter() {
+      const cats = [...new Set(_libraryItems.map(i => i.category).filter(Boolean))].sort();
+      ["libCategoryFilter","planAddCategory"].forEach(id => {
+        const el = $(` #${id}`); if (!el) return;
+        const val = el.value;
+        el.innerHTML = `<option value="">Alle Kategorien</option>` + cats.map(c => `<option value="${escapeAttr(c)}"${val===c?" selected":""}>${escapeHtml(c)}</option>`).join("");
+      });
+      const dl = $("#libCategoryList"); if (dl) dl.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join("");
+    }
+
+    function renderLibrary() {
+      const el = $("#libraryItemList"); if (!el) return;
+      const q = ($("#libSearchInput")?.value||"").toLowerCase().trim();
+      const cat = $("#libCategoryFilter")?.value||"";
+      const items = _libraryItems.filter(i =>
+        (!q || i.title?.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)) &&
+        (!cat || i.category === cat)
+      );
+      if (!items.length) { el.innerHTML = `<p class="meta">Keine Einträge gefunden.</p>`; return; }
+      const typeIcon = {tactic:"📋",youtube:"▶️",image:"🖼️",training:"📚"};
+      el.innerHTML = items.map(i => `
+        <div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <span style="font-size:13px;font-weight:600">${typeIcon[i.type]||"📄"} ${escapeHtml(i.title)}</span>
+              ${i.is_global?`<span style="font-size:9px;background:#155e3b;color:#fff;border-radius:99px;padding:1px 5px;margin-left:4px">Global</span>`:""}
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="mini" onclick="editLibraryItem('${i.id}')" style="font-size:10px">✏️</button>
+              ${canManage()?`<button class="mini no" onclick="deleteLibraryItem('${i.id}')" style="font-size:10px">✕</button>`:""}
+            </div>
+          </div>
+          ${i.category?`<span style="font-size:10px;color:#888;background:#eee;border-radius:99px;padding:1px 6px">${escapeHtml(i.category)}</span>`:""}
+          ${i.description?`<p style="font-size:12px;color:#555;margin:4px 0 0">${escapeHtml(i.description.slice(0,80))}${i.description.length>80?"…":""}</p>`:""}
+        </div>`).join("");
+    }
+
+    function openAddToPlanModal() {
+      if (!_trainingPlan) { alert("Bitte zuerst ein Training auswählen."); return; }
+      if (!_libraryItems.length) fetchLibraryItems().then(renderPlanAddList);
+      else renderPlanAddList();
+      const m = $("#addToPlanModal"); if (m) { m.style.display = "flex"; m.setAttribute("aria-hidden","false"); }
+    }
+
+    function closeAddToPlanModal() {
+      const m = $("#addToPlanModal"); if (m) { m.style.display = "none"; m.setAttribute("aria-hidden","true"); }
+    }
+
+    function renderPlanAddList() {
+      const el = $("#planAddList"); if (!el) return;
+      const q = ($("#planAddSearch")?.value||"").toLowerCase();
+      const cat = $("#planAddCategory")?.value||"";
+      const items = _libraryItems.filter(i => (!q||i.title?.toLowerCase().includes(q)) && (!cat||i.category===cat));
+      if (!items.length) { el.innerHTML = `<p class="meta">Keine Einträge.</p>`; return; }
+      const typeIcon = {tactic:"📋",youtube:"▶️",image:"🖼️",training:"📚"};
+      el.innerHTML = items.map(i => `
+        <div onclick="addItemToPlan('${i.id}')" style="padding:8px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:600">${typeIcon[i.type]||"📄"} ${escapeHtml(i.title)}</div>
+            ${i.category?`<div style="font-size:10px;color:#888">${escapeHtml(i.category)}</div>`:""}
+          </div>
+          <button class="mini" style="pointer-events:none">+ Hinzufügen</button>
+        </div>`).join("");
+    }
+
+    function addItemToPlan(libraryId) {
+      if (!_trainingPlan) return;
+      _trainingPlan.items.push({ library_id: libraryId, comment: "", sort_order: _trainingPlan.items.length });
+      renderTrainingPlan(_trainingPlan);
+      schedulePlanSave();
+      closeAddToPlanModal();
+    }
+
+    // ── BIBLIOTHEK MODAL ─────────────────────────────────────
+    function openLibraryItemModal(id) {
+      const m = $("#libraryItemModal"); if (!m) return;
+      const item = id ? _libraryItems.find(i => i.id === id) : null;
+      $("#libModalTitle").textContent = item ? "Übung bearbeiten" : "Neue Übung";
+      $("#libItemId").value = item?.id || "";
+      $("#libItemTitle").value = item?.title || "";
+      $("#libItemCategory").value = item?.category || "";
+      $("#libItemType").value = item?.type || "tactic";
+      $("#libItemDescription").value = item?.description || "";
+      $("#libItemIsGlobal").checked = item?.is_global || false;
+      $("#libGlobalField").style.display = isSuperadmin() ? "" : "none";
+      // Taktikboards befüllen
+      $("#libItemTacticBoard").innerHTML = state.tacticBoards.map(b => `<option value="${b.id}"${item?.content===b.id?" selected":""}>${escapeHtml(b.title||"Taktik")}</option>`).join("");
+      if (item?.type === "youtube") $("#libItemYoutubeUrl").value = item.content || "";
+      if (item?.type === "image")   { $("#libItemImageUrl").value = item.content || ""; const prev = $("#libItemImagePreview"); if (prev) { prev.src = item.content||""; prev.style.display = item.content?"":"none"; } }
+      updateLibItemTypeUI();
+      m.style.display = "flex"; m.setAttribute("aria-hidden","false");
+    }
+
+    function editLibraryItem(id) { openLibraryItemModal(id); }
+
+    function closeLibraryItemModal() {
+      const m = $("#libraryItemModal"); if (m) { m.style.display = "none"; m.setAttribute("aria-hidden","true"); }
+    }
+
+    function updateLibItemTypeUI() {
+      const t = $("#libItemType")?.value || "tactic";
+      [["libTypeTactic","tactic"],["libTypeYoutube","youtube"],["libTypeImage","image"],["libTypeTraining","training"]].forEach(([id,type]) => {
+        const el = $(`#${id}`); if (el) el.style.display = t === type ? "" : "none";
+      });
+    }
+
+    function handleLibImageUpload(input) {
+      const file = input.files?.[0]; if (!file) return;
+      if (file.size > 1024*1024) { alert("Bild zu groß – max. 1 MB."); input.value = ""; return; }
+      const reader = new FileReader();
+      reader.onload = e => {
+        const prev = $("#libItemImagePreview");
+        if (prev) { prev.src = e.target.result; prev.style.display = ""; }
+        if ($("#libItemImageUrl")) $("#libItemImageUrl").value = "";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function deleteLibraryItem(id) {
+      if (!window.confirm("Übung löschen?")) return;
+      const client = getSupabaseClient();
+      if (client) await client.from("training_library").delete().eq("id", id);
+      _libraryItems = _libraryItems.filter(i => i.id !== id);
+      renderLibrary();
+    }
+
+    $("#libraryItemForm")?.addEventListener("submit", async e => {
+      e.preventDefault();
+      const type = $("#libItemType").value;
+      let content = "";
+      if (type === "tactic")   content = $("#libItemTacticBoard").value;
+      if (type === "youtube")  content = $("#libItemYoutubeUrl").value.trim();
+      if (type === "image") {
+        const prev = $("#libItemImagePreview");
+        content = (prev?.style.display !== "none" && prev?.src) ? prev.src : $("#libItemImageUrl").value.trim();
+      }
+      const payload = {
+        club_id:     currentClubId,
+        title:       $("#libItemTitle").value.trim(),
+        category:    $("#libItemCategory").value.trim() || "Allgemein",
+        type,
+        content,
+        content_data: {},
+        description: $("#libItemDescription").value.trim(),
+        is_global:   isSuperadmin() && $("#libItemIsGlobal").checked,
+        created_by:  state.loginUser || ""
+      };
+      const id = $("#libItemId").value;
+      const client = getSupabaseClient();
+      if (client) {
+        if (id) await client.from("training_library").update(payload).eq("id", id);
+        else    await client.from("training_library").insert(payload);
+      }
+      await fetchLibraryItems();
+      renderLibrary();
+      closeLibraryItemModal();
+    });
+
+    // ── renderTacticBoard (neue Version) ────────────────────
+    function renderTacticBoard() {
+      if (!$("#tacticBoardForm")) return;
+      applySportTacticMode();
+      const board = currentTacticBoard();
+      if ($("#tacticBoardTitle")) $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
+      // Tab-Listen aktualisieren
+      if (_tacticTab === "games" && _selectedGameEventId) renderGameTacticItems(_selectedGameEventId);
+      else if (_tacticTab === "games") renderGameEventList();
+      else if (_tacticTab === "free") renderFreeTacticList();
+      // Event-Select
+      if ($("#tacticEventSelect")) $("#tacticEventSelect").innerHTML = tacticEventOptions("");
+      // Linked chips
+      renderTacticLinkedChips(board);
+      // Notes
+      if ($("#tacticBoardNotes") && document.activeElement !== $("#tacticBoardNotes")) {
+        const h = board.notesHtml || "";
+        if ($("#tacticBoardNotes").innerHTML !== h) $("#tacticBoardNotes").innerHTML = h;
+      }
+      // Trainingsplan
+      checkTrainingPlanVisibility();
+      sendTactic3dPayload();
+    }
+
     function renderTacticBoard() {
       if (!$("#tacticBoardForm")) return;
       applySportTacticMode();
@@ -7364,7 +7869,7 @@
       renderTacticBoard();
       requestAnimationFrame(sendTactic3dPayload);
     });
-    $("#saveTacticBoardBtn")?.addEventListener("click", saveCurrentTacticBoardExplicitly);
+    $("#saveTacticBoardBtn")?.addEventListener("click", saveTacticBoardWithCheck);
     $("#tacticBoardName")?.addEventListener("change", () => {
       const board = currentTacticBoard();
       board.title = ($("#tacticBoardName").value || "").trim() || board.title || "Taktik";
@@ -7910,6 +8415,8 @@
       syncWithSupabase({ silent: true });
     }
     refreshLoginDirectory().catch(() => {});
+    fetchLibraryItems().catch(() => {});
+    switchTacticTab("games");
     loadPaypalSettings();
 
     if ("serviceWorker" in navigator) {
