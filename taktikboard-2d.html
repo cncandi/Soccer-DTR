@@ -1689,22 +1689,22 @@ function getSnapshot2d(){
 }
 
 function applySnapshot2d(snap, animate=false, fromSnap=null){
+  // drawLines immer sofort setzen (keine Animation für Pfeile/Texte)
+  drawLines = JSON.parse(JSON.stringify(snap.drawLines || []));
+
   if(!animate || !fromSnap){
-    objects   = JSON.parse(JSON.stringify(snap.objects));
-    drawLines = JSON.parse(JSON.stringify(snap.drawLines));
+    objects = JSON.parse(JSON.stringify(snap.objects || []));
     render();
     return;
   }
-  // Animiertes Morphing (lineare Interpolation der Positionen)
+  // Animiertes Morphing nur für Spielerpositionen
   const start = performance.now();
-  const fromObjs = fromSnap.objects;
-  const toObjs   = snap.objects;
+  const fromObjs = fromSnap.objects || [];
+  const toObjs   = snap.objects || [];
 
   function step(now){
     const t = Math.min(1, (now - start) / MORPH_MS);
-    const et = t < 0.5 ? 2*t*t : (4-2*t)*t-1; // ease-in-out
-
-    // Ziel-Objekte mit interpolierten Positionen
+    const et = t < 0.5 ? 2*t*t : (4-2*t)*t-1;
     objects = toObjs.map(to=>{
       const from = fromObjs.find(f=>f.id===to.id);
       if(!from) return {...to};
@@ -1713,9 +1713,13 @@ function applySnapshot2d(snap, animate=false, fromSnap=null){
         fy: from.fy + (to.fy - from.fy) * et
       };
     });
-    drawLines = JSON.parse(JSON.stringify(snap.drawLines));
     render();
     if(t < 1) requestAnimationFrame(step);
+    else {
+      // Am Ende: finale Positionen setzen
+      objects = JSON.parse(JSON.stringify(snap.objects || []));
+      render();
+    }
   }
   requestAnimationFrame(step);
 }
@@ -1789,16 +1793,34 @@ function drawThumb2d(i, snap){
   if(!c) return;
   const tc = c.getContext('2d');
   const tw=36, th=24;
+  // Feld-Hintergrund
   tc.fillStyle='#2d5a1b'; tc.fillRect(0,0,tw,th);
   tc.strokeStyle='rgba(255,255,255,0.4)'; tc.lineWidth=0.5;
   tc.strokeRect(0,0,tw,th);
   tc.beginPath(); tc.moveTo(tw/2,0); tc.lineTo(tw/2,th); tc.stroke();
+  // Pfeile
+  (snap.drawLines||[]).forEach(l=>{
+    const x1=(l.x1/FIELD.w)*tw, y1=(l.y1/FIELD.h)*th;
+    const x2=(l.x2/FIELD.w)*tw, y2=(l.y2/FIELD.h)*th;
+    tc.strokeStyle=l.color||'#ffffff'; tc.lineWidth=1;
+    tc.setLineDash(l.style==='dashed'?[3,2]:[]);
+    tc.beginPath(); tc.moveTo(x1,y1); tc.lineTo(x2,y2); tc.stroke();
+    tc.setLineDash([]);
+  });
   // Spieler als Punkte
   (snap.objects||[]).forEach(o=>{
     if(o.type!=='player') return;
-    const px = (o.fx/FIELD.w)*tw, py = (o.fy/FIELD.h)*th;
+    const px=(o.fx/FIELD.w)*tw, py=(o.fy/FIELD.h)*th;
     tc.beginPath(); tc.arc(px,py,o.isBench?1.5:2.5,0,Math.PI*2);
     tc.fillStyle=o.color||'#e63946'; tc.fill();
+  });
+  // Texte als T-Symbol
+  (snap.objects||[]).forEach(o=>{
+    if(o.type!=='text') return;
+    const px=(o.fx/FIELD.w)*tw, py=(o.fy/FIELD.h)*th;
+    tc.fillStyle='#ffff00';
+    tc.font='4px sans-serif'; tc.textAlign='center';
+    tc.fillText('T',px,py);
   });
 }
 
