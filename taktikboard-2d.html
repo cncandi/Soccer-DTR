@@ -86,6 +86,9 @@ canvas{display:block}
 /* Arrow color selector */
 #draw-color-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:4px 6px;background:#0d0d1e;border-radius:5px}
 #draw-color-row label{font-size:9px;color:#aaa}
+.scene-thumb2d{width:36px;height:24px;border:2px solid #3a3a6a;border-radius:3px;cursor:pointer;background:#1a1a3e;flex-shrink:0;transition:border-color .15s;position:relative}
+.scene-thumb2d.active{border-color:#7070cc;background:#25255f}
+.scene-thumb2d:hover{border-color:#9999dd}
 .arrow-swatch{width:16px;height:16px;border-radius:3px;cursor:pointer;border:2px solid transparent;flex-shrink:0}
 .arrow-swatch.sel{border-color:#fff}
 #draw-color-custom{width:22px;height:16px;border:1px solid #3a3a6a;background:none;border-radius:3px;cursor:pointer;padding:0}
@@ -113,7 +116,18 @@ canvas{display:block}
       <button class="tb-btn" onclick="clearAll()">🗑 Leeren</button>
       <button class="tb-btn" onclick="toggleNames()" id="btn-names">Namen: Aus</button>
       <button class="tb-btn" onclick="autoPlace2d()">⚡ Auto-Aufstellung</button>
+      <button class="tb-btn" onclick="toggleSceneBar()" id="btn-scenes">🎬 Szenen</button>
       <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
+    </div>
+    <!-- Szenen-Leiste -->
+    <div id="scene-bar2d" style="display:none;position:absolute;top:50px;left:50%;transform:translateX(-50%);align-items:center;gap:6px;background:rgba(18,18,42,.95);border:1px solid #3a3a6a;border-radius:9px;padding:5px 10px;backdrop-filter:blur(4px);white-space:nowrap;z-index:30;flex-wrap:wrap">
+      <button class="tb-btn" style="border-color:#aa2222;color:#ff8888" onclick="addScene2d()" title="Aktuelle Position als Szene speichern">⊕ Szene</button>
+      <div id="scene-thumbs2d" style="display:flex;gap:4px;max-width:280px;overflow-x:auto;scrollbar-width:none"></div>
+      <span id="scene-counter2d" style="font-size:11px;color:#aaa;min-width:55px;text-align:center">0 Szenen</span>
+      <button class="tb-btn" onclick="goPrevScene2d()">◀</button>
+      <button class="tb-btn" onclick="goNextScene2d()">▶</button>
+      <button class="tb-btn" id="btn-play2d" onclick="togglePlay2d()" style="border-color:#226622;color:#66cc66">▶ Play</button>
+      <button class="tb-btn" onclick="deleteCurrentScene2d()" style="color:#ff6666">✕ Szene</button>
     </div>
     <div id="formation-bar-2d" style="display:none;position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:5px;background:rgba(10,10,30,.85);border:1px solid #2a2a4a;border-radius:8px;padding:5px 8px;z-index:20;backdrop-filter:blur(4px);flex-wrap:nowrap">
       <button class="tb-btn fbtn2d active" id="fbtn-4-3-3" onclick="applyFormation2d('4-3-3')">4-3-3</button>
@@ -126,7 +140,7 @@ canvas{display:block}
     <div id="statusbar">
       <span id="s-mode">Modus: Auswahl</span>
       <span id="s-players">Feld: 0 Spieler</span>
-      <span id="s-hint">Klick: auswählen · Doppelklick: entfernen · Rechtsklick: Optionen</span>
+      <span id="s-hint">Klick: auswählen · Doppelklick Spieler: Feld↔Bank · Doppelklick Objekt: löschen · Rechtsklick: Optionen</span>
     </div>
   </div>
 </div>
@@ -928,7 +942,14 @@ function onMouseUp(e){
 function onDblClick(e){
   const p=canvasXY(e);
   const hit=hitTest(p.x,p.y);
-  if(hit) removeObject(hit.id);
+  if(!hit) return;
+  // Spieler mit playerId → Wechsel Feld/Bank
+  if(hit.type==='player' && hit.playerId && !hit.playerId.startsWith('away_')){
+    swapPlayerFieldBench(hit);
+  } else {
+    // Alle anderen Objekte → löschen
+    removeObject(hit.id);
+  }
 }
 
 function onContextMenu(e){
@@ -1592,23 +1613,26 @@ function postKadrivoSave(){
 }
 
 function exportState(){
-  return {objects, drawLines, showNames, arrowColor, arrowStyle};
+  return {objects, drawLines, showNames, arrowColor, arrowStyle, scenes:scenes2d, currentScene:currentScene2d};
 }
 
 function importState(saved, players){
   kadrivoPlayers = players||[];
   if(saved){
-    objects   = saved.objects   || [];
-    drawLines = saved.drawLines || [];
-    showNames = saved.showNames || false;
-    arrowColor= saved.arrowColor|| '#ffffff';
-    arrowStyle= saved.arrowStyle|| 'solid';
+    objects       = saved.objects   || [];
+    drawLines     = saved.drawLines || [];
+    showNames     = saved.showNames || false;
+    arrowColor    = saved.arrowColor|| '#ffffff';
+    arrowStyle    = saved.arrowStyle|| 'solid';
+    scenes2d      = saved.scenes    || [];
+    currentScene2d= saved.currentScene ?? -1;
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o',''));if(n>maxId)maxId=n; });
     oidSeq=maxId+1;
   }
   updateSidebar();
   updatePlayerCount();
+  updateSceneUI2d();
   render();
 }
 
@@ -1646,6 +1670,188 @@ function updateFormationBar(){
   if(!bar) return;
   // Show formations only for Fussball with 11 players
   bar.style.display=(currentSport==='Fussball'&&fieldLimit===11)?'flex':'none';
+}
+
+// ============================================================
+// SZENEN-SYSTEM
+// ============================================================
+let scenes2d = [];       // [{objects, drawLines}]
+let currentScene2d = -1;
+let isPlaying2d = false;
+let playTimer2d = null;
+const MORPH_MS = 600;    // Animations-Dauer in ms
+
+function getSnapshot2d(){
+  return {
+    objects:   JSON.parse(JSON.stringify(objects)),
+    drawLines: JSON.parse(JSON.stringify(drawLines))
+  };
+}
+
+function applySnapshot2d(snap, animate=false, fromSnap=null){
+  if(!animate || !fromSnap){
+    objects   = JSON.parse(JSON.stringify(snap.objects));
+    drawLines = JSON.parse(JSON.stringify(snap.drawLines));
+    render();
+    return;
+  }
+  // Animiertes Morphing (lineare Interpolation der Positionen)
+  const start = performance.now();
+  const fromObjs = fromSnap.objects;
+  const toObjs   = snap.objects;
+
+  function step(now){
+    const t = Math.min(1, (now - start) / MORPH_MS);
+    const et = t < 0.5 ? 2*t*t : (4-2*t)*t-1; // ease-in-out
+
+    // Ziel-Objekte mit interpolierten Positionen
+    objects = toObjs.map(to=>{
+      const from = fromObjs.find(f=>f.id===to.id);
+      if(!from) return {...to};
+      return {...to,
+        fx: from.fx + (to.fx - from.fx) * et,
+        fy: from.fy + (to.fy - from.fy) * et
+      };
+    });
+    drawLines = JSON.parse(JSON.stringify(snap.drawLines));
+    render();
+    if(t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function addScene2d(){
+  const snap = getSnapshot2d();
+  if(currentScene2d < 0 || currentScene2d >= scenes2d.length-1){
+    scenes2d.push(snap);
+    currentScene2d = scenes2d.length - 1;
+  } else {
+    scenes2d.splice(currentScene2d+1, 0, snap);
+    currentScene2d++;
+  }
+  updateSceneUI2d();
+  scheduleKadrivoSave();
+}
+
+function gotoScene2d(idx, animate=false){
+  if(idx < 0 || idx >= scenes2d.length) return;
+  const from = animate && currentScene2d >= 0 ? getSnapshot2d() : null;
+  currentScene2d = idx;
+  applySnapshot2d(scenes2d[idx], animate, from);
+  updateSceneUI2d();
+}
+
+function goPrevScene2d(){ if(currentScene2d > 0) gotoScene2d(currentScene2d-1, true); }
+function goNextScene2d(){ if(currentScene2d < scenes2d.length-1) gotoScene2d(currentScene2d+1, true); }
+
+function deleteCurrentScene2d(){
+  if(currentScene2d < 0 || !scenes2d.length) return;
+  scenes2d.splice(currentScene2d, 1);
+  currentScene2d = Math.min(currentScene2d, scenes2d.length-1);
+  updateSceneUI2d();
+  scheduleKadrivoSave();
+}
+
+function togglePlay2d(){
+  isPlaying2d = !isPlaying2d;
+  const btn = document.getElementById('btn-play2d');
+  if(btn){ btn.textContent = isPlaying2d ? '⏸ Pause' : '▶ Play'; btn.style.background = isPlaying2d ? '#163316' : ''; }
+  if(isPlaying2d) playStep2d();
+  else { clearTimeout(playTimer2d); playTimer2d = null; }
+}
+
+function playStep2d(){
+  if(!isPlaying2d) return;
+  if(currentScene2d >= scenes2d.length-1){
+    gotoScene2d(0, false);
+  } else {
+    gotoScene2d(currentScene2d+1, true);
+  }
+  playTimer2d = setTimeout(playStep2d, MORPH_MS + 400);
+}
+
+function updateSceneUI2d(){
+  const counter = document.getElementById('scene-counter2d');
+  if(counter) counter.textContent = `${scenes2d.length} Szene${scenes2d.length===1?'':'n'}`;
+  const thumbs = document.getElementById('scene-thumbs2d');
+  if(!thumbs) return;
+  thumbs.innerHTML = scenes2d.map((s,i)=>`
+    <canvas class="scene-thumb2d${i===currentScene2d?' active':''}"
+      id="sthumb2d-${i}" width="36" height="24"
+      onclick="gotoScene2d(${i},true)" title="Szene ${i+1}"></canvas>
+  `).join('');
+  // Thumbs zeichnen
+  scenes2d.forEach((s,i)=>{ setTimeout(()=>drawThumb2d(i,s), 0); });
+}
+
+function drawThumb2d(i, snap){
+  const c = document.getElementById('sthumb2d-'+i);
+  if(!c) return;
+  const tc = c.getContext('2d');
+  const tw=36, th=24;
+  tc.fillStyle='#2d5a1b'; tc.fillRect(0,0,tw,th);
+  tc.strokeStyle='rgba(255,255,255,0.4)'; tc.lineWidth=0.5;
+  tc.strokeRect(0,0,tw,th);
+  tc.beginPath(); tc.moveTo(tw/2,0); tc.lineTo(tw/2,th); tc.stroke();
+  // Spieler als Punkte
+  (snap.objects||[]).forEach(o=>{
+    if(o.type!=='player') return;
+    const px = (o.fx/FIELD.w)*tw, py = (o.fy/FIELD.h)*th;
+    tc.beginPath(); tc.arc(px,py,o.isBench?1.5:2.5,0,Math.PI*2);
+    tc.fillStyle=o.color||'#e63946'; tc.fill();
+  });
+}
+
+function toggleSceneBar(){
+  const bar = document.getElementById('scene-bar2d');
+  if(!bar) return;
+  const visible = bar.style.display==='flex';
+  bar.style.display = visible ? 'none' : 'flex';
+  document.getElementById('btn-scenes').classList.toggle('active', !visible);
+  if(!visible) updateSceneUI2d();
+}
+
+// ============================================================
+// SPIELERWECHSEL (Doppelklick)
+// ============================================================
+function swapPlayerFieldBench(obj){
+  if(!obj || obj.type !== 'player' || !obj.playerId) return;
+
+  if(obj.isBench){
+    // Bank → Feld: prüfe ob Feldlimit erreicht
+    const onField = objects.filter(o=>o.type==='player'&&o.playerId&&!o.isBench&&!o.playerId.startsWith('away_'));
+    if(onField.length >= fieldLimit){
+      document.getElementById('s-mode').textContent = `Feld voll (max. ${fieldLimit} Spieler)`;
+      setTimeout(()=>document.getElementById('s-mode').textContent='Modus: Auswahl',2000);
+      return;
+    }
+    pushUndo();
+    obj.isBench = false;
+    obj.starter = true;
+    obj.color = obj.origColor || homeColor;
+    // Platziere auf freiem Slot in der Feldmitte
+    obj.fx = FIELD.w * 0.4 + Math.random()*FIELD.w*0.1;
+    obj.fy = FIELD.h * 0.3 + Math.random()*FIELD.h*0.4;
+  } else {
+    // Feld → Bank: prüfe ob Banklimit erreicht
+    const onBench = objects.filter(o=>o.type==='player'&&o.playerId&&o.isBench&&!o.playerId.startsWith('away_'));
+    if(onBench.length >= benchLimit){
+      document.getElementById('s-mode').textContent = `Bank voll (max. ${benchLimit} Plätze)`;
+      setTimeout(()=>document.getElementById('s-mode').textContent='Modus: Auswahl',2000);
+      return;
+    }
+    pushUndo();
+    obj.origColor = obj.color;
+    obj.isBench = true;
+    obj.starter = false;
+    obj.color = '#555555';
+    // Platziere an nächster freier Bank-Position
+    const benchCount = objects.filter(o=>o.type==='player'&&o.isBench&&!o.playerId?.startsWith('away_')).length;
+    obj.fx = Math.min(FIELD.w-1, 1 + benchCount * (FIELD.w / Math.max(benchLimit,1)));
+    obj.fy = FIELD.h - 0.8;
+  }
+  render();
+  scheduleKadrivoSave();
 }
 
 // ============================================================
