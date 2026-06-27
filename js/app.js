@@ -327,6 +327,7 @@
         maxBenchPlayers: Math.max(0, Number(club.maxBenchPlayers ?? club.max_bench_players ?? sportDefaults.benchPlayers)),
         league: club.league || club.liga || "",
         federalState: club.federalState || club.federal_state || club.bundesland || "",
+        customPositions: Array.isArray(club.customPositions) ? club.customPositions : [],
         modules: Object.fromEntries(CLUB_MODULES.map(([key]) => [key, rawModules[key] !== false])),
         licenseKey: club.licenseKey || club.license_key || generateLicenseKey(),
         licenseStatus: status,
@@ -4860,7 +4861,12 @@
     }
 
     function positionOptions(selected) {
-      return optionList(currentPositionList(), selected);
+      const list = currentPositionList();
+      // Wenn der gespeicherte Wert nicht in der Liste ist → trotzdem anzeigen
+      if (selected && !list.includes(selected)) {
+        return optionList([selected, ...list], selected);
+      }
+      return optionList(list, selected);
     }
 
     function groupOptions(selected) {
