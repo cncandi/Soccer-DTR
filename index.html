@@ -540,15 +540,7 @@ Nein</textarea></div>
               <div class="field full"><button class="btn-primary" type="submit">Design speichern</button></div>
             </form>
           </section>
-          <section class="panel config superadmin-only">
-            <h3>Supabase verbinden</h3>
-            <form id="settingsForm" class="form-grid">
-              <div class="field full"><label>Supabase URL</label><input name="url" placeholder="https://...supabase.co"></div>
-              <div class="field full"><label>Anon Public Key</label><input name="key" placeholder="eyJ..."></div>
-              <div class="field full"><label>Tabellenname</label><input name="table" value="club_documents"></div>
-              <div class="field full"><button class="btn-primary" type="submit">Konfiguration speichern</button></div>
-            </form>
-          </section>
+
           <section class="panel admin-only" id="kadrivoSubscriptionPanel">
             <h3>Kadrivo Abo</h3>
             <div class="pro-card">
@@ -589,6 +581,12 @@ Nein</textarea></div>
             </form>
             <p class="meta" id="paypalStatus">PayPal ist nicht verbunden.</p>
           </section>
+
+          <form id="settingsForm" style="display:none" aria-hidden="true">
+            <input name="url">
+            <input name="key">
+            <input name="table" value="club_documents">
+          </form>
 
         </div>
       </section>
