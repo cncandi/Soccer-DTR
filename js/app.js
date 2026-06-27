@@ -5939,7 +5939,11 @@
       btn2d?.classList.toggle("active", !is3d);
       setTimeout(() => sendTactic3dPayload(), 100);
     }
-    window.switchTacticMode = switchTacticMode;
+    window.switchTacticMode          = switchTacticMode;
+    window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
+    window.deleteCurrentTacticBoard   = deleteCurrentTacticBoard;
+    window.linkTacticEvent            = linkTacticEvent;
+    window.onTacticBoardSelectChange  = onTacticBoardSelectChange;
 
     function currentTacticMode() {
       return $("#tactic-panel-2d")?.style.display === "" ? "2d" : "3d";
