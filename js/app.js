@@ -6396,13 +6396,16 @@
         sel.value = selectedTacticBoardId || "";
       }
 
-      // Spiele-Select befüllen
+      // Spiele-Select befüllen (aktuelle Auswahl beibehalten)
       const evSel = $("#tacticEventSelect");
       if (evSel) {
+        const prevEventValue = evSel.value || "";
         const games = (state.events||[]).filter(e=>normalizedEventType(e.type)==="Spiel")
           .sort((a,b)=>(b.date||"")>(a.date||"")?1:-1);
         evSel.innerHTML = `<option value="">Spiel wählen…</option>` +
           games.map(g=>`<option value="${escapeAttr(g.id)}">${escapeHtml(g.title||"Spiel")} – ${formatDate(g.date)}</option>`).join("");
+        // Auswahl wiederherstellen falls das Spiel noch existiert
+        if (prevEventValue && games.some(g=>g.id===prevEventValue)) evSel.value = prevEventValue;
       }
 
       // Aktive Taktik Details
@@ -6453,17 +6456,21 @@
       return (state.tacticBoards||[]).find(b => (b.eventIds||[]).includes(eventId)) || null;
     }
 
-    // Auswahl im Spiele-Dropdown → zugehörige Taktik oben anzeigen
+    // Auswahl im Spiele-Dropdown: nur wechseln wenn das Spiel BEREITS einer anderen Taktik gehört
     function onTacticEventSelectChange() {
       const eventId = $("#tacticEventSelect")?.value || "";
       if (!eventId) return;
       const owner = tacticForEvent(eventId);
-      // Wenn das Spiel bereits eine Taktik hat → diese oben auswählen
-      selectedTacticBoardId = owner ? owner.id : "";
-      selectedTacticElementId = "";
-      tacticUndoStack = [];
-      renderTacticBoard();
-      // Spiel-Auswahl im Dropdown beibehalten (renderTacticBoard setzt sie zurück)
+      // Spiel ist frei → Taktik-Auswahl unverändert lassen, damit zugeordnet werden kann
+      if (!owner) return;
+      // Spiel gehört bereits einer Taktik → die anzeigen
+      if (owner.id !== selectedTacticBoardId) {
+        selectedTacticBoardId = owner.id;
+        selectedTacticElementId = "";
+        tacticUndoStack = [];
+        renderTacticBoard();
+      }
+      // Spiel-Auswahl im Dropdown beibehalten
       const evSel = $("#tacticEventSelect");
       if (evSel) evSel.value = eventId;
     }
@@ -6486,6 +6493,9 @@
       board.eventIds = board.eventIds || [];
       if (!board.eventIds.includes(eventId)) board.eventIds.push(eventId);
       board.eventId = board.eventIds[0] || "";
+      // Dropdown zurücksetzen – das Spiel ist jetzt als Chip sichtbar
+      const evSel = $("#tacticEventSelect");
+      if (evSel) evSel.value = "";
       renderTacticLinkedChips(board);
       saveState();
     }
