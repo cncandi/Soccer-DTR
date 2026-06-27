@@ -6314,84 +6314,48 @@
     // ============================================================
     // TAKTIKBOARD – saubere Neuimplementierung
     // ============================================================
-    let _tacticGameFilter = ""; // "" = alle, sonst event_id
+    // TAKTIKBOARD
+    // ============================================================
 
-    // Spiel-Dropdown befüllen und Taktik-Liste rendern
     function renderTacticBoard() {
       if (!$("#tacticBoardForm")) return;
       applySportTacticMode();
-      // Spiel-Dropdown
-      const gameFilter = $("#tacticGameFilter");
-      if (gameFilter) {
+      // Spiele-Dropdown für Zuordnung
+      if ($("#tacticEventSelect")) {
         const games = (state.events || [])
           .filter(e => normalizedEventType(e.type) === "Spiel")
-          .sort((a, b) => (b.date || "") > (a.date || "") ? 1 : -1);
-        const val = gameFilter.value || _tacticGameFilter;
-        gameFilter.innerHTML =
-          `<option value="">— Alle Taktiken —</option>` +
-          games.map(g =>
-            `<option value="${escapeAttr(g.id)}"${g.id === val ? " selected" : ""}>${escapeHtml(g.title || "Spiel")} – ${formatDate(g.date)}</option>`
-          ).join("");
-        gameFilter.value = val;
-      }
-      // Taktik-Event-Select
-      if ($("#tacticEventSelect")) {
-        const allGames = (state.events || []).filter(e => normalizedEventType(e.type) === "Spiel")
-          .sort((a, b) => (b.date || "") > (a.date || "") ? 1 : -1);
+          .sort((a, b) => (b.date||"") > (a.date||"") ? 1 : -1);
         $("#tacticEventSelect").innerHTML =
           `<option value="">Spiel wählen…</option>` +
-          allGames.map(g =>
-            `<option value="${escapeAttr(g.id)}">${escapeHtml(g.title || "Spiel")} – ${formatDate(g.date)}</option>`
-          ).join("");
+          games.map(g => `<option value="${escapeAttr(g.id)}">${escapeHtml(g.title||"Spiel")} – ${formatDate(g.date)}</option>`).join("");
       }
       renderTacticBoardList();
-      // Wenn eine Taktik gewählt ist: Details zeigen
       const board = state.tacticBoards.find(b => b.id === selectedTacticBoardId);
-      if (board) {
-        showTacticDetails(board);
-      } else {
-        hideTacticDetails();
-      }
+      if (board) showTacticDetails(board);
+      else hideTacticDetails();
       sendTactic3dPayload();
-    }
-
-    function onTacticGameFilterChange() {
-      _tacticGameFilter = $("#tacticGameFilter")?.value || "";
-      renderTacticBoardList();
     }
 
     function renderTacticBoardList() {
       const el = $("#tacticBoardList"); if (!el) return;
-      const filter = _tacticGameFilter;
-      const boards = (state.tacticBoards || []).filter(b => {
-        if (!filter) return true; // alle
-        const ids = b.eventIds || (b.eventId ? [b.eventId] : []);
-        return ids.includes(filter);
-      }).sort((a, b) => (b.updatedAt || "") > (a.updatedAt || "") ? 1 : -1);
-
+      const boards = (state.tacticBoards || []).sort((a, b) => (b.updatedAt||"") > (a.updatedAt||"") ? 1 : -1);
       if (!boards.length) {
-        el.innerHTML = `<p style="font-size:12px;color:#aaa;text-align:center;padding:16px 0">${
-          filter ? "Noch keine Taktik für dieses Spiel." : "Noch keine Taktiken."
-        }</p>`;
+        el.innerHTML = `<p style="font-size:12px;color:#aaa;text-align:center;padding:12px 0">Noch keine Taktiken.</p>`;
         return;
       }
-
       el.innerHTML = boards.map(b => {
         const ids = b.eventIds || (b.eventId ? [b.eventId] : []);
-        const gameLabels = ids.map(id => {
-          const g = (state.events || []).find(e => e.id === id);
-          return g ? escapeHtml(g.title || "Spiel") : null;
-        }).filter(Boolean);
-        const isActive = b.id === selectedTacticBoardId;
+        const labels = ids.map(id => { const g = (state.events||[]).find(e=>e.id===id); return g ? escapeHtml(g.title||"Spiel") : null; }).filter(Boolean);
+        const active = b.id === selectedTacticBoardId;
         return `<div onclick="selectTacticBoard('${b.id}')"
           style="padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;
-            border:2px solid ${isActive ? "#155e3b" : "#eee"};
-            background:${isActive ? "#f0faf4" : "#fff"};
-            transition:border-color .15s">
-          <div style="font-size:13px;font-weight:${isActive ? 700 : 500};color:${isActive ? "#155e3b" : "#222"}">
-            📋 ${escapeHtml(b.title || "Neue Taktik")}
+            border:2px solid ${active?"#155e3b":"#eee"};background:${active?"#f0faf4":"#fff"}">
+          <div style="font-size:13px;font-weight:${active?700:500};color:${active?"#155e3b":"#222"}">
+            📋 ${escapeHtml(b.title||"Neue Taktik")}
           </div>
-          ${gameLabels.length ? `<div style="font-size:11px;color:#888;margin-top:2px">🏆 ${gameLabels.join(", ")}</div>` : `<div style="font-size:11px;color:#bbb;margin-top:2px">Kein Spiel zugeordnet</div>`}
+          <div style="font-size:11px;color:${labels.length?"#888":"#bbb"};margin-top:2px">
+            ${labels.length ? "🏆 "+labels.join(", ") : "Kein Spiel zugeordnet"}
+          </div>
         </div>`;
       }).join("");
     }
@@ -6441,7 +6405,12 @@
       const sel = $("#tacticEventSelect"); if (!sel?.value) return;
       const board = currentTacticBoard(); if (!board) return;
       board.eventIds = board.eventIds || [];
-      if (!board.eventIds.includes(sel.value)) board.eventIds.push(sel.value);
+      // Keine doppelte Zuordnung
+      if (board.eventIds.includes(sel.value)) {
+        sel.value = "";
+        return;
+      }
+      board.eventIds.push(sel.value);
       board.eventId = board.eventIds[0] || "";
       sel.value = "";
       renderTacticLinkedChips(board);
@@ -6458,21 +6427,22 @@
       saveState();
     }
 
-    // Neue Taktik anlegen
+    // Neue Taktik anlegen (kein Spiel-Filter mehr)
     function startNewTactic() {
-      const filter = _tacticGameFilter;
       const newBoard = normalizeTacticBoard({
         id:       crypto.randomUUID(),
         title:    "Neue Taktik",
-        eventIds: filter ? [filter] : [],
-        eventId:  filter || ""
+        eventIds: [],
+        eventId:  ""
       });
       state.tacticBoards.push(newBoard);
       selectedTacticBoardId = newBoard.id;
       saveState();
       renderTacticBoard();
-      // Sofort Name fokussieren
-      setTimeout(() => $("#tacticBoardName")?.select(), 100);
+      setTimeout(() => {
+        const inp = $("#tacticBoardName");
+        if (inp) { inp.select(); inp.focus(); }
+      }, 100);
     }
 
     // Taktik löschen
@@ -6488,13 +6458,13 @@
       renderTacticBoard();
     }
 
-    // Speichern mit Namensabfrage wenn nötig
+    // Speichern: 2D- UND 3D-State anfordern, dann speichern
     async function saveTacticBoardWithCheck() {
       const board = currentTacticBoard(); if (!board) return;
       const titleInput = $("#tacticBoardName");
       let title = titleInput?.value?.trim() || board.title || "";
 
-      // Wenn noch "Neue Taktik" → Namensabfrage
+      // Neue Taktik ohne Namen → Namensabfrage
       if (!title || title === "Neue Taktik") {
         const name = window.prompt("Name der Taktik:", "");
         if (!name?.trim()) return;
@@ -6512,13 +6482,17 @@
         board.updatedAt = new Date().toISOString();
         if ($("#tacticBoardTitle")) $("#tacticBoardTitle").textContent = title;
 
+        // 2D-State vom iframe anfordern (postMessage → kadrivo:tactic-save)
         await requestTactic3dState(board);
         flushTactic3dSave();
         saveState();
         syncWithSupabase({ silent: true });
         renderTacticBoardList();
 
-        if (status) { status.textContent = "✓ Gespeichert"; setTimeout(() => { if (status) status.textContent = ""; }, 2000); }
+        if (status) {
+          status.textContent = "✓ Gespeichert";
+          setTimeout(() => { if (status) status.textContent = ""; }, 2000);
+        }
       } catch (e) {
         if (status) status.textContent = "Fehler: " + e.message;
       } finally {
