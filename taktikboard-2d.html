@@ -85,7 +85,7 @@ canvas{display:block}
 
 /* Arrow color selector */
 #draw-color-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:4px 6px;background:#0d0d1e;border-radius:5px}
-#draw-color-row label{font-size:9px;color:#666}
+#draw-color-row label{font-size:9px;color:#aaa}
 .arrow-swatch{width:16px;height:16px;border-radius:3px;cursor:pointer;border:2px solid transparent;flex-shrink:0}
 .arrow-swatch.sel{border-color:#fff}
 #draw-color-custom{width:22px;height:16px;border:1px solid #3a3a6a;background:none;border-radius:3px;cursor:pointer;padding:0}
@@ -179,6 +179,8 @@ let undoStack = [];
 
 let dragObj   = null;
 let dragOffX  = 0, dragOffY = 0;
+let dragMoved = false;
+let dragStartFx = 0, dragStartFy = 0;
 let isPanning = false;
 let panStart  = {x:0,y:0};
 let panOff    = {x:0,y:0};
@@ -672,9 +674,12 @@ function onMouseDown(e){
 
   const hit=hitTest(p.x,p.y);
   if(hit){
-    pushUndo();
     selected=hit.id;
     dragObj=hit;
+    dragMoved=false;
+    // Save drag-start position for undo
+    dragStartFx=hit.fx;
+    dragStartFy=hit.fy;
     const hp=fieldToCanvas(hit.fx,hit.fy);
     dragOffX=p.x-hp.x; dragOffY=p.y-hp.y;
     render();
@@ -699,7 +704,8 @@ function onMouseMove(e){
     const fp=canvasToField(p.x-dragOffX, p.y-dragOffY);
     dragObj.fx = Math.max(0,Math.min(FIELD.w,fp.x));
     dragObj.fy = Math.max(0,Math.min(FIELD.h,fp.y));
-    render(); scheduleKadrivoSave(); return;
+    dragMoved = true;
+    render(); return;
   }
   if(drawMode && drawStart){ render(); }
 }
@@ -707,7 +713,20 @@ function onMouseMove(e){
 function onMouseUp(e){
   if(e.button===1){ isPanning=false; return; }
   if(isPanning && !dragObj){ isPanning=false; return; }
-  if(dragObj){ dragObj=null; isPanning=false; }
+  if(dragObj){
+    if(dragMoved){
+      // Insert undo entry with original position
+      const finalFx=dragObj.fx, finalFy=dragObj.fy;
+      dragObj.fx=dragStartFx; dragObj.fy=dragStartFy;
+      pushUndo();
+      dragObj.fx=finalFx; dragObj.fy=finalFy;
+      scheduleKadrivoSave();
+    }
+    dragObj=null;
+    dragMoved=false;
+    isPanning=false;
+    render();
+  }
 }
 
 function onDblClick(e){
