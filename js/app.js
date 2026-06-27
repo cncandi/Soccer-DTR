@@ -5841,7 +5841,10 @@
         },
         players,
         saved: board.threeData || null,
-        teamColor: board.teamColor || currentClub().color || "#155e3b"
+        teamColor: board.teamColor || currentClub().color || "#155e3b",
+        homeColor: board.teamColor || currentClub().color || "#155e3b",
+        awayColor: "#e63946",
+        gkColor:   "#ff9900"
       };
     }
 
@@ -5970,7 +5973,7 @@
       const board = currentTacticBoard();
       const eventItem = state.events.find((item) => item.id === board.eventId);
       const frame = $("#tactic2dModalFrame");
-      if (frame && !frame.src.includes("taktikboard-2d.html")) frame.src = `taktikboard-2d.html?v=144`;
+      if (frame && !frame.src.includes("taktikboard-2d.html")) frame.src = `taktikboard-2d.html?v=153`;
       $("#tactic2dModalTitle").textContent = board.title || "2D Taktiktafel";
       $("#tactic2dModalMeta").textContent = eventItem
         ? `${eventItem.type}: ${eventItem.title} - Aenderungen werden automatisch gespeichert.`

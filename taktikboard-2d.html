@@ -1759,12 +1759,10 @@ function exportState(){
 
 function importState(saved, players){
   kadrivoPlayers = players||[];
-  if(saved){
-    // Wenn gerade ein Drag läuft: State NICHT überschreiben
-    if(_drag){
-      // Nur Spielerliste und Metadaten updaten, Positionen nicht anfassen
-      return;
-    }
+  if(_drag) return; // Nicht während Drag
+
+  if(saved && (saved.objects?.length || saved.drawLines?.length)){
+    // Gespeicherten State laden
     objects       = saved.objects   || [];
     drawLines     = saved.drawLines || [];
     showNames     = saved.showNames || false;
@@ -1775,6 +1773,15 @@ function importState(saved, players){
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o',''));if(n>maxId)maxId=n; });
     oidSeq=maxId+1;
+  } else {
+    // Kein gespeicherter State → automatisch aufstellen
+    objects   = [];
+    drawLines = [];
+    // Spieler die laut Payload onField=true haben direkt platzieren
+    const onFieldPlayers = kadrivoPlayers.filter(p=>p.onField);
+    if(onFieldPlayers.length){
+      setTimeout(()=>{ autoPlace2d(); }, 50);
+    }
   }
   updateSidebar();
   updatePlayerCount();
