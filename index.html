@@ -21,7 +21,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v151';
+      const EXPECTED = 'v152';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +45,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v151</span></h1>
+          <h1>Kadrivo <span class="app-version">v152</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v151</span></h1>
+          <h1>Kadrivo <span class="app-version">v152</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -773,6 +773,6 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=151" defer></script>
+  <script src="js/app.js?v=152" defer></script>
 </body>
 </html>

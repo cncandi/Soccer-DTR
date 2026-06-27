@@ -1049,6 +1049,8 @@ function onPointerUp(e){
     }
     _drag = null;
     render();
+    // Jetzt erst speichern (nach _drag=null, damit importState nicht blockiert wird)
+    if(d.moved) scheduleKadrivoSave();
     return;
   }
 }
@@ -1661,163 +1663,130 @@ const FORMATIONS = {
 };
 
 // Generic formations for other player counts
-function genericFormation(count){
-  const slots=[];
-  slots.push([FIELD.w*0.1, FIELD.h/2]);
-  const outfield=count-1;
-  const rows=outfield<=3?1:outfield<=6?2:outfield<=9?3:4;
-  const perRow=Math.ceil(outfield/rows);
-  for(let r=0;r<rows;r++){
-    const cnt=Math.min(perRow,outfield-r*perRow);
-    const x=FIELD.w*0.18+r*(FIELD.w*0.55/rows);
-    for(let i=0;i<cnt;i++){
-      const y=FIELD.h*0.1+((FIELD.h*0.8/(cnt+1))*(i+1));
-      slots.push([x,y]);
-    }
-  }
-  return slots;
+// Positionsrolle wie im 3D-Board
+function positionRole(pos){
+  const v=String(pos||'').toLowerCase();
+  if(/tor|keeper|goal|^tw$|^gk$|torwart/.test(v)) return 'keeper';
+  if(/abwehr|verteid|def|back|^iv$|^av$|^lv$|^rv$|^cb$|^lb$|^rb$/.test(v)) return 'defense';
+  if(/sturm|angriff|forward|striker|wing|außen|^la$|^ra$|^cf$|kreis|center|libero|diagonal/.test(v)) return 'attack';
+  return 'midfield';
 }
 
-const GK_POSITIONS={
-  Fussball:['tor','torwart','gk','keeper'],
-  Handball:['tor','torwart','gk'],
-  Basketball:[],
-  Eishockey:['tor','torwart','goalie','goalkeeper'],
-  Volleyball:[],
-  'Andere Sportart':['tor','torwart','gk']
-};
-function isGkPosition(pos){
-  const terms=(GK_POSITIONS[currentSport]||GK_POSITIONS['Andere Sportart']);
-  const n=(pos||'').toLowerCase();
-  return terms.some(t=>n.includes(t));
-}
-
-// Sport-spezifische Slot-Positionen (in echten Metern des jeweiligen Feldes)
-const SPORT_AUTO_FORMATIONS={
-  Handball:{
-    gk:[[3,10]],
-    field:[[12,4],[12,10],[12,16],[20,4],[20,10],[20,16],[28,4],[28,10],[28,16],[32,5],[32,15],[16,7],[16,13],[24,7],[24,13]]
-  },
-  Basketball:{
-    gk:[],
-    field:[[3,7.5],[8,3],[8,12],[13,3],[13,12],[19,7.5],[16,4],[16,11],[10,7.5],[5,4],[5,11],[21,4],[21,11],[24,4],[24,11]]
-  },
-  Eishockey:{
-    gk:[[4,13]],
-    field:[[14,7],[14,13],[14,19],[22,7],[22,13],[22,19],[30,7],[30,13],[30,19],[38,7],[38,13],[38,19],[8,9],[8,17],[18,10]]
-  },
-  Volleyball:{
-    gk:[],
-    field:[[3,1.5],[3,4.5],[3,7.5],[8,1.5],[8,4.5],[8,7.5],[5.5,1.5],[5.5,4.5],[5.5,7.5],[1.5,3],[1.5,6],[10,3],[10,6],[6.5,3],[6.5,6]]
-  }
-};
-
-let currentFormation='4-3-3';
-let fieldLimit=11;
-let benchLimit=9;
-let currentSport='Fussball';
-
-function getFormationSlots(count){
-  if(currentSport==='Fussball'&&count===11&&FORMATIONS[currentFormation]){
-    return FORMATIONS[currentFormation].slots;
-  }
-  return genericFormation(count);
-}
-
-function applyFormation2d(name){
-  if(FORMATIONS[name]) currentFormation=name;
-  document.querySelectorAll('.fbtn2d').forEach(b=>b.classList.remove('active'));
-  const btn=document.getElementById('fbtn-'+name);
-  if(btn) btn.classList.add('active');
-  autoPlace2d();
+// Gruppen aus Formation-Slots ableiten (für Rollenverteilung)
+function formation2dSlots(formationName){
+  const F=FORMATIONS[formationName]||FORMATIONS['4-3-3'];
+  const slots=F.slots;
+  if(!slots||!slots.length) return [];
+  // Slot 0 = TW
+  const result=[{x:slots[0][0],y:slots[0][1],role:'keeper',playerId:''}];
+  // Restliche Slots: gruppiere nach ähnlichem x (±7m = gleiche Reihe)
+  const rest=slots.slice(1).slice().sort((a,b)=>a[0]-b[0]);
+  const rows=[];
+  rest.forEach(s=>{
+    const row=rows.find(r=>Math.abs(r[0][0]-s[0])<7);
+    if(row) row.push(s); else rows.push([s]);
+  });
+  const nRows=rows.length;
+  rows.forEach((row,ri)=>{
+    const role=ri===nRows-1?'attack':ri===0?'defense':'midfield';
+    row.forEach(s=>result.push({x:s[0],y:s[1],role,playerId:''}));
+  });
+  return result;
 }
 
 function autoPlace2d(){
-  // Alle Heimspieler vom Feld entfernen
+  // Alle Heimspieler entfernen
   objects.filter(o=>o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')).forEach(o=>{
-    const el=document.querySelector(`.player-item[data-pid="${o.playerId}"]`);
-    if(el) el.classList.remove('on-field');
+    document.querySelector(`.player-item[data-pid="${o.playerId}"]`)?.classList.remove('on-field');
   });
   objects=objects.filter(o=>!(o.type==='player'&&o.playerId&&!o.playerId.startsWith('away_')));
 
   const allHome=kadrivoPlayers.filter(p=>p.team!=='away');
-  const starters=allHome.slice(0,fieldLimit);
   const bench=allHome.slice(fieldLimit,fieldLimit+benchLimit);
 
   if(currentSport==='Fussball'){
-    const slots=getFormationSlots(starters.length);
-    // Torwart bekommt Slot 0, Feldspieler die restlichen Slots
-    const gkStarters    = starters.filter(p=>isGkPosition(p.pos));
-    const fieldStarters = starters.filter(p=>!isGkPosition(p.pos));
-    // Wenn kein TW-Spieler: ersten Spieler als TW behandeln
-    const orderedStarters = gkStarters.length
-      ? [...gkStarters, ...fieldStarters]
-      : starters;
-    orderedStarters.forEach((p,i)=>{
-      const pos=slots[i]||[FIELD.w/2,FIELD.h/2];
-      const isGk = i===0 && gkStarters.length>0 ? true : isGkPosition(p.pos);
-      const col=isGk?gkColor:homeColor;
-      objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-      const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-      if(el) el.classList.add('on-field');
-    });
-  } else {
-    const formation=SPORT_AUTO_FORMATIONS[currentSport];
-    const gkPlayers=starters.filter(p=>isGkPosition(p.pos));
-    const fieldPlayers=starters.filter(p=>!isGkPosition(p.pos));
+    const slots=formation2dSlots(currentFormation);
+    // Spieler sortieren: StarterFaktor 1 zuerst, dann nach Nummer
+    const pool=[...allHome].sort((a,b)=>
+      Number(a.starterFactor||2)-Number(b.starterFactor||2)
+      ||Number(a.num||999)-Number(b.num||999)
+      ||String(a.name||'').localeCompare(String(b.name||''),'de')
+    );
+    const used=new Set();
 
+    // Pass 1: StarterFaktor 1, passende Rolle bevorzugt
+    pool.filter(p=>Number(p.starterFactor||2)===1).forEach(p=>{
+      const role=positionRole(p.pos);
+      const slot=slots.find(s=>!s.playerId&&s.role===role)||slots.find(s=>!s.playerId);
+      if(slot&&!used.has(p.id)){slot.playerId=p.id;used.add(p.id);}
+    });
+    // Pass 2: restliche Slots nach Rolle füllen
+    slots.forEach(slot=>{
+      if(slot.playerId) return;
+      const p=pool.find(p=>!used.has(p.id)&&positionRole(p.pos)===slot.role)
+             ||pool.find(p=>!used.has(p.id));
+      if(p){slot.playerId=p.id;used.add(p.id);}
+    });
+    // Objekte erzeugen
+    slots.filter(s=>s.playerId).forEach(s=>{
+      const p=allHome.find(p=>p.id===s.playerId); if(!p) return;
+      objects.push({type:'player',id:newId(),fx:s.x,fy:s.y,
+        color:p.color||(s.role==='keeper'?gkColor:homeColor),
+        name:p.name,num:p.num||'',playerId:p.id,starter:true});
+      document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
+    });
+
+  } else {
+    // Andere Sportarten
+    const formation=SPORT_AUTO_FORMATIONS[currentSport];
+    const starters=allHome.slice(0,fieldLimit);
+    const gks=starters.filter(p=>positionRole(p.pos)==='keeper');
+    const flds=starters.filter(p=>positionRole(p.pos)!=='keeper');
     if(formation){
-      let slotIdx=0;
-      // Torwart(e) zuerst
-      gkPlayers.forEach((p,i)=>{
-        const slot=formation.gk[i];
-        if(!slot) return;
-        objects.push({type:'player',id:newId(),fx:slot[0],fy:slot[1],color:p.color||gkColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-        if(el) el.classList.add('on-field');
+      gks.forEach((p,i)=>{
+        const sl=formation.gk[i]; if(!sl) return;
+        objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],
+          color:p.color||gkColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
       });
-      // Feldspieler
-      fieldPlayers.forEach((p,i)=>{
-        const slot=formation.field[i];
-        if(!slot) return;
-        objects.push({type:'player',id:newId(),fx:slot[0],fy:slot[1],color:p.color||homeColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-        if(el) el.classList.add('on-field');
+      flds.forEach((p,i)=>{
+        const sl=formation.field[i]; if(!sl) return;
+        objects.push({type:'player',id:newId(),fx:sl[0],fy:sl[1],
+          color:p.color||homeColor,name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
       });
     } else {
-      // Fallback genericFormation
-      const slots=genericFormation(starters.length);
+      const sls=genericFormation(starters.length);
       starters.forEach((p,i)=>{
-        const pos=slots[i]||[FIELD.w/2,FIELD.h/2];
-        const col=isGkPosition(p.pos)?gkColor:homeColor;
-        objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true});
-        const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-        if(el) el.classList.add('on-field');
+        const pos=sls[i]||[FIELD.w/2,FIELD.h/2];
+        objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],
+          color:p.color||(positionRole(p.pos)==='keeper'?gkColor:homeColor),
+          name:p.name,num:p.num||'',playerId:p.id,starter:true});
+        document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
       });
     }
   }
 
-  // Bankspieler werden NICHT auf dem Feld platziert – nur in der Sidebar
-  // Sie werden als isBench in objects geführt aber nicht gerendert
-  bench.forEach((p,i)=>{
-    const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
-    if(el) el.classList.add('on-field');
-    // Intern als Bank markieren damit Sidebar korrekt ist
+  // Bankspieler: nur Sidebar, nicht auf Feld
+  bench.forEach(p=>{
     if(!objects.some(o=>o.playerId===p.id)){
-      objects.push({type:'player',id:newId(),fx:-99,fy:-99,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true,hidden:true});
+      objects.push({type:'player',id:newId(),fx:-99,fy:-99,
+        color:'#555555',name:p.name,num:p.num||'',playerId:p.id,
+        starter:false,isBench:true,hidden:true});
     }
+    document.querySelector(`.player-item[data-pid="${p.id}"]`)?.classList.add('on-field');
   });
 
-  render();
-  updatePlayerCount();
-  scheduleKadrivoSave();
+  render(); updatePlayerCount(); scheduleKadrivoSave();
 }
+
 
 // ============================================================
 // KADRIVO PROTOCOL (same as 3D board)
 // ============================================================
 function scheduleKadrivoSave(){
   if(!kadrivoReady||kadrivoHydrating||!kadrivoBoardId) return;
+  if(_drag) return; // Nicht während Drag speichern
   clearTimeout(kadrivoSaveTimer);
   kadrivoSaveTimer=setTimeout(postKadrivoSave,400);
 }
@@ -1838,6 +1807,11 @@ function exportState(){
 function importState(saved, players){
   kadrivoPlayers = players||[];
   if(saved){
+    // Wenn gerade ein Drag läuft: State NICHT überschreiben
+    if(_drag){
+      // Nur Spielerliste und Metadaten updaten, Positionen nicht anfassen
+      return;
+    }
     objects       = saved.objects   || [];
     drawLines     = saved.drawLines || [];
     showNames     = saved.showNames || false;
