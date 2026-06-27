@@ -545,6 +545,7 @@ function drawVolleyballField(){
 // DRAW OBJECTS
 // ============================================================
 function drawObj(obj){
+  if(obj.hidden) return;   // Bankspieler werden nicht auf dem Feld gezeichnet
   const {x,y,w,h} = fieldRect;
   const s = fieldScale();
   const p = fieldToCanvas(obj.fx, obj.fy);
@@ -725,8 +726,15 @@ function drawArrow(line){
   const col  = line.color || '#ffffff';
   const style= line.style || 'solid';
   const lw   = 2.5;
+  const isSel = line.id === selected;
 
   ctx.save();
+  // Selection-Glow
+  if(isSel){
+    ctx.strokeStyle='rgba(100,180,255,0.5)';
+    ctx.lineWidth=lw+6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  }
   ctx.strokeStyle = col;
   ctx.lineWidth   = lw;
   ctx.lineCap     = 'round';
@@ -811,15 +819,31 @@ function drawPreviewLine(start, end){
 // HIT TEST
 // ============================================================
 function hitTest(cx,cy){
-  const s = fieldScale();
+  // Prüfe objects (Spieler, Text, Utensilien)
   for(let i=objects.length-1;i>=0;i--){
     const obj=objects[i];
     const p=fieldToCanvas(obj.fx,obj.fy);
-    const r = obj.type==='player' ? 16 : obj.type==='text' ? 20 : 14;
+    const r = obj.type==='player' ? 16 : obj.type==='text' ? 22 : 14;
     const dx=cx-p.x, dy=cy-p.y;
-    if(dx*dx+dy*dy <= r*r) return obj;
+    if(dx*dx+dy*dy <= r*r) return {src:'obj', obj};
+  }
+  // Prüfe drawLines (Pfeile/Linien) – Abstand zum Liniensegment
+  for(let i=drawLines.length-1;i>=0;i--){
+    const l=drawLines[i];
+    const p1=fieldToCanvas(l.x1,l.y1);
+    const p2=fieldToCanvas(l.x2,l.y2);
+    if(distToSegment(cx,cy,p1.x,p1.y,p2.x,p2.y) <= 8) return {src:'line', obj:l};
   }
   return null;
+}
+
+function distToSegment(px,py,ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq===0) return Math.hypot(px-ax,py-ay);
+  let t=((px-ax)*dx+(py-ay)*dy)/lenSq;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
 }
 
 // ============================================================
@@ -843,98 +867,107 @@ function onMouseDown(e){
   closeContextMenu();
   const p = canvasXY(e);
   if(e.button===1){ isPanning=true; panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y}; e.preventDefault(); return; }
-  if(e.button===2) return; // handled by contextmenu
+  if(e.button===2) return;
   if(e.button!==0) return;
 
+  // IMMER zuerst hitTest – egal welcher Modus aktiv ist
+  const hit = hitTest(p.x, p.y);
+
+  if(hit){
+    // Objekt getroffen → selektieren & draggen
+    cancelActiveTool();
+    drawStart = null;
+    const obj = hit.obj;
+    selected = obj.id;
+    dragObj  = obj;
+    dragMoved = false;
+    dragSrc = hit.src;
+    if(hit.src === 'obj'){
+      dragStartFx = obj.fx; dragStartFy = obj.fy;
+      const hp = fieldToCanvas(obj.fx, obj.fy);
+      dragOffX = p.x - hp.x; dragOffY = p.y - hp.y;
+    } else {
+      // Pfeil/Linie: Mittelpunkt als Drag-Handle
+      dragStartFx = obj.x1; dragStartFy = obj.y1;
+      dragOffX = 0; dragOffY = 0;
+    }
+    render();
+    return;
+  }
+
+  // Kein Hit – je nach Modus reagieren
+  if(activeTool){
+    const fp = canvasToField(p.x, p.y);
+    placeActiveTool(fp.x, fp.y);
+    return;
+  }
   if(drawMode === 'text'){
-    const fp = canvasToField(p.x,p.y);
+    const fp = canvasToField(p.x, p.y);
     openTextPopup(fp.x, fp.y);
     return;
   }
-
-  // Active tool placement mode - but allow clicking existing objects
-  if(activeTool){
-    const hit=hitTest(p.x,p.y);
-    if(hit){
-      // Click on existing object → select it, don't place
-      selected=hit.id;
-      dragObj=hit;
-      dragMoved=false;
-      dragStartFx=hit.fx;
-      dragStartFy=hit.fy;
-      const hp=fieldToCanvas(hit.fx,hit.fy);
-      dragOffX=p.x-hp.x; dragOffY=p.y-hp.y;
-      render();
-    } else {
-      // Click on empty field → place tool
-      const fp = canvasToField(p.x,p.y);
-      placeActiveTool(fp.x, fp.y);
-    }
-    return;
-  }
-
   if(drawMode){
-    const fp = canvasToField(p.x,p.y);
+    const fp = canvasToField(p.x, p.y);
     if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; return; }
     pushUndo();
     drawLines.push({id:newId(),x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,arrow:true});
     drawStart=null; mousePos=null;
     render(); scheduleKadrivoSave(); return;
   }
-
-  const hit=hitTest(p.x,p.y);
-  if(hit){
-    selected=hit.id;
-    dragObj=hit;
-    dragMoved=false;
-    // Save drag-start position for undo
-    dragStartFx=hit.fx;
-    dragStartFy=hit.fy;
-    const hp=fieldToCanvas(hit.fx,hit.fy);
-    dragOffX=p.x-hp.x; dragOffY=p.y-hp.y;
-    render();
-  } else {
-    selected=null;
-    dragObj=null;
-    // start pan
-    isPanning=true;
-    panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y};
-    render();
-  }
+  // Pan
+  selected=null; dragObj=null;
+  isPanning=true;
+  panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y};
+  render();
 }
 
 function onMouseMove(e){
   const p=canvasXY(e);
   mousePos=p;
-  if(isPanning){
-    panOff={x:e.clientX-panStart.x, y:e.clientY-panStart.y};
-    calcFieldRect(); render(); return;
-  }
+  if(isPanning){ panOff={x:e.clientX-panStart.x, y:e.clientY-panStart.y}; calcFieldRect(); render(); return; }
   if(dragObj){
     const fp=canvasToField(p.x-dragOffX, p.y-dragOffY);
-    dragObj.fx = Math.max(0,Math.min(FIELD.w,fp.x));
-    dragObj.fy = Math.max(0,Math.min(FIELD.h,fp.y));
-    dragMoved = true;
-    render(); return;
+    if(dragSrc==='line'){
+      // Pfeil verschieben: beide Punkte gleichzeitig
+      const dx=fp.x-dragLastFx, dy=fp.y-dragLastFy;
+      if(dragLastFx!==undefined){
+        dragObj.x1=Math.max(0,Math.min(FIELD.w,dragObj.x1+dx));
+        dragObj.y1=Math.max(0,Math.min(FIELD.h,dragObj.y1+dy));
+        dragObj.x2=Math.max(0,Math.min(FIELD.w,dragObj.x2+dx));
+        dragObj.y2=Math.max(0,Math.min(FIELD.h,dragObj.y2+dy));
+      }
+      dragLastFx=fp.x; dragLastFy=fp.y;
+    } else {
+      dragObj.fx=Math.max(0,Math.min(FIELD.w,fp.x));
+      dragObj.fy=Math.max(0,Math.min(FIELD.h,fp.y));
+    }
+    dragMoved=true; render(); return;
   }
   if(drawMode && drawStart){ render(); }
 }
+
+let dragLastFx, dragLastFy, dragSrc='obj';
 
 function onMouseUp(e){
   if(e.button===1){ isPanning=false; return; }
   if(isPanning && !dragObj){ isPanning=false; return; }
   if(dragObj){
     if(dragMoved){
-      // Insert undo entry with original position
-      const finalFx=dragObj.fx, finalFy=dragObj.fy;
-      dragObj.fx=dragStartFx; dragObj.fy=dragStartFy;
-      pushUndo();
-      dragObj.fx=finalFx; dragObj.fy=finalFy;
+      if(dragSrc==='line'){
+        const x1=dragObj.x1,y1=dragObj.y1,x2=dragObj.x2,y2=dragObj.y2;
+        dragObj.x1=dragStartFx; dragObj.y1=dragStartFy;
+        pushUndo();
+        dragObj.x1=x1; dragObj.y1=y1; dragObj.x2=x2; dragObj.y2=y2;
+      } else {
+        const fx=dragObj.fx, fy=dragObj.fy;
+        dragObj.fx=dragStartFx; dragObj.fy=dragStartFy;
+        pushUndo();
+        dragObj.fx=fx; dragObj.fy=fy;
+      }
       scheduleKadrivoSave();
     }
-    dragObj=null;
-    dragMoved=false;
-    isPanning=false;
+    dragObj=null; dragMoved=false; isPanning=false;
+    dragLastFx=undefined; dragLastFy=undefined;
     render();
   }
 }
@@ -943,12 +976,17 @@ function onDblClick(e){
   const p=canvasXY(e);
   const hit=hitTest(p.x,p.y);
   if(!hit) return;
-  // Spieler mit playerId → Wechsel Feld/Bank
-  if(hit.type==='player' && hit.playerId && !hit.playerId.startsWith('away_')){
-    swapPlayerFieldBench(hit);
+  const obj=hit.obj;
+  if(hit.src==='line'){
+    // Pfeil löschen
+    pushUndo();
+    drawLines=drawLines.filter(l=>l.id!==obj.id);
+    render(); scheduleKadrivoSave(); return;
+  }
+  if(obj.type==='player' && obj.playerId && !obj.playerId.startsWith('away_')){
+    swapPlayerFieldBench(obj);
   } else {
-    // Alle anderen Objekte → löschen
-    removeObject(hit.id);
+    removeObject(obj.id);
   }
 }
 
@@ -957,12 +995,12 @@ function onContextMenu(e){
   const p=canvasXY(e);
   const hit=hitTest(p.x,p.y);
   if(!hit){ closeContextMenu(); return; }
-  selected=hit.id;
-  ctxTarget=hit;
+  const obj=hit.obj;
+  selected=obj.id;
+  ctxTarget=obj;
   const menu=document.getElementById('ctx-menu');
-  // show/hide color option
-  document.getElementById('ctx-color').style.display = (hit.type==='text'||hit.type==='player'||hit.type==='cone'||hit.type==='pole') ? '' : 'none';
-  document.getElementById('ctx-label').style.display = (hit.type==='player'||hit.type==='text') ? '' : 'none';
+  document.getElementById('ctx-color').style.display = (obj.type==='text'||obj.type==='player'||obj.type==='cone'||obj.type==='pole'||hit.src==='line') ? '' : 'none';
+  document.getElementById('ctx-label').style.display = (obj.type==='player'||obj.type==='text') ? '' : 'none';
   menu.style.left=e.clientX+'px';
   menu.style.top =e.clientY+'px';
   menu.style.display='block';
@@ -1581,12 +1619,15 @@ function autoPlace2d(){
     }
   }
 
-  // Bank entlang unterer Feldkante
+  // Bankspieler werden NICHT auf dem Feld platziert – nur in der Sidebar
+  // Sie werden als isBench in objects geführt aber nicht gerendert
   bench.forEach((p,i)=>{
-    const benchX=Math.min(FIELD.w-1, 1+i*(FIELD.w/Math.max(benchLimit,1)));
-    objects.push({type:'player',id:newId(),fx:benchX,fy:FIELD.h-0.8,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true});
     const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
     if(el) el.classList.add('on-field');
+    // Intern als Bank markieren damit Sidebar korrekt ist
+    if(!objects.some(o=>o.playerId===p.id)){
+      objects.push({type:'player',id:newId(),fx:-99,fy:-99,color:'#555555',name:p.name,num:p.num||'',playerId:p.id,starter:false,isBench:true,hidden:true});
+    }
   });
 
   render();
@@ -1840,7 +1881,7 @@ function swapPlayerFieldBench(obj){
   if(!obj || obj.type !== 'player' || !obj.playerId) return;
 
   if(obj.isBench){
-    // Bank → Feld: prüfe ob Feldlimit erreicht
+    // Bank → Feld
     const onField = objects.filter(o=>o.type==='player'&&o.playerId&&!o.isBench&&!o.playerId.startsWith('away_'));
     if(onField.length >= fieldLimit){
       document.getElementById('s-mode').textContent = `Feld voll (max. ${fieldLimit} Spieler)`;
@@ -1850,12 +1891,13 @@ function swapPlayerFieldBench(obj){
     pushUndo();
     obj.isBench = false;
     obj.starter = true;
-    obj.color = obj.origColor || homeColor;
-    // Platziere auf freiem Slot in der Feldmitte
-    obj.fx = FIELD.w * 0.4 + Math.random()*FIELD.w*0.1;
-    obj.fy = FIELD.h * 0.3 + Math.random()*FIELD.h*0.4;
+    obj.hidden  = false;
+    obj.color   = obj.origColor || homeColor;
+    // Feldmitte platzieren
+    obj.fx = FIELD.w * 0.4 + Math.random()*FIELD.w*0.15;
+    obj.fy = FIELD.h * 0.25 + Math.random()*FIELD.h*0.5;
   } else {
-    // Feld → Bank: prüfe ob Banklimit erreicht
+    // Feld → Bank
     const onBench = objects.filter(o=>o.type==='player'&&o.playerId&&o.isBench&&!o.playerId.startsWith('away_'));
     if(onBench.length >= benchLimit){
       document.getElementById('s-mode').textContent = `Bank voll (max. ${benchLimit} Plätze)`;
@@ -1866,13 +1908,12 @@ function swapPlayerFieldBench(obj){
     obj.origColor = obj.color;
     obj.isBench = true;
     obj.starter = false;
-    obj.color = '#555555';
-    // Platziere an nächster freier Bank-Position
-    const benchCount = objects.filter(o=>o.type==='player'&&o.isBench&&!o.playerId?.startsWith('away_')).length;
-    obj.fx = Math.min(FIELD.w-1, 1 + benchCount * (FIELD.w / Math.max(benchLimit,1)));
-    obj.fy = FIELD.h - 0.8;
+    obj.hidden  = true;   // nicht auf dem Feld sichtbar
+    obj.color   = '#555555';
+    obj.fx = -99; obj.fy = -99;
   }
   render();
+  updatePlayerCount();
   scheduleKadrivoSave();
 }
 
