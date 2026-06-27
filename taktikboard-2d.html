@@ -116,6 +116,7 @@ canvas{display:block}
       <button class="tb-btn" onclick="clearAll()">🗑 Leeren</button>
       <button class="tb-btn" onclick="toggleNames()" id="btn-names">Namen: Aus</button>
       <button class="tb-btn" onclick="autoPlace2d()">⚡ Auto-Aufstellung</button>
+      <button class="tb-btn" onclick="toggleOpponents2d()" id="btn-opponents">Gegner: An</button>
       <button class="tb-btn" onclick="toggleSceneBar()" id="btn-scenes">🎬 Szenen</button>
       <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
     </div>
@@ -230,6 +231,7 @@ let drawStart    = null;
 let arrowColor   = '#ffffff';
 let arrowStyle   = 'solid';
 let showNames    = false;
+let showOpponents = true;
 let activeTool   = null;
 let ctxTarget    = null;
 let _colorPickerMode = null;
@@ -306,7 +308,10 @@ function render(){
   ctx.fillRect(0,0,canvas.width,canvas.height);
   drawField();
   drawLines.forEach(drawArrow);
-  objects.forEach(drawObj);
+  objects.forEach(o => {
+    if (!showOpponents && o.type === 'player' && o.team === 'away') return;
+    drawObj(o);
+  });
   if(drawStart && mousePos) drawPreviewLine(drawStart, mousePos);
 }
 
@@ -578,6 +583,7 @@ function hitTest(cx,cy){
   for(let i=objects.length-1;i>=0;i--){
     const obj=objects[i];
     if(obj.hidden) continue;
+    if(!showOpponents && obj.type==='player' && obj.team==='away') continue;
     const p=fieldToCanvas(obj.fx,obj.fy);
     const r=obj.type==='player'?16:obj.type==='text'?22:14;
     if((cx-p.x)**2+(cy-p.y)**2<=r*r) return {src:'obj',obj};
@@ -1116,6 +1122,16 @@ function showStatus(msg){ document.getElementById('s-mode').textContent=msg||'Mo
 function toggleNames(){
   showNames=!showNames;
   document.getElementById('btn-names').textContent='Namen: '+(showNames?'Ein':'Aus');
+  render();
+}
+
+function toggleOpponents2d(){
+  showOpponents=!showOpponents;
+  const btn=document.getElementById('btn-opponents');
+  if(btn){
+    btn.textContent='Gegner: '+(showOpponents?'An':'Aus');
+    btn.classList.toggle('active', !showOpponents);
+  }
   render();
 }
 

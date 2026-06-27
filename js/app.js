@@ -5773,7 +5773,7 @@
     }
 
     function tacticPlayersForBoard(board) {
-      const eventItem = state.events.find((item) => item.id === board.eventId);
+      const eventItem = board ? state.events.find((item) => item.id === board.eventId) : null;
       return rosterPlayers()
         .filter((player) => hasMemberRole(player, "Spieler"))
         .filter((player) => !eventItem || effectiveRsvp(eventItem, player) === "yes");
@@ -5851,7 +5851,32 @@
     }
 
     function sendTactic3dPayload() {
-      const payload = tactic3dPayload();
+      // Keine Taktik gewählt → leeres Board mit Auto-Aufstellung (saved2d: null)
+      const hasSelection = selectedTacticBoardId && state.tacticBoards.some(b => b.id === selectedTacticBoardId);
+      let payload;
+      if (!hasSelection) {
+        payload = {
+          type: "kadrivo:tactic-load",
+          boardId: "__none__",
+          title: "Grundstellung",
+          mode: "spiel",
+          event: null,
+          sport: currentClub().sport || "Fussball",
+          limits: {
+            fieldPlayers: sportCorrectFieldLimit(),
+            benchPlayers: sportCorrectBenchLimit()
+          },
+          players: tactic3dPlayersForBoard(null),
+          saved: null,
+          saved2d: null,
+          teamColor: currentClub().color || "#155e3b",
+          homeColor: currentClub().color || "#155e3b",
+          awayColor: "#1565c0",
+          gkColor:   "#ff9900"
+        };
+      } else {
+        payload = tactic3dPayload();
+      }
       try {
         localStorage.setItem(`kadrivo:tactic:${payload.boardId}`, JSON.stringify(payload));
       } catch (error) {
