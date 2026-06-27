@@ -28,8 +28,8 @@
         price: "10,00 €/Monat",
         planId: "P-36V89937TU7917709NI7OBUA",
         shape: "pill",
-        modules: ["tactics", "polls", "fame", "messages", "cash"],
-        description: "Alle Funktionen: Taktikboard, Abstimmungen, Hall of Fame, Mitteilungen und Kasse – 10,00 € pro Monat."
+        modules: ["tactics", "polls", "fame", "messages", "cash", "scouting"],
+        description: "Alle Funktionen: Taktikboard, Abstimmungen, Hall of Fame, Mitteilungen, Kasse und Scouting – 10,00 € pro Monat."
       }
     };
     const DOC_ID = "club-state";
@@ -44,7 +44,7 @@
     const FULL_LICENSE_DAYS = 365;
     const LICENSE_WARNING_DAYS = 5;
     const FREE_MODULE_KEYS = new Set(["dashboard", "players", "events", "settings"]);
-    const PAID_MODULE_KEYS = new Set(["tactics", "messages", "polls", "cash", "fame"]);
+    const PAID_MODULE_KEYS = new Set(["tactics", "messages", "polls", "cash", "fame", "scouting"]);
     const CLUB_LEAGUES = ["Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga", "Oberliga", "Verbandsliga", "Gruppenliga", "Kreisoberliga", "Kreisliga A", "Kreisliga B", "Kreisliga C", "Kreisliga D", "Jugendliga", "Freizeitliga", "Sonstiges"];
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
     const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
@@ -66,7 +66,7 @@
       ["messages", "Mitteilungen", "pro"],
       ["cash", "Kasse", "pro"],
       ["settings", "Einstellungen", "free"],
-      ["scouting", "Scouting", "addon"]
+      ["scouting", "Scouting", "pro"]
     ];
     const NATIONALITIES = [
       ["DE", "🇩🇪", "Deutschland"],
