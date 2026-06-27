@@ -7790,7 +7790,24 @@
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js").then(reg => {
+          // Prüfe sofort auf Updates
+          reg.update();
+          // Wenn neuer SW wartet → sofort aktivieren und Seite neu laden
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            newWorker?.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                // Neuer SW installiert → Seite neu laden um neue Version zu laden
+                window.location.reload();
+              }
+            });
+          });
+        }).catch(() => {});
+        // Wenn SW-Controller wechselt → neu laden
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.location.reload();
+        });
       });
     }
   
