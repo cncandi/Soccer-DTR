@@ -484,8 +484,9 @@ function drawObj(obj){
 function drawPlayer(obj,p,sel){
   const s=fieldScale();
   const r=14;
+  const col = obj.team==='away' ? awayColor : (obj.color||homeColor);
   ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
-  ctx.fillStyle=obj.color||homeColor; ctx.fill();
+  ctx.fillStyle=col; ctx.fill();
   if(sel){ ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke(); }
   ctx.fillStyle='#fff'; ctx.font=`bold ${r-2}px sans-serif`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -991,7 +992,7 @@ function placeActiveTool(fp){
   if(t.type==='cone')   obj={type:'cone',id:newId(),fx:fp.x,fy:fp.y,color:t.color||'#ff5500'};
   if(t.type==='pole')   obj={type:'pole',id:newId(),fx:fp.x,fy:fp.y,horizontal:t.horizontal||false,color:'#cc0000'};
   if(t.type==='goal')   obj={type:'goal',id:newId(),fx:fp.x,fy:fp.y,goalW:t.goalW||3,goalH:t.goalH||1};
-  if(t.type==='player') obj={type:'player',id:newId(),fx:fp.x,fy:fp.y,color:t.color||homeColor,name:'',num:'',playerId:null};
+  if(t.type==='player') obj={type:'player',id:newId(),fx:fp.x,fy:fp.y,color:t.color||homeColor,team:(t.color===awayColor?'away':undefined),name:'',num:'',playerId:null};
   if(obj){ pushUndo(); objects.push(obj); render(); scheduleKadrivoSave(); }
 }
 
@@ -1191,7 +1192,7 @@ function autoPlace2d(){
 // 11 Gegner in 4-4-2 aufstellen (Spielrichtung rechts→links, also gespiegelt)
 function addOpponents442(){
   // Alle bestehenden away-Spieler (ohne playerId = Trainingsgegner) entfernen
-  objects = objects.filter(o=>!(o.type==='player'&&!o.playerId&&o.color===awayColor));
+  objects = objects.filter(o=>!(o.type==='player'&&!o.playerId&&(o.color===awayColor||o.team==='away')));
   // 4-4-2 gespiegelt (Gegner kommt von rechts)
   const slots442 = [
     [FIELD.w-5,  FIELD.h/2],                // TW
@@ -1203,7 +1204,7 @@ function addOpponents442(){
   pushUndo();
   slots442.forEach((slot,i)=>{
     objects.push({type:'player',id:newId(),fx:slot[0],fy:slot[1],
-      color:awayColor,name:'',num:nums[i]||String(i+1),playerId:null});
+      color:awayColor,team:'away',name:'',num:nums[i]||String(i+1),playerId:null});
   });
   render(); scheduleKadrivoSave(); updateSidebar();
 }
