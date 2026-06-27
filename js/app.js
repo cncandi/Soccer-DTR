@@ -6003,15 +6003,15 @@
       if ($("#tacticBoardName") && document.activeElement !== $("#tacticBoardName")) $("#tacticBoardName").value = board.title || "";
       $("#tacticBoardSelect").innerHTML = state.tacticBoards.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.title || "Taktik")}</option>`).join("");
       $("#tacticBoardSelect").value = board.id;
-      $("#tacticEventSelect").innerHTML = tacticEventOptions(board.eventId);
-      $("#tacticEventSelect").value = board.eventId || "";
+      $("#tacticEventSelect").innerHTML = tacticEventOptions("");
+      $("#tacticEventSelect").value = "";
       const linkedEvents = linkedTacticEvents(board);
       const linkedTarget = $("#tacticLinkedEvents");
       if (linkedTarget) {
-        linkedTarget.innerHTML = linkedEvents.map((eventItem) => `<span class="chip tactic-linked-chip ${eventItem.id === board.eventId ? "blue" : ""}">
-          ${escapeHtml(tacticEventLabel(eventItem))}
+        linkedTarget.innerHTML = linkedEvents.map((eventItem) => `<span class="chip tactic-linked-chip ${eventItem.id === board.eventId ? "blue" : ""}" title="${eventItem.id === board.eventId ? "Aktiv – Spieler werden aus dieser Einheit geladen" : "Klicken um als aktive Einheit zu setzen"}">
+          <button type="button" class="chip-label-btn" data-tactic-activate-event="${escapeAttr(eventItem.id)}" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;font:inherit">${escapeHtml(tacticEventLabel(eventItem))}${eventItem.id === board.eventId ? " ✓" : ""}</button>
           <button type="button" class="chip-remove" data-tactic-unlink-event="${escapeAttr(eventItem.id)}" aria-label="Verknuepfung entfernen">×</button>
-        </span>`).join("") || `<span class="meta">Noch keine Einheit verknuepft.</span>`;
+        </span>`).join("") || `<span class="meta">Noch keine Einheit verknuepft. Einheit wählen und „Verknüpfen" klicken.</span>`;
       }
       const notes = $("#tacticBoardNotes");
       if (notes && document.activeElement !== notes) notes.innerHTML = sanitizeRichText(board.notesHtml || "");
@@ -6073,12 +6073,9 @@
       if (button) button.disabled = true;
       if (status) status.textContent = "Taktik wird gespeichert ...";
       try {
-        const eventId = $("#tacticEventSelect")?.value || "";
-        const eventItem = state.events.find((item) => item.id === eventId);
         const title = ($("#tacticBoardName")?.value || "").trim();
         board.title = title || board.title || "Taktik";
-        if (eventItem) linkTacticEvent(board, eventItem.id);
-        else board.eventId = "";
+        // Verknuepfung nur ueber Verknuepfen-Button – nicht beim Speichern auto-setzen
         board.notesHtml = sanitizeRichText($("#tacticBoardNotes")?.innerHTML || "");
         board.teamColor = board.teamColor || currentClub().color || "#155e3b";
         board.updatedAt = new Date().toISOString();
@@ -6087,6 +6084,7 @@
         saveState();
         syncWithSupabase({ silent: true });
         renderTacticBoard();
+        const eventItem = state.events.find((item) => item.id === board.eventId);
         if (status) status.textContent = eventItem
           ? `Gespeichert fuer ${eventItem.type}: ${eventItem.title}.`
           : "Freie Taktik gespeichert.";
@@ -7018,8 +7016,19 @@
       tacticRedoStack = [];
       renderTacticBoard();
     });
-    $("#tacticEventSelect")?.addEventListener("change", () => {
-      assignEventToCurrentTactic($("#tacticEventSelect").value || "");
+    $("#tacticLinkEventBtn")?.addEventListener("click", () => {
+      const eventId = $("#tacticEventSelect")?.value || "";
+      if (!eventId) return;
+      const board = currentTacticBoard();
+      const eventItem = state.events.find((item) => item.id === eventId);
+      if (!eventItem) return;
+      linkTacticEvent(board, eventItem.id);
+      board.updatedAt = new Date().toISOString();
+      tacticUndoStack = [];
+      tacticRedoStack = [];
+      saveState();
+      renderTacticBoard();
+      requestAnimationFrame(sendTactic3dPayload);
     });
     $("#saveTacticBoardBtn")?.addEventListener("click", saveCurrentTacticBoardExplicitly);
     $("#tacticBoardName")?.addEventListener("change", () => {
@@ -7030,14 +7039,25 @@
       renderTacticBoard();
     });
     $("#tacticLinkedEvents")?.addEventListener("click", (event) => {
-      const eventId = event.target.closest("[data-tactic-unlink-event]")?.dataset.tacticUnlinkEvent;
-      if (!eventId || !canManage()) return;
+      if (!canManage()) return;
       const board = currentTacticBoard();
-      unlinkTacticEvent(board, eventId);
-      board.updatedAt = new Date().toISOString();
-      saveState();
-      renderTacticBoard();
-      requestAnimationFrame(sendTactic3dPayload);
+      const unlinkId = event.target.closest("[data-tactic-unlink-event]")?.dataset.tacticUnlinkEvent;
+      if (unlinkId) {
+        unlinkTacticEvent(board, unlinkId);
+        board.updatedAt = new Date().toISOString();
+        saveState();
+        renderTacticBoard();
+        requestAnimationFrame(sendTactic3dPayload);
+        return;
+      }
+      const activateId = event.target.closest("[data-tactic-activate-event]")?.dataset.tacticActivateEvent;
+      if (activateId && activateId !== board.eventId) {
+        board.eventId = activateId;
+        board.updatedAt = new Date().toISOString();
+        saveState();
+        renderTacticBoard();
+        requestAnimationFrame(sendTactic3dPayload);
+      }
     });
     $("#tacticBoardNotes")?.addEventListener("input", () => {
       clearTimeout(tacticNotesSaveTimer);
