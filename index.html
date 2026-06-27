@@ -21,7 +21,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v171';
+      const EXPECTED = 'v172';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +45,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v171</span></h1>
+          <h1>Kadrivo <span class="app-version">v172</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v171</span></h1>
+          <h1>Kadrivo <span class="app-version">v172</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -782,7 +782,65 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=171" defer></script>
+  <script src="js/app.js?v=172" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('saveTacticBoardBtn');
+      if (!btn) return;
+      // onclick entfernen, eigenen listener setzen
+      btn.removeAttribute('onclick');
+      btn.addEventListener('click', function() {
+        var modal = document.getElementById('tacticNameModal');
+        var input = document.getElementById('tacticNameInput');
+        var confirmBtn = document.getElementById('tacticNameConfirmBtn');
+        var cancelBtn = document.getElementById('tacticNameCancelBtn');
+
+        // Prüfe ob bereits eine Taktik gewählt ist
+        var sel = document.getElementById('tacticBoardSelect');
+        var hasSelection = sel && sel.value && sel.value !== '';
+        if (hasSelection) {
+          // Direkt speichern ohne Namensabfrage
+          if (typeof saveTacticBoardWithCheck === 'function') saveTacticBoardWithCheck();
+          return;
+        }
+
+        // Kein Board gewählt → Modal öffnen
+        if (!modal || !input) return;
+        input.value = '';
+        modal.classList.add('open');
+        modal.removeAttribute('aria-hidden');
+        setTimeout(function(){ input.focus(); }, 50);
+
+        function doConfirm() {
+          var name = input.value.trim();
+          if (!name) return;
+          modal.classList.remove('open');
+          modal.setAttribute('aria-hidden','true');
+          confirmBtn.removeEventListener('click', doConfirm);
+          cancelBtn.removeEventListener('click', doCancel);
+          input.removeEventListener('keydown', onKey);
+          // Neues Board anlegen und speichern
+          if (typeof saveTacticBoardNamed === 'function') {
+            saveTacticBoardNamed(name);
+          }
+        }
+        function doCancel() {
+          modal.classList.remove('open');
+          modal.setAttribute('aria-hidden','true');
+          confirmBtn.removeEventListener('click', doConfirm);
+          cancelBtn.removeEventListener('click', doCancel);
+          input.removeEventListener('keydown', onKey);
+        }
+        function onKey(e) {
+          if (e.key === 'Enter') doConfirm();
+          if (e.key === 'Escape') doCancel();
+        }
+        confirmBtn.addEventListener('click', doConfirm);
+        cancelBtn.addEventListener('click', doCancel);
+        input.addEventListener('keydown', onKey);
+      });
+    });
+  </script>
   <!-- BIBLIOTHEK: Übung anlegen/bearbeiten -->
   <div class="modal-backdrop" id="libraryItemModal" aria-hidden="true" style="display:none">
     <div class="modal" style="max-width:520px;width:95%">

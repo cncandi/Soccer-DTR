@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v171";
+const CACHE_NAME = "soccer-dtr-v172";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "taktikboard-2d.html?v=165",
   "css/app.css?v=171",
   "css/backend.css?v=143",
-  "js/app.js?v=171",
+  "js/app.js?v=172",
   "js/backend.js?v=143",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
