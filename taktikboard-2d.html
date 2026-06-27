@@ -973,20 +973,21 @@ function onMouseUp(e){
 }
 
 function onDblClick(e){
+  dragObj=null; dragMoved=false; isPanning=false;
   const p=canvasXY(e);
   const hit=hitTest(p.x,p.y);
   if(!hit) return;
   const obj=hit.obj;
   if(hit.src==='line'){
-    // Pfeil löschen
     pushUndo();
     drawLines=drawLines.filter(l=>l.id!==obj.id);
-    render(); scheduleKadrivoSave(); return;
+    selected=null; render(); scheduleKadrivoSave(); return;
   }
-  if(obj.type==='player' && obj.playerId && !obj.playerId.startsWith('away_')){
+  if(obj.type==='player'&&obj.playerId&&!obj.playerId.startsWith('away_')){
     swapPlayerFieldBench(obj);
   } else {
     removeObject(obj.id);
+    selected=null;
   }
 }
 
@@ -1173,10 +1174,33 @@ function cancelActiveTool(){
 }
 
 document.addEventListener('keydown', e=>{
+  // Nicht im Text-Input
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
   if(e.key==='Escape'){
     if(activeTool){ cancelActiveTool(); return; }
     if(drawMode){ setDrawMode(null); return; }
     if(drawStart){ drawStart=null; mousePos=null; render(); }
+    selected=null; render();
+    return;
+  }
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(!selected) return;
+    e.preventDefault();
+    // Prüfe ob selected eine drawLine ist
+    const line=drawLines.find(l=>l.id===selected);
+    if(line){
+      pushUndo(); drawLines=drawLines.filter(l=>l.id!==selected); selected=null; render(); scheduleKadrivoSave(); return;
+    }
+    // Prüfe objects
+    const obj=objects.find(o=>o.id===selected);
+    if(obj){
+      if(obj.type==='player'&&obj.playerId&&!obj.playerId.startsWith('away_')){
+        swapPlayerFieldBench(obj);
+      } else {
+        removeObject(selected);
+      }
+      selected=null; render();
+    }
   }
 });
 

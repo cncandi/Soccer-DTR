@@ -3137,9 +3137,17 @@
 
     function renderPlayerCreateFormOptions() {
       const form = $("#playerForm");
-      if (!form?.elements.nationality) return;
-      const selected = form.elements.nationality.value || "";
-      form.elements.nationality.innerHTML = nationalityOptions(selected);
+      if (!form) return;
+      // Nationalität
+      if (form.elements.nationality) {
+        const selNat = form.elements.nationality.value || "";
+        form.elements.nationality.innerHTML = nationalityOptions(selNat);
+      }
+      // Position – sport-spezifisch
+      if (form.elements.position) {
+        const selPos = form.elements.position.value || "";
+        form.elements.position.innerHTML = positionOptions(selPos);
+      }
     }
 
     function prospectFullName(prospect) {
