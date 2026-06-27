@@ -49,11 +49,11 @@
     const FEDERAL_STATES = ["Baden-Wuerttemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thueringen"];
     const SPORTS = ["Fussball", "Basketball", "Eishockey", "Handball", "Volleyball", "Andere Sportart"];
     const SPORT_DEFAULTS = {
-      Fussball: { fieldPlayers: 11, benchPlayers: 9 },
-      Basketball: { fieldPlayers: 5, benchPlayers: 7 },
-      Eishockey: { fieldPlayers: 6, benchPlayers: 14 },
-      Handball: { fieldPlayers: 7, benchPlayers: 9 },
-      Volleyball: { fieldPlayers: 6, benchPlayers: 6 },
+      Fussball:        { fieldPlayers: 11, benchPlayers: 9  },
+      Basketball:      { fieldPlayers:  5, benchPlayers: 7  },
+      Eishockey:       { fieldPlayers:  6, benchPlayers: 16 },
+      Handball:        { fieldPlayers:  7, benchPlayers: 9  },
+      Volleyball:      { fieldPlayers:  6, benchPlayers: 8  },
       "Andere Sportart": { fieldPlayers: 10, benchPlayers: 10 }
     };
     const CLUB_MODULES = [

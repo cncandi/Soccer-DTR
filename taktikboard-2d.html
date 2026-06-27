@@ -278,10 +278,8 @@ function fieldScale(){ return fieldRect.w / FIELD.w; }
 function render(){
   calcFieldRect();
   const cw = canvas.width, ch = canvas.height;
-  // Background
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0,0,cw,ch);
-
   drawField();
   drawLines.forEach(drawArrow);
   objects.forEach(drawObj);
@@ -289,100 +287,218 @@ function render(){
 }
 
 function drawField(){
-  const {x,y,w,h} = fieldRect;
-  const s = fieldScale();
-
-  // Grass stripes
-  const stripes = 10;
-  const sw = w / stripes;
-  for(let i=0;i<stripes;i++){
-    ctx.fillStyle = i%2===0 ? '#3a7a22' : '#428a28';
-    ctx.fillRect(x + i*sw, y, sw, h);
+  switch(currentSport){
+    case 'Handball':   drawHandballField(); break;
+    case 'Basketball': drawBasketballField(); break;
+    case 'Eishockey':  drawEishockeyField(); break;
+    case 'Volleyball': drawVolleyballField(); break;
+    default:           drawSoccerField(); break;
   }
-
-  // Field border
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x,y,w,h);
-
-  // Centre line
-  ctx.beginPath();
-  ctx.moveTo(x+w/2, y);
-  ctx.lineTo(x+w/2, y+h);
-  ctx.stroke();
-
-  // Centre circle r=9.15m
-  const cr = 9.15 * s;
-  ctx.beginPath();
-  ctx.arc(x+w/2, y+h/2, cr, 0, Math.PI*2);
-  ctx.stroke();
-  // Centre spot
-  ctx.beginPath();
-  ctx.arc(x+w/2, y+h/2, 3, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fill();
-
-  drawPenaltyArea(x, y, w, h, s, 'left');
-  drawPenaltyArea(x, y, w, h, s, 'right');
-  drawGoal(x, y, w, h, s, 'left');
-  drawGoal(x, y, w, h, s, 'right');
 }
 
-function drawPenaltyArea(x,y,w,h,s,side){
-  // penalty area 40.32m × 16.5m
-  const pw = 16.5*s, ph = 40.32*s;
-  const px = side==='left' ? x : x+w-pw;
-  const py = y + (h-ph)/2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 2;
+// ── FUSSBALL ─────────────────────────────────────────────────
+function drawSoccerField(){
+  const {x,y,w,h} = fieldRect;
+  const s = fieldScale();
+  const stripes=10, sw=w/stripes;
+  for(let i=0;i<stripes;i++){
+    ctx.fillStyle=i%2===0?'#3a7a22':'#428a28';
+    ctx.fillRect(x+i*sw,y,sw,h);
+  }
+  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
+  ctx.strokeRect(x,y,w,h);
+  ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,9.15*s,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
+  drawSoccerPenaltyArea(x,y,w,h,s,'left');
+  drawSoccerPenaltyArea(x,y,w,h,s,'right');
+  drawSoccerGoal(x,y,w,h,s,'left');
+  drawSoccerGoal(x,y,w,h,s,'right');
+}
+function drawSoccerPenaltyArea(x,y,w,h,s,side){
+  const pw=16.5*s,ph=40.32*s,px=side==='left'?x:x+w-pw,py=y+(h-ph)/2;
+  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
   ctx.strokeRect(px,py,pw,ph);
-
-  // goal area 5.5m × 18.32m
-  const gaw = 5.5*s, gah = 18.32*s;
-  const gax = side==='left' ? x : x+w-gaw;
-  const gay = y + (h-gah)/2;
+  const gaw=5.5*s,gah=18.32*s,gax=side==='left'?x:x+w-gaw,gay=y+(h-gah)/2;
   ctx.strokeRect(gax,gay,gaw,gah);
-
-  // penalty spot 11m
-  const spotX = side==='left' ? x+11*s : x+w-11*s;
-  const spotY = y+h/2;
-  ctx.beginPath();
-  ctx.arc(spotX,spotY,3,0,Math.PI*2);
-  ctx.fillStyle='rgba(255,255,255,0.85)';
-  ctx.fill();
-
-  // penalty arc r=9.15m from spot
-  const aStart = side==='left' ? -0.93 : Math.PI-0.93;
-  const aEnd   = side==='left' ?  0.93 : Math.PI+0.93;
-  ctx.beginPath();
-  ctx.arc(spotX,spotY,9.15*s,aStart,aEnd);
-  ctx.stroke();
-
-  // corner arcs r=1m
-  const corners = side==='left'
-    ? [{cx:x,cy:y},{cx:x,cy:y+h}]
-    : [{cx:x+w,cy:y},{cx:x+w,cy:y+h}];
+  const spotX=side==='left'?x+11*s:x+w-11*s,spotY=y+h/2;
+  ctx.beginPath(); ctx.arc(spotX,spotY,3,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
+  const aS=side==='left'?-0.93:Math.PI-0.93,aE=side==='left'?0.93:Math.PI+0.93;
+  ctx.beginPath(); ctx.arc(spotX,spotY,9.15*s,aS,aE); ctx.stroke();
+  const corners=side==='left'?[{cx:x,cy:y},{cx:x,cy:y+h}]:[{cx:x+w,cy:y},{cx:x+w,cy:y+h}];
   corners.forEach(({cx,cy},i)=>{
-    const sa = side==='left'
-      ? (i===0 ? 0 : -Math.PI/2)
-      : (i===0 ? Math.PI/2 : Math.PI);
+    const sa=side==='left'?(i===0?0:-Math.PI/2):(i===0?Math.PI/2:Math.PI);
+    ctx.beginPath(); ctx.arc(cx,cy,s,sa,sa+Math.PI/2); ctx.stroke();
+  });
+}
+function drawSoccerGoal(x,y,w,h,s,side){
+  const gw=GOAL_H*s,gh=GOAL_W*s,gx=side==='left'?x-gw:x+w,gy=y+(h-gh)/2;
+  ctx.strokeStyle='rgba(220,220,220,0.7)'; ctx.lineWidth=2;
+  ctx.strokeRect(gx,gy,gw,gh);
+  ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(gx,gy,gw,gh);
+}
+
+// ── HANDBALL ─────────────────────────────────────────────────
+// 40×20m | Torraum 6m | Freiwurflinie 9m | Tor 3×2m
+function drawHandballField(){
+  const {x,y,w,h}=fieldRect, s=fieldScale();
+  const stripes=10, sw=w/stripes;
+  for(let i=0;i<stripes;i++){
+    ctx.fillStyle=i%2===0?'#c8a05a':'#d4aa60';
+    ctx.fillRect(x+i*sw,y,sw,h);
+  }
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.fill();
+  ['left','right'].forEach(side=>{
+    const cx=side==='left'?x:x+w, cy=y+h/2;
+    const r6=6*s;
+    ctx.fillStyle='rgba(200,160,60,0.4)';
     ctx.beginPath();
-    ctx.arc(cx,cy,1*s,sa,sa+Math.PI/2);
-    ctx.stroke();
+    if(side==='left'){ ctx.moveTo(cx,cy-r6); ctx.arc(cx,cy,r6,-Math.PI/2,Math.PI/2); }
+    else { ctx.moveTo(cx,cy-r6); ctx.arc(cx,cy,r6,-Math.PI/2,Math.PI/2,true); }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
+    const r9=9*s;
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.setLineDash([8,6]);
+    ctx.beginPath();
+    if(side==='left') ctx.arc(cx,cy,r9,-Math.PI/2,Math.PI/2);
+    else ctx.arc(cx,cy,r9,-Math.PI/2,Math.PI/2,true);
+    ctx.stroke(); ctx.setLineDash([]);
+    const m7x=side==='left'?x+7*s:x+w-7*s;
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(m7x,cy-0.5*s); ctx.lineTo(m7x,cy+0.5*s); ctx.stroke();
+    const gTw=3*s,gTh=2*s,gTx=side==='left'?x-gTh:x+w,gTy=cy-gTw/2;
+    ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(gTx,gTy,gTh,gTw);
+    ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.5; ctx.strokeRect(gTx,gTy,gTh,gTw);
   });
 }
 
-function drawGoal(x,y,w,h,s,side){
-  const gw = GOAL_H*s, gh = GOAL_W*s;
-  const gx = side==='left' ? x-gw : x+w;
-  const gy = y+(h-gh)/2;
-  ctx.strokeStyle = 'rgba(220,220,220,0.7)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(gx,gy,gw,gh);
-  // net fill
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(gx,gy,gw,gh);
+// ── BASKETBALL ───────────────────────────────────────────────
+// 28×15m | 3-Punkt r=6.75m | Key 5.8×4.9m
+function drawBasketballField(){
+  const {x,y,w,h}=fieldRect, s=fieldScale();
+  const stripes=14, sh=h/stripes;
+  for(let i=0;i<stripes;i++){
+    ctx.fillStyle=i%2===0?'#d4916a':'#c8845f';
+    ctx.fillRect(x,y+i*sh,w,sh);
+  }
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,1.8*s,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,3,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.fill();
+  ['left','right'].forEach(side=>{
+    const ex=side==='left'?x:x+w, cy=y+h/2;
+    const kw=5.8*s,kh=4.9*s,kx=side==='left'?x:x+w-kw,ky=cy-kh/2;
+    ctx.fillStyle='rgba(200,130,80,0.4)'; ctx.fillRect(kx,ky,kw,kh);
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(kx,ky,kw,kh);
+    const fwx=side==='left'?x+kw:x+w-kw;
+    ctx.beginPath();
+    if(side==='left') ctx.arc(fwx,cy,kh/2,-Math.PI/2,Math.PI/2);
+    else ctx.arc(fwx,cy,kh/2,Math.PI/2,-Math.PI/2);
+    ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+    ctx.beginPath();
+    if(side==='left'){ ctx.moveTo(x,y+0.9*s); ctx.lineTo(x,cy-3*s); ctx.arc(ex,cy,6.75*s,Math.PI*1.5,Math.PI*0.5); ctx.lineTo(x,y+h-0.9*s); }
+    else { ctx.moveTo(x+w,y+0.9*s); ctx.lineTo(x+w,cy-3*s); ctx.arc(ex,cy,6.75*s,Math.PI*0.5,Math.PI*1.5); ctx.lineTo(x+w,y+h-0.9*s); }
+    ctx.stroke();
+    const bx=side==='left'?x+1.575*s:x+w-1.575*s;
+    ctx.strokeStyle='rgba(255,180,50,0.9)'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(bx,cy,0.45*s,0,Math.PI*2); ctx.stroke();
+    const bW=1.83*s,bH=1.07*s,bX=side==='left'?x-bH:x+w;
+    ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.5;
+    ctx.strokeRect(bX,cy-bW/2,bH,bW);
+  });
 }
+
+// ── EISHOCKEY ────────────────────────────────────────────────
+// 60×26m (NHL) | Abgerundete Ecken | Rot/Blau Linien
+function drawEishockeyField(){
+  const {x,y,w,h}=fieldRect, s=fieldScale();
+  const r=8.5*s;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+  ctx.fillStyle='#d0e8f5'; ctx.fill();
+  ctx.strokeStyle='#1a5276'; ctx.lineWidth=3; ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle='#cc0000'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(x+w/2,y+4); ctx.lineTo(x+w/2,y+h-4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,0.3*s,0,Math.PI*2);
+  ctx.fillStyle='#cc0000'; ctx.fill();
+  ctx.strokeStyle='#0044aa'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x+w/2,y+h/2,4.5*s,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#0044aa'; ctx.lineWidth=4;
+  [[x+w*0.25,y+4,x+w*0.25,y+h-4],[x+w*0.75,y+4,x+w*0.75,y+h-4]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
+  [[x+4*s,y+4,x+4*s,y+h-4],[x+w-4*s,y+4,x+w-4*s,y+h-4]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  ['left','right'].forEach(side=>{
+    const ex=side==='left'?x:x+w, cy=y+h/2;
+    const gw2=1.22*s,gh2=1.83*s,gx2=side==='left'?x+4*s-gw2:x+w-4*s,gy2=cy-gh2/2;
+    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(gx2,gy2,gw2,gh2);
+    ctx.strokeStyle='rgba(255,60,60,0.9)'; ctx.lineWidth=2.5; ctx.strokeRect(gx2,gy2,gw2,gh2);
+    ctx.fillStyle='rgba(0,68,170,0.15)';
+    const goalX=side==='left'?x+4*s:x+w-4*s;
+    ctx.beginPath();
+    if(side==='left') ctx.arc(goalX,cy,1.83*s,-Math.PI/2,Math.PI/2);
+    else ctx.arc(goalX,cy,1.83*s,-Math.PI/2,Math.PI/2,true);
+    ctx.fill();
+    ctx.strokeStyle='#cc0000'; ctx.lineWidth=1.5; ctx.stroke();
+    const dotX=side==='left'?x+7*s:x+w-7*s;
+    [cy-6.7*s,cy+6.7*s].forEach(dy=>{
+      ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(dotX,dy,1.8*s,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(dotX,dy,0.15*s,0,Math.PI*2);
+      ctx.fillStyle='#cc0000'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(dotX-0.4*s,dy); ctx.lineTo(dotX+0.4*s,dy);
+      ctx.moveTo(dotX,dy-0.4*s); ctx.lineTo(dotX,dy+0.4*s);
+      ctx.stroke();
+    });
+  });
+  [x+w/2-5*s,x+w/2+5*s].forEach(dx=>{
+    ctx.beginPath(); ctx.arc(dx,y+h/2,0.15*s,0,Math.PI*2);
+    ctx.fillStyle='#cc0000'; ctx.fill();
+  });
+}
+
+// ── VOLLEYBALL ───────────────────────────────────────────────
+// 18×9m | Mittellinie+Netz | Angriffslinie 3m
+function drawVolleyballField(){
+  const {x,y,w,h}=fieldRect, s=fieldScale();
+  ctx.fillStyle='#2980b9'; ctx.fillRect(x,y,w,h);
+  const pad=2*s;
+  ctx.fillStyle='#5dade2'; ctx.fillRect(x+pad,y+pad,w-pad*2,h-pad*2);
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x+pad,y+pad,w-pad*2,h-pad*2);
+  const netX=x+w/2;
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(netX,y+pad); ctx.lineTo(netX,y+h-pad); ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(netX,y); ctx.lineTo(netX,y+h); ctx.stroke();
+  ctx.setLineDash([]);
+  [y+pad-0.8*s,y+h-pad+0.8*s].forEach(py=>{
+    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillRect(netX-0.15*s,py-0.8*s,0.3*s,1.6*s);
+  });
+  const att1=x+w/2-3*s, att2=x+w/2+3*s;
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+  [[att1,y+pad,att1,y+h-pad],[att2,y+pad,att2,y+h-pad]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+}
+
 
 // ============================================================
 // DRAW OBJECTS
