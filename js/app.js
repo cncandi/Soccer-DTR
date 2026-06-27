@@ -20,16 +20,16 @@
         price: "6,00 €/Monat",
         planId: "P-3PY537404L8812239NI7OEYA",
         shape: "rect",
-        modules: ["tactics", "messages"],
-        description: "Taktikboard und Mitteilungen – 6,00 € pro Monat."
+        modules: ["tactics", "polls", "fame"],
+        description: "Taktikboard, Abstimmungen und Hall of Fame – 6,00 € pro Monat."
       },
       pro: {
         label: "Kadrivo Pro",
         price: "10,00 €/Monat",
         planId: "P-36V89937TU7917709NI7OBUA",
         shape: "pill",
-        modules: ["tactics", "messages", "polls", "cash", "fame"],
-        description: "Alle Funktionen: Taktikboard, Mitteilungen, Abstimmungen, Kasse und Hall of Fame – 10,00 € pro Monat."
+        modules: ["tactics", "polls", "fame", "messages", "cash"],
+        description: "Alle Funktionen: Taktikboard, Abstimmungen, Hall of Fame, Mitteilungen und Kasse – 10,00 € pro Monat."
       }
     };
     const DOC_ID = "club-state";
@@ -61,10 +61,10 @@
       ["players", "Spieler", "free"],
       ["events", "Training & Spiele", "free"],
       ["tactics", "Taktikboard", "amateur"],
-      ["messages", "Mitteilungen", "amateur"],
-      ["polls", "Abstimmungen", "pro"],
+      ["polls", "Abstimmungen", "amateur"],
+      ["fame", "Hall of Fame", "amateur"],
+      ["messages", "Mitteilungen", "pro"],
       ["cash", "Kasse", "pro"],
-      ["fame", "Hall of Fame", "pro"],
       ["settings", "Einstellungen", "free"],
       ["scouting", "Scouting", "addon"]
     ];
