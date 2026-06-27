@@ -34,7 +34,7 @@
     const DEFAULT_CLUB_ID = "default-club";
     const DEFAULT_PASSWORD = "fussball";
     const CLUB_URL_PARAM = "club";
-    const PUBLIC_APP_URL = "https://cncandi.github.io/Soccer-DTR/";
+    const PUBLIC_APP_URL = "https://www.kadrivo.de/";
     const ROLE_LEVELS = { Spieler: 1, Admin: 2, Superadmin: 3 };
     const MEMBER_FUNCTIONS = ["Spieler", "Trainer", "Betreuer"];
     const TEAM_GROUPS = ["Mannschaft", "Mannschaftsrat", "Kasse", "Trainer", "Betreuer"];
@@ -3765,7 +3765,7 @@
       const current = record?.transport || "";
       const options = [
         ["self", "Selbstfahrer"],
-        ["offer", "Biete Mitfahrgelegenheit"],
+        ["offer", "Fahrer"],
         ["passenger", "Mitfahrer"]
       ];
       return `

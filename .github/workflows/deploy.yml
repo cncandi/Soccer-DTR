@@ -45,6 +45,8 @@ jobs:
             --exclude='server-package' \
             --exclude='*.backup' \
             --exclude='node_modules' \
+            --exclude='test.html' \
+            --exclude='taktikboard-3d.html' \
             ./ _site/
 
       - name: Setup Pages
@@ -102,3 +104,5 @@ jobs:
             **/node_modules/**
             **/_site/**
             **/README.md
+            **/test.html
+            **/taktikboard-3d.html

@@ -7,9 +7,9 @@ const APP_SHELL = [
   "index.html",
   "backend.html",
   "taktikboard-3d.html?v=143",
-  "css/app.css?v=143",
+  "css/app.css?v=144",
   "css/backend.css?v=143",
-  "js/app.js?v=143",
+  "js/app.js?v=144",
   "js/backend.js?v=143",
   "manifest.webmanifest",
   "assets/kadrivo-login-banner.jpg",
@@ -138,7 +138,7 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "./index.html#messages";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      const existing = clientList.find((client) => client.url.includes("Soccer-DTR"));
+      const existing = clientList.find((client) => client.url.includes("kadrivo.de"));
       if (existing) {
         existing.focus();
         return existing.navigate(url);
