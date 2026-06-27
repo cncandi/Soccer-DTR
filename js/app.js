@@ -2504,10 +2504,11 @@
     async function loadKadrivoSubscriptionPaypalSdk(packageKey) {
       const planId = KADRIVO_SUBSCRIPTION_PACKAGES[packageKey]?.planId || "";
       if (!planId) throw new Error("Fuer dieses Paket ist noch keine PayPal Plan-ID hinterlegt.");
-      const key = `kadrivo-subscription:${KADRIVO_PAYPAL_CLIENT_ID}:${planId}`;
-      if (window.paypal && paypalSdkKey === key) return;
+      // SDK nur einmal pro Client-ID laden – planId wird erst beim Checkout uebergeben
+      const key = `kadrivo-subscription:${KADRIVO_PAYPAL_CLIENT_ID}`;
+      if (window.paypal && typeof window.paypal.Buttons === "function" && paypalSdkKey === key) return;
       if (paypalLoading) return paypalLoading;
-      delete window.paypal;
+      if (paypalSdkKey !== key) delete window.paypal;
       paypalSdkKey = key;
       paypalLoading = new Promise((resolve, reject) => {
         const existing = $("#paypalSdkScript");
