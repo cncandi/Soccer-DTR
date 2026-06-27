@@ -5609,18 +5609,36 @@
       });
     }
 
+    function isSportWith3D() {
+      return (currentClub().sport || "Fussball") === "Fussball";
+    }
+
+    function applySportTacticMode() {
+      const btn3d = $("#btn-tactic-3d");
+      const has3d = isSportWith3D();
+      if (btn3d) {
+        btn3d.style.display = has3d ? "" : "none";
+        btn3d.title = has3d ? "3D-Ansicht" : "3D nur für Fußball verfügbar";
+      }
+      // Wenn aktuell 3D aktiv aber Sportart ≠ Fußball → auf 2D wechseln
+      if (!has3d && currentTacticMode() === "3d") {
+        switchTacticMode("2d");
+      }
+    }
+
     function switchTacticMode(mode) {
       const panel3d = $("#tactic-panel-3d");
       const panel2d = $("#tactic-panel-2d");
       const btn3d   = $("#btn-tactic-3d");
       const btn2d   = $("#btn-tactic-2d");
       if (!panel3d || !panel2d) return;
+      // 3D nur für Fußball erlaubt
+      if (mode === "3d" && !isSportWith3D()) mode = "2d";
       const is3d = mode === "3d";
       panel3d.style.display = is3d ? "" : "none";
       panel2d.style.display = is3d ? "none" : "";
       btn3d?.classList.toggle("active", is3d);
       btn2d?.classList.toggle("active", !is3d);
-      // Send payload to active frame
       setTimeout(() => sendTactic3dPayload(), 100);
     }
     window.switchTacticMode = switchTacticMode;
@@ -5998,6 +6016,7 @@
 
     function renderTacticBoard() {
       if (!$("#tacticBoardForm")) return;
+      applySportTacticMode();
       const board = currentTacticBoard();
       $("#tacticBoardTitle").textContent = board.title || "Taktikboard";
       if ($("#tacticBoardName") && document.activeElement !== $("#tacticBoardName")) $("#tacticBoardName").value = board.title || "";
@@ -6577,6 +6596,8 @@
       touchClub(club);
       saveClubs();
       render();
+      // Taktikboard-Modus an neue Sportart anpassen
+      applySportTacticMode();
     });
 
     $("#clearClubLogoBtn").addEventListener("click", () => {
