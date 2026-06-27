@@ -17,17 +17,19 @@
     const KADRIVO_SUBSCRIPTION_PACKAGES = {
       amateur: {
         label: "Kadrivo Amateur",
+        price: "6,00 €/Monat",
         planId: "P-3PY537404L8812239NI7OEYA",
         shape: "rect",
-        modules: ["tactics", "polls", "fame"],
-        description: "Alle Pro-Funktionen ohne Mitteilungen und Kasse."
+        modules: ["tactics", "messages"],
+        description: "Taktikboard und Mitteilungen – 6,00 € pro Monat."
       },
       pro: {
         label: "Kadrivo Pro",
+        price: "10,00 €/Monat",
         planId: "P-36V89937TU7917709NI7OBUA",
         shape: "pill",
         modules: ["tactics", "messages", "polls", "cash", "fame"],
-        description: "Alle kostenpflichtigen Module: Taktikboard, Mitteilungen, Abstimmungen, Kasse und Hall of Fame."
+        description: "Alle Funktionen: Taktikboard, Mitteilungen, Abstimmungen, Kasse und Hall of Fame – 10,00 € pro Monat."
       }
     };
     const DOC_ID = "club-state";
@@ -58,11 +60,11 @@
       ["dashboard", "Uebersicht", "free"],
       ["players", "Spieler", "free"],
       ["events", "Training & Spiele", "free"],
-      ["tactics", "Taktikboard", "paid"],
-      ["messages", "Mitteilungen", "paid"],
-      ["polls", "Abstimmungen", "paid"],
-      ["cash", "Kasse", "paid"],
-      ["fame", "Hall of Fame", "paid"],
+      ["tactics", "Taktikboard", "amateur"],
+      ["messages", "Mitteilungen", "amateur"],
+      ["polls", "Abstimmungen", "pro"],
+      ["cash", "Kasse", "pro"],
+      ["fame", "Hall of Fame", "pro"],
       ["settings", "Einstellungen", "free"],
       ["scouting", "Scouting", "addon"]
     ];
@@ -379,6 +381,21 @@
       }[normalizeLicenseStatus(status)];
     }
 
+    function licensePackageLabel(club = currentClub()) {
+      if (!club) return "Kostenfrei";
+      const status = normalizeLicenseStatus(club.licenseStatus);
+      if (status === "blocked") return "Gesperrt";
+      if (licenseIsExpired(club)) return "Kostenfrei";
+      const pkg = club.proSubscriptionPackage;
+      if (status === "trial") return "Pro (Testphase)";
+      if (status === "active") {
+        if (pkg === "amateur") return "Amateur";
+        if (pkg === "pro") return "Pro";
+        return "Aktiv";
+      }
+      return "Kostenfrei";
+    }
+
     function clubLicenseAllowsAccess(club = currentClub()) {
       return normalizeLicenseStatus(club?.licenseStatus) !== "blocked";
     }
@@ -418,14 +435,15 @@
     function licenseBadgeText(club = currentClub()) {
       const status = normalizeLicenseStatus(club?.licenseStatus);
       if (status === "blocked") return "Lizenz gesperrt";
+      const pkgLabel = licensePackageLabel(club);
       const days = licenseDaysLeft(club);
-      const label = licenseStatusLabel(status);
       if (club?.licenseAutoRenew && status === "active") {
-        return `${label} · automatische Verlaengerung · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
+        return `${pkgLabel} · Auto-Verlaengerung bis ${formatLicenseDate(club.licenseExpiresAt)}`;
       }
-      if (days === null) return label;
-      if (days < 0) return `${label} abgelaufen seit ${Math.abs(days)} Tagen`;
-      return `${label} · noch ${days} Tage · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
+      if (days === null) return pkgLabel;
+      if (days < 0) return `Kostenfrei (Testphase abgelaufen)`;
+      if (status === "trial") return `${pkgLabel} · noch ${days} Tage · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
+      return `${pkgLabel} · noch ${days} Tage · bis ${formatLicenseDate(club.licenseExpiresAt)}`;
     }
 
     function licenseLoginWarningText(club = currentClub()) {
@@ -435,7 +453,13 @@
       if (club?.licenseAutoRenew && status === "active") return "";
       const days = licenseDaysLeft(club);
       if (days === null) return "";
-      if (days < 0) return "Die Lizenz ist abgelaufen. Zurzeit stehen nur Uebersicht, Spieler, Training & Spiele und Einstellungen zur Verfügung.";
+      if (days < 0) {
+        if (status === "trial") return "Die 3-woechige Testphase ist abgelaufen. Der Verein laeuft jetzt im Kostenfrei-Modus. Erweiterte Funktionen koennen unter Einstellungen \u2192 Kadrivo Abo freigeschaltet werden.";
+        return "Die Lizenz ist abgelaufen. Zurzeit stehen nur Uebersicht, Spieler, Training & Spiele und Einstellungen zur Verfuegung.";
+      }
+      if (status === "trial" && days <= 7) {
+        return `Die kostenlose Testphase (Pro) endet in ${days} Tagen. Danach wechselt der Verein automatisch in den Kostenfrei-Modus. Jetzt unter Einstellungen \u2192 Kadrivo Abo ein Abo abschliessen, um alle Funktionen zu behalten.`;
+      }
       if (days <= LICENSE_WARNING_DAYS) {
         return `Die Lizenz laeuft in ${days} Tagen ab und sollte erneuert werden, damit alle Funktionen erhalten bleiben.`;
       }
@@ -2556,7 +2580,15 @@
         : `${subscriptionPackage.label} wird geladen ...`;
       loadKadrivoSubscriptionPaypalSdk(packageKey)
         .then(() => {
-          if (!window.paypal || !host.isConnected) return;
+          if (!host.isConnected) return;
+          if (!window.paypal) {
+            status.textContent = "PayPal SDK konnte nicht initialisiert werden. Bitte Seite neu laden.";
+            return;
+          }
+          if (typeof window.paypal.Buttons !== "function") {
+            status.textContent = "PayPal Abo ist nicht verfuegbar: Die PayPal Client-ID ist moeglicherweise ungueltig oder fuer Subscriptions nicht freigeschaltet. Bitte die Client-ID unter paypal.com/billing/plans pruefen.";
+            return;
+          }
           window.paypal.Buttons({
             style: {
               shape: subscriptionPackage.shape || "pill",
