@@ -166,7 +166,22 @@ canvas{display:block}
 // ============================================================
 // CONFIG
 // ============================================================
-const FIELD = { w: 105, h: 68 }; // FIFA metres
+// Echte Spielfeldmaße je Sportart (Meter)
+const SPORT_FIELD_SIZES = {
+  Fussball:        { w: 105, h: 68  }, // FIFA
+  Handball:        { w: 40,  h: 20  }, // IHF
+  Basketball:      { w: 28,  h: 15  }, // FIBA
+  Eishockey:       { w: 60,  h: 26  }, // IIHF
+  Volleyball:      { w: 18,  h: 9   }, // FIVB
+  'Andere Sportart':{ w: 100, h: 60  }
+};
+
+let FIELD = { w: 105, h: 68 }; // wird per Sport gesetzt
+
+function updateFieldDimensions(){
+  const size = SPORT_FIELD_SIZES[currentSport] || SPORT_FIELD_SIZES['Andere Sportart'];
+  FIELD = { w: size.w, h: size.h };
+}
 const GOAL_W = 7.32, GOAL_H = 2.44;
 
 const COLORS_HOME = '#e63946';
@@ -437,7 +452,9 @@ function drawEishockeyField(){
   ctx.strokeStyle='#0044aa'; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(x+w/2,y+h/2,4.5*s,0,Math.PI*2); ctx.stroke();
   ctx.strokeStyle='#0044aa'; ctx.lineWidth=4;
-  [[x+w*0.25,y+4,x+w*0.25,y+h-4],[x+w*0.75,y+4,x+w*0.75,y+h-4]].forEach(([x1,y1,x2,y2])=>{
+  // Blaue Linien: 7.3m von der Mittellinie (IIHF)
+  const bl1=x+w/2-7.3*s, bl2=x+w/2+7.3*s;
+  [[bl1,y+4,bl1,y+h-4],[bl2,y+4,bl2,y+h-4]].forEach(([x1,y1,x2,y2])=>{
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   });
   ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
@@ -456,7 +473,8 @@ function drawEishockeyField(){
     else ctx.arc(goalX,cy,1.83*s,-Math.PI/2,Math.PI/2,true);
     ctx.fill();
     ctx.strokeStyle='#cc0000'; ctx.lineWidth=1.5; ctx.stroke();
-    const dotX=side==='left'?x+7*s:x+w-7*s;
+    // Anspielpunkte: 7m von Torlinie (bei 4m Torlinie → 11m vom Ende), ±6.7m von Mitte
+    const dotX=side==='left'?x+11*s:x+w-11*s;
     [cy-6.7*s,cy+6.7*s].forEach(dy=>{
       ctx.strokeStyle='#cc0000'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(dotX,dy,1.8*s,0,Math.PI*2); ctx.stroke();
@@ -468,35 +486,44 @@ function drawEishockeyField(){
       ctx.stroke();
     });
   });
-  [x+w/2-5*s,x+w/2+5*s].forEach(dx=>{
-    ctx.beginPath(); ctx.arc(dx,y+h/2,0.15*s,0,Math.PI*2);
+  // Neutrale Zone: 4 Anspielpunkte (±1.5m von Mittellinie, ±6.7m von Mitte)
+  [[x+w/2-1.5*s,y+h/2-6.7*s],[x+w/2+1.5*s,y+h/2-6.7*s],
+   [x+w/2-1.5*s,y+h/2+6.7*s],[x+w/2+1.5*s,y+h/2+6.7*s]].forEach(([dx,dy])=>{
+    ctx.beginPath(); ctx.arc(dx,dy,0.15*s,0,Math.PI*2);
     ctx.fillStyle='#cc0000'; ctx.fill();
   });
 }
 
 // ── VOLLEYBALL ───────────────────────────────────────────────
-// 18×9m | Mittellinie+Netz | Angriffslinie 3m
+// 18×9m | Mittellinie+Netz | Angriffslinie 3m vom Netz
 function drawVolleyballField(){
   const {x,y,w,h}=fieldRect, s=fieldScale();
+  // Außenbereich (3m Freizone = 0.5m visuell damit Feld sichtbar bleibt)
   ctx.fillStyle='#2980b9'; ctx.fillRect(x,y,w,h);
-  const pad=2*s;
-  ctx.fillStyle='#5dade2'; ctx.fillRect(x+pad,y+pad,w-pad*2,h-pad*2);
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x+pad,y+pad,w-pad*2,h-pad*2);
+  // Spielfläche (das gesamte fieldRect ist schon das 18×9m Feld)
+  ctx.fillStyle='#5dade2'; ctx.fillRect(x,y,w,h);
+  // Feldrand
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  // Mittellinie/Netz
   const netX=x+w/2;
   ctx.strokeStyle='#ffffff'; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.moveTo(netX,y+pad); ctx.lineTo(netX,y+h-pad); ctx.stroke();
-  ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
   ctx.beginPath(); ctx.moveTo(netX,y); ctx.lineTo(netX,y+h); ctx.stroke();
-  ctx.setLineDash([]);
-  [y+pad-0.8*s,y+h-pad+0.8*s].forEach(py=>{
-    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillRect(netX-0.15*s,py-0.8*s,0.3*s,1.6*s);
-  });
+  // Netz-Pfosten
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.fillRect(netX-0.12*s,y-0.5*s,0.24*s,1*s);
+  ctx.fillRect(netX-0.12*s,y+h-0.5*s,0.24*s,1*s);
+  // Angriffslinie (3m vom Netz auf jeder Seite)
   const att1=x+w/2-3*s, att2=x+w/2+3*s;
   ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
-  [[att1,y+pad,att1,y+h-pad],[att2,y+pad,att2,y+h-pad]].forEach(([x1,y1,x2,y2])=>{
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-  });
+  ctx.beginPath(); ctx.moveTo(att1,y); ctx.lineTo(att1,y+h); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(att2,y); ctx.lineTo(att2,y+h); ctx.stroke();
   ctx.setLineDash([]);
+  // Service-Zone Marker (kleine Striche am Rand)
+  [-0.9*s,0.9*s].forEach(dy=>{
+    ctx.fillStyle='rgba(255,255,255,0.8)';
+    ctx.fillRect(x-0.1*s,y+h/2+dy-0.08*s,0.6*s,0.16*s);
+    ctx.fillRect(x+w-0.5*s,y+h/2+dy-0.08*s,0.6*s,0.16*s);
+  });
 }
 
 
@@ -1520,7 +1547,7 @@ window.addEventListener('message',(event)=>{
     fieldLimit=data.limits.fieldPlayers||11;
     benchLimit=data.limits.benchPlayers??9;
   }
-  if(data.sport) currentSport=data.sport;
+  if(data.sport) { currentSport=data.sport; updateFieldDimensions(); }
   homeColor=data.homeColor||COLORS_HOME;
   awayColor=data.awayColor||COLORS_AWAY;
   gkColor  =data.gkColor  ||COLORS_GK;
@@ -1545,6 +1572,7 @@ function updateFormationBar(){
 // INIT
 // ============================================================
 window.addEventListener('resize', resize);
+updateFieldDimensions();
 resize();
 
 const PRESET_COLORS_GLOBAL = PRESET_COLORS;
