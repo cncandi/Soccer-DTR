@@ -21,7 +21,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v172';
+      const EXPECTED = 'v173';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +45,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v172</span></h1>
+          <h1>Kadrivo <span class="app-version">v173</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v172</span></h1>
+          <h1>Kadrivo <span class="app-version">v173</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -359,7 +359,7 @@
               <!-- Taktik speichern -->
               <button type="button" id="saveTacticBoardBtn"
                 style="width:100%;padding:12px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px"
-                onclick="saveTacticBoardWithCheck()">Taktik speichern</button>
+                >Taktik speichern</button>
 
               <!-- Taktik löschen -->
               <button type="button"
@@ -782,7 +782,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=172" defer></script>
+  <script src="js/app.js?v=173" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
