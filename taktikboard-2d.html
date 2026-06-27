@@ -136,6 +136,8 @@ canvas{display:block}
       <button class="tb-btn fbtn2d" id="fbtn-3-5-2" onclick="applyFormation2d('3-5-2')">3-5-2</button>
       <button class="tb-btn fbtn2d" id="fbtn-5-3-2" onclick="applyFormation2d('5-3-2')">5-3-2</button>
       <button class="tb-btn fbtn2d" id="fbtn-3-4-3" onclick="applyFormation2d('3-4-3')">3-4-3</button>
+      <button class="tb-btn fbtn2d" id="fbtn-4-1-4-1" onclick="applyFormation2d('4-1-4-1')">4-1-4-1</button>
+      <button class="tb-btn fbtn2d" id="fbtn-4-3-2-1" onclick="applyFormation2d('4-3-2-1')">4-3-2-1</button>
     </div>
     <div id="statusbar">
       <span id="s-mode">Modus: Auswahl</span>
@@ -1493,24 +1495,77 @@ function updatePlayerCount(){
 // ============================================================
 // FORMATIONS (Fussball 11er)
 // ============================================================
+// Formationen für Fußball (105×68m Feld, Spielrichtung links→rechts)
+// Slot[0] = Torwart (bei x≈5), dann Abwehr, Mittelfeld, Sturm
+// x = Tiefe (0=eigenes Tor, 105=gegnerisches Tor)
+// y = Breite (0=oben, 68=unten, 34=Mitte)
 const FORMATIONS = {
   '4-3-3': {
-    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[35,20],[35,34],[35,48],[60,17],[60,34],[60,51]]
+    slots:[
+      [5,34],                              // TW
+      [20,12],[20,26],[20,42],[20,56],     // 4er Abwehr
+      [40,20],[40,34],[40,48],             // 3er Mittelfeld
+      [65,17],[65,34],[65,51]              // 3er Sturm
+    ]
   },
   '4-4-2': {
-    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[35,14],[35,27],[35,41],[35,54],[55,22],[55,46]]
+    slots:[
+      [5,34],
+      [20,12],[20,26],[20,42],[20,56],
+      [42,12],[42,26],[42,42],[42,56],
+      [65,24],[65,44]
+    ]
   },
   '4-2-3-1': {
-    slots:[[52,34],[17,15],[17,27],[17,41],[17,53],[33,22],[33,46],[47,15],[47,34],[47,53],[60,34]]
+    slots:[
+      [5,34],
+      [20,12],[20,26],[20,42],[20,56],
+      [35,24],[35,44],
+      [52,14],[52,34],[52,54],
+      [68,34]
+    ]
   },
   '3-5-2': {
-    slots:[[52,34],[17,20],[17,34],[17,48],[30,12],[33,24],[35,34],[33,44],[30,56],[57,22],[57,46]]
+    slots:[
+      [5,34],
+      [20,20],[20,34],[20,48],
+      [35,10],[38,24],[40,34],[38,44],[35,58],
+      [65,24],[65,44]
+    ]
   },
   '5-3-2': {
-    slots:[[52,34],[15,12],[15,24],[17,34],[15,44],[15,56],[34,20],[34,34],[34,48],[56,22],[56,46]]
+    slots:[
+      [5,34],
+      [18,8],[18,22],[18,34],[18,46],[18,60],
+      [40,20],[40,34],[40,48],
+      [65,24],[65,44]
+    ]
   },
   '3-4-3': {
-    slots:[[52,34],[17,20],[17,34],[17,48],[33,14],[33,27],[33,41],[33,54],[56,17],[56,34],[56,51]]
+    slots:[
+      [5,34],
+      [20,20],[20,34],[20,48],
+      [38,12],[38,27],[38,41],[38,56],
+      [65,17],[65,34],[65,51]
+    ]
+  },
+  '4-1-4-1': {
+    slots:[
+      [5,34],
+      [20,12],[20,26],[20,42],[20,56],
+      [32,34],
+      [50,12],[50,26],[50,42],[50,56],
+      [68,34]
+    ]
+  },
+  '4-3-2-1': {
+    slots:[
+      [5,34],
+      [20,12],[20,26],[20,42],[20,56],
+      [38,20],[38,34],[38,48],
+      [54,24],[54,44],
+      [68,34]
+    ]
   }
 };
 
@@ -1600,9 +1655,17 @@ function autoPlace2d(){
 
   if(currentSport==='Fussball'){
     const slots=getFormationSlots(starters.length);
-    starters.forEach((p,i)=>{
+    // Torwart bekommt Slot 0, Feldspieler die restlichen Slots
+    const gkStarters    = starters.filter(p=>isGkPosition(p.pos));
+    const fieldStarters = starters.filter(p=>!isGkPosition(p.pos));
+    // Wenn kein TW-Spieler: ersten Spieler als TW behandeln
+    const orderedStarters = gkStarters.length
+      ? [...gkStarters, ...fieldStarters]
+      : starters;
+    orderedStarters.forEach((p,i)=>{
       const pos=slots[i]||[FIELD.w/2,FIELD.h/2];
-      const col=isGkPosition(p.pos)?gkColor:homeColor;
+      const isGk = i===0 && gkStarters.length>0 ? true : isGkPosition(p.pos);
+      const col=isGk?gkColor:homeColor;
       objects.push({type:'player',id:newId(),fx:pos[0],fy:pos[1],color:p.color||col,name:p.name,num:p.num||'',playerId:p.id,starter:true});
       const el=document.querySelector(`.player-item[data-pid="${p.id}"]`);
       if(el) el.classList.add('on-field');
