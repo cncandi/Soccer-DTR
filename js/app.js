@@ -5560,7 +5560,7 @@
       } catch (error) {
         console.warn("Taktik-Payload konnte nicht lokal gespeichert werden.", error);
       }
-      ["#tactic3dFrame", "#tactic3dModalFrame"].forEach((selector) => {
+      ["#tactic3dFrame", "#tactic3dModalFrame", "#tactic2dFrame"].forEach((selector) => {
         const frame = $(selector);
         if (frame?.contentWindow) frame.contentWindow.postMessage(payload, window.location.origin);
       });
@@ -5608,6 +5608,22 @@
         }, window.location.origin);
       });
     }
+
+    function switchTacticMode(mode) {
+      const panel3d = $("#tactic-panel-3d");
+      const panel2d = $("#tactic-panel-2d");
+      const btn3d   = $("#btn-tactic-3d");
+      const btn2d   = $("#btn-tactic-2d");
+      if (!panel3d || !panel2d) return;
+      const is3d = mode === "3d";
+      panel3d.style.display = is3d ? "" : "none";
+      panel2d.style.display = is3d ? "none" : "";
+      btn3d?.classList.toggle("active", is3d);
+      btn2d?.classList.toggle("active", !is3d);
+      // Send payload to active frame
+      setTimeout(() => sendTactic3dPayload(), 100);
+    }
+    window.switchTacticMode = switchTacticMode;
 
     async function openTactic3dModal() {
       const modal = $("#tactic3dModal");
@@ -7115,7 +7131,11 @@
     $("#tactic3dModalFrame")?.addEventListener("load", () => {
       sendTactic3dPayload();
     });
+    $("#tactic2dFrame")?.addEventListener("load", () => {
+      sendTactic3dPayload();
+    });
     $("#openTactic3dBtn")?.addEventListener("click", openTactic3dModal);
+    $("#openTactic2dBtn")?.addEventListener("click", openTactic3dModal);
     $("#closeTactic3dModalBtn")?.addEventListener("click", closeTactic3dModal);
     $("#tactic3dModal")?.addEventListener("click", (event) => {
       if (event.target.id === "tactic3dModal") closeTactic3dModal();

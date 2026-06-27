@@ -340,8 +340,12 @@
           <section class="panel tactic-workspace">
             <div class="item-head">
               <h3 id="tacticBoardTitle">Taktikboard</h3>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button class="mini active" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button">3D</button>
+                <button class="mini" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button">2D</button>
+              </div>
             </div>
-            <div class="tactic-3d-panel">
+            <div class="tactic-3d-panel" id="tactic-panel-3d">
               <div class="item-head">
                 <div>
                   <h3>3D Taktiktafel</h3>
@@ -350,6 +354,16 @@
                 <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
               </div>
               <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=143" title="3D Taktiktafel"></iframe>
+            </div>
+            <div class="tactic-3d-panel" id="tactic-panel-2d" style="display:none">
+              <div class="item-head">
+                <div>
+                  <h3>2D Taktiktafel</h3>
+                  <p class="meta" id="tactic2dMeta">Bitte Spiel oder Training auswaehlen.</p>
+                </div>
+                <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
+              </div>
+              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=144" title="2D Taktiktafel"></iframe>
             </div>
           </section>
         </div>

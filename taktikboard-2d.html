@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D Taktikboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+/* Layout */
+#app{display:flex;width:100%;height:100%}
+#sidebar{width:180px;min-width:160px;background:#12122a;border-right:1px solid #2a2a4a;display:flex;flex-direction:column;overflow:hidden}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#2d5a1b}
+canvas{display:block}
+
+/* Sidebar */
+#sidebar-tabs{display:flex;border-bottom:1px solid #2a2a4a}
+.stab{flex:1;padding:7px 2px;text-align:center;font-size:10px;cursor:pointer;color:#666;border-bottom:2px solid transparent;transition:color .14s,border-color .14s}
+.stab.active{color:#7676d8;border-bottom-color:#7676d8}
+#sidebar-content{flex:1;overflow-y:auto;padding:6px}
+#sidebar-content::-webkit-scrollbar{width:4px}
+#sidebar-content::-webkit-scrollbar-thumb{background:#2a2a5a;border-radius:2px}
+
+.section-head{font-size:9px;font-weight:700;letter-spacing:1px;color:#555;margin:8px 0 4px;padding-left:3px;text-transform:uppercase}
+
+/* Player items */
+.player-item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid #2a2a4a;background:#1a1a3e;font-size:11px;transition:background .14s,border-color .14s;user-select:none}
+.player-item:hover{border-color:#7676d8;background:#25255f}
+.player-item.on-field{border-color:#2f8f4e;background:#132719;box-shadow:inset 3px 0 0 #46d479}
+.player-item .pnum{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0;color:#fff}
+.player-item .pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc;font-size:10px}
+.player-item .ppos{font-size:9px;color:#555;flex-shrink:0}
+
+/* Tool items */
+.tool-item{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid #2a2a4a;background:#1a1a3e;font-size:11px;transition:background .14s,border-color .14s;user-select:none}
+.tool-item:hover{border-color:#ffaa44;background:#302706}
+.tool-item.active{border-color:#ffaa44;background:#3a2600;box-shadow:inset 3px 0 0 #ffaa44}
+.tool-item .ticon{font-size:14px;flex-shrink:0;width:18px;text-align:center}
+
+/* Draw mode items */
+.draw-item{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid #2a2a4a;background:#1a1a3e;font-size:11px;transition:background .14s,border-color .14s;user-select:none}
+.draw-item:hover{border-color:#44ccff;background:#002a3a}
+.draw-item.active{border-color:#44ccff;background:#003044;box-shadow:inset 3px 0 0 #44ccff}
+
+/* Toolbar */
+#toolbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:rgba(10,10,30,.85);border:1px solid #2a2a4a;border-radius:8px;padding:5px 8px;z-index:20;backdrop-filter:blur(4px)}
+.tb-btn{background:#1a1a3e;border:1px solid #2a2a4a;color:#aaa;padding:4px 9px;border-radius:5px;cursor:pointer;font-size:11px;transition:background .14s,border-color .14s,color .14s;white-space:nowrap}
+.tb-btn:hover{background:#25255f;color:#fff;border-color:#5555aa}
+.tb-btn.active{background:#3a2600;color:#ffaa44;border-color:#aa6600}
+.tb-btn.danger:hover{background:#3a0000;color:#ff6666;border-color:#aa0000}
+
+/* Status bar */
+#statusbar{position:absolute;bottom:0;left:0;right:0;height:24px;background:rgba(10,10,30,.8);display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:#666;z-index:10}
+#statusbar span{color:#888}
+
+/* Color picker popup */
+#color-popup{position:fixed;background:#1a1a3e;border:1px solid #3a3a6a;border-radius:8px;padding:12px;z-index:200;display:none;box-shadow:0 4px 20px rgba(0,0,0,.6)}
+#color-popup h4{font-size:11px;color:#aaa;margin-bottom:8px}
+.color-swatches{display:grid;grid-template-columns:repeat(6,24px);gap:4px;margin-bottom:8px}
+.swatch{width:24px;height:24px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-color .1s}
+.swatch:hover,.swatch.sel{transform:scale(1.15);border-color:#fff}
+#color-popup input[type=color]{width:100%;height:28px;cursor:pointer;border:1px solid #3a3a6a;background:none;border-radius:4px;margin-bottom:6px}
+#color-popup .popup-btns{display:flex;gap:6px}
+#color-popup button{flex:1;padding:5px;border-radius:5px;border:1px solid #3a3a6a;cursor:pointer;font-size:11px}
+#color-popup .btn-ok{background:#2a2a6a;color:#aaa}
+#color-popup .btn-ok:hover{background:#3a3aaa;color:#fff}
+#color-popup .btn-cancel{background:#1a1a2e;color:#666}
+
+/* Text input popup */
+#text-popup{position:fixed;background:#1a1a3e;border:1px solid #3a3a6a;border-radius:8px;padding:12px;z-index:200;display:none;box-shadow:0 4px 20px rgba(0,0,0,.6);min-width:220px}
+#text-popup h4{font-size:11px;color:#aaa;margin-bottom:8px}
+#text-input{width:100%;padding:6px;background:#0d0d1e;border:1px solid #3a3a6a;color:#fff;border-radius:5px;font-size:13px;margin-bottom:8px;outline:none}
+#text-popup .popup-btns{display:flex;gap:6px}
+#text-popup button{flex:1;padding:5px;border-radius:5px;border:1px solid #3a3a6a;cursor:pointer;font-size:11px}
+#text-popup .btn-ok{background:#2a2a6a;color:#aaa}
+#text-popup .btn-ok:hover{background:#3a3aaa;color:#fff}
+#text-popup .btn-cancel{background:#1a1a2e;color:#666}
+
+/* Context menu */
+#ctx-menu{position:fixed;background:#1a1a3e;border:1px solid #3a3a6a;border-radius:7px;padding:4px 0;z-index:300;display:none;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.ctx-item{padding:6px 14px;font-size:11px;color:#ccc;cursor:pointer;transition:background .1s}
+.ctx-item:hover{background:#25255f;color:#fff}
+.ctx-sep{height:1px;background:#2a2a4a;margin:3px 0}
+
+/* Arrow color selector */
+#draw-color-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:4px 6px;background:#0d0d1e;border-radius:5px}
+#draw-color-row label{font-size:9px;color:#666}
+.arrow-swatch{width:16px;height:16px;border-radius:3px;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+.arrow-swatch.sel{border-color:#fff}
+#draw-color-custom{width:22px;height:16px;border:1px solid #3a3a6a;background:none;border-radius:3px;cursor:pointer;padding:0}
+#draw-style-row{display:flex;gap:4px;margin-bottom:4px;padding:4px 6px;background:#0d0d1e;border-radius:5px}
+#draw-style-row button{flex:1;padding:3px;border:1px solid #2a2a4a;background:#1a1a3e;color:#888;border-radius:4px;cursor:pointer;font-size:10px}
+#draw-style-row button.active{background:#003044;color:#44ccff;border-color:#44ccff}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <div class="stab active" id="tab-players" onclick="showTab('players')">Spieler</div>
+      <div class="stab" id="tab-tools" onclick="showTab('tools')">Tools</div>
+      <div class="stab" id="tab-draw" onclick="showTab('draw')">Zeichnen</div>
+    </div>
+    <div id="sidebar-content">
+      <!-- filled by JS -->
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="toolbar">
+      <button class="tb-btn" onclick="undo()">↩ Undo</button>
+      <button class="tb-btn" onclick="clearAll()">🗑 Leeren</button>
+      <button class="tb-btn" onclick="toggleNames()" id="btn-names">Namen: Aus</button>
+      <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
+    </div>
+    <div id="statusbar">
+      <span id="s-mode">Modus: Auswahl</span>
+      <span id="s-players">Feld: 0 Spieler</span>
+      <span id="s-hint">Klick: auswählen · Doppelklick: entfernen · Rechtsklick: Optionen</span>
+    </div>
+  </div>
+</div>
+
+<!-- Color picker -->
+<div id="color-popup">
+  <h4 id="color-popup-title">Farbe wählen</h4>
+  <div class="color-swatches" id="color-swatches"></div>
+  <input type="color" id="color-custom" value="#ff6600">
+  <div class="popup-btns">
+    <button class="btn-ok" onclick="colorPopupOk()">OK</button>
+    <button class="btn-cancel" onclick="colorPopupCancel()">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Text popup -->
+<div id="text-popup">
+  <h4>Text eingeben</h4>
+  <input type="text" id="text-input" placeholder="Text…" maxlength="80">
+  <div class="popup-btns">
+    <button class="btn-ok" onclick="textPopupOk()">OK</button>
+    <button class="btn-cancel" onclick="textPopupCancel()">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-delete" onclick="ctxDelete()">🗑 Entfernen</div>
+  <div class="ctx-item" id="ctx-color" onclick="ctxColor()">🎨 Farbe ändern</div>
+  <div class="ctx-item" id="ctx-label" onclick="ctxLabel()">✏️ Name ändern</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-front" onclick="ctxFront()">↑ Vordergrund</div>
+  <div class="ctx-item" id="ctx-back" onclick="ctxBack()">↓ Hintergrund</div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const FIELD = { w: 105, h: 68 }; // FIFA metres
+const GOAL_W = 7.32, GOAL_H = 2.44;
+
+const COLORS_HOME = '#e63946';
+const COLORS_AWAY = '#457b9d';
+const COLORS_GK   = '#f4a261';
+
+const PRESET_COLORS = [
+  '#e63946','#457b9d','#f4a261','#2a9d8f','#e9c46a','#ffffff',
+  '#6a0572','#023e8a','#1b4332','#ffb703','#333333','#aaaaaa'
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let objects   = [];   // all canvas objects
+let drawLines = [];   // drawn arrows/lines
+let selected  = null; // selected object id
+let undoStack = [];
+
+let dragObj   = null;
+let dragOffX  = 0, dragOffY = 0;
+let isPanning = false;
+let panStart  = {x:0,y:0};
+let panOff    = {x:0,y:0};
+let zoom      = 1;
+
+let currentTab   = 'players';
+let drawMode     = null; // null | 'arrow' | 'dashed' | 'wave' | 'text'
+let drawStart    = null;
+let arrowColor   = '#ffffff';
+let arrowStyle   = 'solid'; // solid | dashed | wave
+let showNames    = false;
+
+let colorPopupCallback = null;
+let colorPopupMode     = null; // 'player' | 'cone' | 'arrow'
+
+let ctxTarget = null;
+
+let kadrivoBoardId = null;
+let kadrivoReady   = false;
+let kadrivoHydrating = false;
+let kadrivoSaveTimer = null;
+
+let kadrivoPlayers = [];
+let homeColor = COLORS_HOME;
+let awayColor = COLORS_AWAY;
+let gkColor   = COLORS_GK;
+
+// Object id counter
+let oidSeq = 1;
+function newId(){ return 'o' + (oidSeq++); }
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+let fieldRect = {x:0,y:0,w:0,h:0}; // canvas pixels
+
+function resize(){
+  const wrap = document.getElementById('canvas-wrap');
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  panOff = {x:0,y:0};
+  zoom = 1;
+  calcFieldRect();
+  render();
+}
+
+function calcFieldRect(){
+  const pad = 40;
+  const cw = canvas.width, ch = canvas.height;
+  const aspect = FIELD.w / FIELD.h;
+  let fw = cw - pad*2, fh = ch - pad*2;
+  if(fw/fh > aspect) fw = fh * aspect;
+  else fh = fw / aspect;
+  fieldRect = {
+    x: (cw - fw)/2 + panOff.x,
+    y: (ch - fh)/2 + panOff.y,
+    w: fw * zoom,
+    h: fh * zoom
+  };
+}
+
+// ============================================================
+// COORDINATE HELPERS
+// ============================================================
+// field coords [0..FIELD.w, 0..FIELD.h] ↔ canvas pixels
+function fieldToCanvas(fx, fy){
+  return {
+    x: fieldRect.x + (fx / FIELD.w) * fieldRect.w,
+    y: fieldRect.y + (fy / FIELD.h) * fieldRect.h
+  };
+}
+function canvasToField(cx, cy){
+  return {
+    x: ((cx - fieldRect.x) / fieldRect.w) * FIELD.w,
+    y: ((cy - fieldRect.y) / fieldRect.h) * FIELD.h
+  };
+}
+function fieldScale(){ return fieldRect.w / FIELD.w; }
+
+// ============================================================
+// RENDER
+// ============================================================
+function render(){
+  calcFieldRect();
+  const cw = canvas.width, ch = canvas.height;
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0,0,cw,ch);
+
+  drawField();
+  drawLines.forEach(drawArrow);
+  objects.forEach(drawObj);
+  if(drawStart && mousePos) drawPreviewLine(drawStart, mousePos);
+}
+
+function drawField(){
+  const {x,y,w,h} = fieldRect;
+  const s = fieldScale();
+
+  // Grass stripes
+  const stripes = 10;
+  const sw = w / stripes;
+  for(let i=0;i<stripes;i++){
+    ctx.fillStyle = i%2===0 ? '#3a7a22' : '#428a28';
+    ctx.fillRect(x + i*sw, y, sw, h);
+  }
+
+  // Field border
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x,y,w,h);
+
+  // Centre line
+  ctx.beginPath();
+  ctx.moveTo(x+w/2, y);
+  ctx.lineTo(x+w/2, y+h);
+  ctx.stroke();
+
+  // Centre circle r=9.15m
+  const cr = 9.15 * s;
+  ctx.beginPath();
+  ctx.arc(x+w/2, y+h/2, cr, 0, Math.PI*2);
+  ctx.stroke();
+  // Centre spot
+  ctx.beginPath();
+  ctx.arc(x+w/2, y+h/2, 3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fill();
+
+  drawPenaltyArea(x, y, w, h, s, 'left');
+  drawPenaltyArea(x, y, w, h, s, 'right');
+  drawGoal(x, y, w, h, s, 'left');
+  drawGoal(x, y, w, h, s, 'right');
+}
+
+function drawPenaltyArea(x,y,w,h,s,side){
+  // penalty area 40.32m × 16.5m
+  const pw = 16.5*s, ph = 40.32*s;
+  const px = side==='left' ? x : x+w-pw;
+  const py = y + (h-ph)/2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px,py,pw,ph);
+
+  // goal area 5.5m × 18.32m
+  const gaw = 5.5*s, gah = 18.32*s;
+  const gax = side==='left' ? x : x+w-gaw;
+  const gay = y + (h-gah)/2;
+  ctx.strokeRect(gax,gay,gaw,gah);
+
+  // penalty spot 11m
+  const spotX = side==='left' ? x+11*s : x+w-11*s;
+  const spotY = y+h/2;
+  ctx.beginPath();
+  ctx.arc(spotX,spotY,3,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.fill();
+
+  // penalty arc r=9.15m from spot
+  const aStart = side==='left' ? -0.93 : Math.PI-0.93;
+  const aEnd   = side==='left' ?  0.93 : Math.PI+0.93;
+  ctx.beginPath();
+  ctx.arc(spotX,spotY,9.15*s,aStart,aEnd);
+  ctx.stroke();
+
+  // corner arcs r=1m
+  const corners = side==='left'
+    ? [{cx:x,cy:y},{cx:x,cy:y+h}]
+    : [{cx:x+w,cy:y},{cx:x+w,cy:y+h}];
+  corners.forEach(({cx,cy},i)=>{
+    const sa = side==='left'
+      ? (i===0 ? 0 : -Math.PI/2)
+      : (i===0 ? Math.PI/2 : Math.PI);
+    ctx.beginPath();
+    ctx.arc(cx,cy,1*s,sa,sa+Math.PI/2);
+    ctx.stroke();
+  });
+}
+
+function drawGoal(x,y,w,h,s,side){
+  const gw = GOAL_H*s, gh = GOAL_W*s;
+  const gx = side==='left' ? x-gw : x+w;
+  const gy = y+(h-gh)/2;
+  ctx.strokeStyle = 'rgba(220,220,220,0.7)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(gx,gy,gw,gh);
+  // net fill
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(gx,gy,gw,gh);
+}
+
+// ============================================================
+// DRAW OBJECTS
+// ============================================================
+function drawObj(obj){
+  const {x,y,w,h} = fieldRect;
+  const s = fieldScale();
+  const p = fieldToCanvas(obj.fx, obj.fy);
+  const sel = obj.id === selected;
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+
+  if(sel){
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur  = 12;
+  }
+
+  if(obj.type === 'player')      drawPlayer(obj, s, sel);
+  else if(obj.type === 'cone')   drawCone(obj, s);
+  else if(obj.type === 'ball')   drawBall(obj, s);
+  else if(obj.type === 'pole')   drawPole(obj, s);
+  else if(obj.type === 'goal')   drawGoalObj(obj, s);
+  else if(obj.type === 'text')   drawTextObj(obj, s);
+
+  ctx.restore();
+}
+
+function drawPlayer(obj, s, sel){
+  const r = 14;
+  const col = obj.color || '#e63946';
+  // Shadow
+  ctx.beginPath();
+  ctx.ellipse(0, r*0.7, r*0.7, r*0.25, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
+  // Body circle
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.fillStyle = col;
+  ctx.fill();
+  ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = sel ? 2.5 : 1.5;
+  ctx.stroke();
+  // Number / initials
+  const label = obj.num ? String(obj.num) : (obj.name || '?').substring(0,2).toUpperCase();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${r > 12 ? 11 : 9}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  ctx.fillText(label, 0, 0);
+  // Name below
+  if(showNames && obj.name){
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 3;
+    ctx.fillText(obj.name, 0, r+9);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawCone(obj, s){
+  const c = obj.color || '#ff5500';
+  const sz = 10;
+  // Triangle shape
+  ctx.beginPath();
+  ctx.moveTo(0, -sz);
+  ctx.lineTo(-sz*0.7, sz*0.4);
+  ctx.lineTo(sz*0.7,  sz*0.4);
+  ctx.closePath();
+  ctx.fillStyle = c;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Base shadow
+  ctx.beginPath();
+  ctx.ellipse(0, sz*0.4, sz*0.7, sz*0.2, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fill();
+}
+
+function drawBall(obj, s){
+  const r = 9;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  // Pentagon pattern (simplified as arcs)
+  ctx.fillStyle = '#111';
+  for(let i=0;i<5;i++){
+    const a = (i/5)*Math.PI*2;
+    const bx = Math.cos(a)*r*0.45, by = Math.sin(a)*r*0.45;
+    ctx.beginPath();
+    ctx.arc(bx, by, r*0.22, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(0,0,r*0.18,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawPole(obj, s){
+  const c = obj.color || '#cc0000';
+  const isH = obj.horizontal;
+  ctx.strokeStyle = c;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  if(isH){ ctx.moveTo(-20,0); ctx.lineTo(20,0); }
+  else    { ctx.moveTo(0,-20); ctx.lineTo(0,20); }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if(isH){ ctx.moveTo(-18,-1); ctx.lineTo(18,-1); }
+  else    { ctx.moveTo(-1,-18); ctx.lineTo(-1,18); }
+  ctx.stroke();
+}
+
+function drawGoalObj(obj, s){
+  const sw = obj.goalW || 7.32;
+  const sh = obj.goalH || 2.44;
+  const pw = sw * fieldScale() * 0.5;
+  const ph = sh * fieldScale() * 0.5;
+  ctx.strokeStyle = 'rgba(220,220,220,0.9)';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(-pw/2, -ph/2, pw, ph);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.fillRect(-pw/2, -ph/2, pw, ph);
+}
+
+function drawTextObj(obj, s){
+  const txt = obj.text || '';
+  const fs = obj.fontSize || 14;
+  ctx.font = `${obj.bold?'bold ':''} ${fs}px sans-serif`;
+  ctx.fillStyle = obj.color || '#ffff00';
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+  ctx.lineWidth = 3;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  ctx.strokeText(txt, 0, 0);
+  ctx.fillText(txt, 0, 0);
+}
+
+// ============================================================
+// DRAW ARROWS / LINES
+// ============================================================
+function drawArrow(line){
+  const a = fieldToCanvas(line.x1, line.y1);
+  const b = fieldToCanvas(line.x2, line.y2);
+  const col  = line.color || '#ffffff';
+  const style= line.style || 'solid';
+  const lw   = 2.5;
+
+  ctx.save();
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = lw;
+  ctx.lineCap     = 'round';
+
+  if(style === 'dashed'){
+    ctx.setLineDash([8,5]);
+  } else if(style === 'wave'){
+    drawWaveLine(a.x, a.y, b.x, b.y, col, lw);
+    ctx.restore();
+    return;
+  } else {
+    ctx.setLineDash([]);
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrowhead
+  if(line.arrow !== false){
+    const ang = Math.atan2(b.y-a.y, b.x-a.x);
+    const hs = 12;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x - hs*Math.cos(ang-0.4), b.y - hs*Math.sin(ang-0.4));
+    ctx.lineTo(b.x - hs*Math.cos(ang+0.4), b.y - hs*Math.sin(ang+0.4));
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawWaveLine(x1,y1,x2,y2,col,lw){
+  const dx=x2-x1, dy=y2-y1;
+  const len=Math.sqrt(dx*dx+dy*dy);
+  const steps=Math.max(4,Math.floor(len/10));
+  const amp=6;
+  const nx=-dy/len, ny=dx/len;
+  ctx.save();
+  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.beginPath();
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    const wave=Math.sin(t*Math.PI*4)*amp*(1-t*0.3);
+    const px=x1+dx*t+nx*wave;
+    const py=y1+dy*t+ny*wave;
+    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+  // Arrowhead
+  const ang=Math.atan2(y2-y1,x2-x1);
+  const hs=12;
+  ctx.fillStyle=col;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-hs*Math.cos(ang-0.4),y2-hs*Math.sin(ang-0.4));
+  ctx.lineTo(x2-hs*Math.cos(ang+0.4),y2-hs*Math.sin(ang+0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPreviewLine(start, end){
+  const a = fieldToCanvas(start.x, start.y);
+  const b = end;
+  ctx.save();
+  ctx.strokeStyle = arrowColor;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5,4]);
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(a.x,a.y);
+  ctx.lineTo(b.x,b.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ============================================================
+// HIT TEST
+// ============================================================
+function hitTest(cx,cy){
+  const s = fieldScale();
+  for(let i=objects.length-1;i>=0;i--){
+    const obj=objects[i];
+    const p=fieldToCanvas(obj.fx,obj.fy);
+    const r = obj.type==='player' ? 16 : obj.type==='text' ? 20 : 14;
+    const dx=cx-p.x, dy=cy-p.y;
+    if(dx*dx+dy*dy <= r*r) return obj;
+  }
+  return null;
+}
+
+// ============================================================
+// MOUSE / TOUCH
+// ============================================================
+let mousePos = null;
+
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mouseup',   onMouseUp);
+canvas.addEventListener('contextmenu', onContextMenu);
+canvas.addEventListener('dblclick',  onDblClick);
+canvas.addEventListener('wheel', onWheel, {passive:false});
+
+function canvasXY(e){
+  const r=canvas.getBoundingClientRect();
+  return {x:e.clientX-r.left, y:e.clientY-r.top};
+}
+
+function onMouseDown(e){
+  closeContextMenu();
+  const p = canvasXY(e);
+  if(e.button===1){ isPanning=true; panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y}; e.preventDefault(); return; }
+  if(e.button===2) return; // handled by contextmenu
+  if(e.button!==0) return;
+
+  if(drawMode === 'text'){
+    const fp = canvasToField(p.x,p.y);
+    openTextPopup(fp.x, fp.y);
+    return;
+  }
+
+  if(drawMode){
+    const fp = canvasToField(p.x,p.y);
+    if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; return; }
+    pushUndo();
+    drawLines.push({id:newId(),x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,arrow:true});
+    drawStart=null; mousePos=null;
+    render(); scheduleKadrivoSave(); return;
+  }
+
+  const hit=hitTest(p.x,p.y);
+  if(hit){
+    pushUndo();
+    selected=hit.id;
+    dragObj=hit;
+    const hp=fieldToCanvas(hit.fx,hit.fy);
+    dragOffX=p.x-hp.x; dragOffY=p.y-hp.y;
+    render();
+  } else {
+    selected=null;
+    dragObj=null;
+    // start pan
+    isPanning=true;
+    panStart={x:e.clientX-panOff.x, y:e.clientY-panOff.y};
+    render();
+  }
+}
+
+function onMouseMove(e){
+  const p=canvasXY(e);
+  mousePos=p;
+  if(isPanning){
+    panOff={x:e.clientX-panStart.x, y:e.clientY-panStart.y};
+    calcFieldRect(); render(); return;
+  }
+  if(dragObj){
+    const fp=canvasToField(p.x-dragOffX, p.y-dragOffY);
+    dragObj.fx = Math.max(0,Math.min(FIELD.w,fp.x));
+    dragObj.fy = Math.max(0,Math.min(FIELD.h,fp.y));
+    render(); scheduleKadrivoSave(); return;
+  }
+  if(drawMode && drawStart){ render(); }
+}
+
+function onMouseUp(e){
+  if(e.button===1){ isPanning=false; return; }
+  if(isPanning && !dragObj){ isPanning=false; return; }
+  if(dragObj){ dragObj=null; isPanning=false; }
+}
+
+function onDblClick(e){
+  const p=canvasXY(e);
+  const hit=hitTest(p.x,p.y);
+  if(hit) removeObject(hit.id);
+}
+
+function onContextMenu(e){
+  e.preventDefault();
+  const p=canvasXY(e);
+  const hit=hitTest(p.x,p.y);
+  if(!hit){ closeContextMenu(); return; }
+  selected=hit.id;
+  ctxTarget=hit;
+  const menu=document.getElementById('ctx-menu');
+  // show/hide color option
+  document.getElementById('ctx-color').style.display = (hit.type==='text'||hit.type==='player'||hit.type==='cone'||hit.type==='pole') ? '' : 'none';
+  document.getElementById('ctx-label').style.display = (hit.type==='player'||hit.type==='text') ? '' : 'none';
+  menu.style.left=e.clientX+'px';
+  menu.style.top =e.clientY+'px';
+  menu.style.display='block';
+  render();
+}
+
+function onWheel(e){
+  e.preventDefault();
+  const delta = e.deltaY>0 ? 0.9 : 1.1;
+  zoom = Math.max(0.5, Math.min(3, zoom*delta));
+  calcFieldRect(); render();
+}
+
+function closeContextMenu(){ document.getElementById('ctx-menu').style.display='none'; }
+document.addEventListener('click', (e)=>{ if(!e.target.closest('#ctx-menu')) closeContextMenu(); });
+
+// ============================================================
+// OBJECT MANAGEMENT
+// ============================================================
+function addObject(obj){
+  pushUndo();
+  if(!obj.id) obj.id=newId();
+  objects.push(obj);
+  render();
+  updateSidebar();
+  scheduleKadrivoSave();
+}
+
+function removeObject(id){
+  pushUndo();
+  const idx=objects.findIndex(o=>o.id===id);
+  if(idx>=0){
+    const o=objects[idx];
+    if(o.playerId){
+      // mark player as off-field in sidebar
+      const el=document.querySelector(`.player-item[data-pid="${o.playerId}"]`);
+      if(el) el.classList.remove('on-field');
+    }
+    objects.splice(idx,1);
+  }
+  if(selected===id) selected=null;
+  render();
+  updatePlayerCount();
+  scheduleKadrivoSave();
+}
+
+function clearAll(){
+  if(!confirm('Alle Objekte und Zeichnungen entfernen?')) return;
+  pushUndo();
+  objects=[];
+  drawLines=[];
+  selected=null;
+  document.querySelectorAll('.player-item').forEach(el=>el.classList.remove('on-field'));
+  render();
+  updatePlayerCount();
+  scheduleKadrivoSave();
+}
+
+// ============================================================
+// UNDO
+// ============================================================
+function pushUndo(){
+  undoStack.push({
+    objects: JSON.parse(JSON.stringify(objects)),
+    drawLines: JSON.parse(JSON.stringify(drawLines))
+  });
+  if(undoStack.length>40) undoStack.shift();
+}
+
+function undo(){
+  if(!undoStack.length) return;
+  const state=undoStack.pop();
+  objects=state.objects;
+  drawLines=state.drawLines;
+  selected=null;
+  document.querySelectorAll('.player-item').forEach(el=>{
+    const pid=el.dataset.pid;
+    const onField=objects.some(o=>o.playerId===pid);
+    el.classList.toggle('on-field',onField);
+  });
+  render();
+  updatePlayerCount();
+  scheduleKadrivoSave();
+}
+
+// ============================================================
+// TOOLS / PLACEMENT
+// ============================================================
+function addPlayerToField(player){
+  // Check if already on field
+  if(objects.some(o=>o.playerId===player.id)) return;
+  const isGk = (player.position||'').toLowerCase().includes('torwart') || (player.position||'').toLowerCase().includes('gk');
+  const col = player.team==='away' ? awayColor : isGk ? gkColor : homeColor;
+  addObject({
+    type:'player', id:newId(),
+    fx: player.team==='away' ? 80 : 25,
+    fy: 34,
+    color: player.color || col,
+    name: player.name,
+    num:  player.num || player.number || '',
+    playerId: player.id
+  });
+  const el=document.querySelector(`.player-item[data-pid="${player.id}"]`);
+  if(el) el.classList.add('on-field');
+  updatePlayerCount();
+}
+
+function addTrainingPlayer(color){
+  addObject({type:'player',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,color,name:'',num:''});
+}
+
+function addCone(color){ addObject({type:'cone',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,color:color||'#ff5500'}); }
+function addBall(){      addObject({type:'ball',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2}); }
+function addPole(horiz){ addObject({type:'pole',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,horizontal:horiz,color:'#cc0000'}); }
+function addGoalObj(gw,gh){ addObject({type:'goal',id:newId(),fx:FIELD.w/2,fy:FIELD.h/2,goalW:gw,goalH:gh}); }
+
+function addTextAtPos(fx,fy,text){
+  if(!text) return;
+  addObject({type:'text',id:newId(),fx,fy,text,color:'#ffff00',fontSize:14});
+}
+
+// ============================================================
+// TAB / SIDEBAR
+// ============================================================
+function showTab(name){
+  currentTab=name;
+  document.querySelectorAll('.stab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  updateSidebar();
+}
+
+function updateSidebar(){
+  const content=document.getElementById('sidebar-content');
+  if(currentTab==='players') content.innerHTML=buildPlayersSidebar();
+  else if(currentTab==='tools') content.innerHTML=buildToolsSidebar();
+  else if(currentTab==='draw') content.innerHTML=buildDrawSidebar();
+}
+
+function buildPlayersSidebar(){
+  let html='';
+  // Home team
+  const home=kadrivoPlayers.filter(p=>p.team!=='away');
+  const away=kadrivoPlayers.filter(p=>p.team==='away');
+  const training=[];
+
+  if(home.length){
+    html+=`<div class="section-head">Heimteam</div>`;
+    home.forEach(p=>{
+      const on=objects.some(o=>o.playerId===p.id);
+      const col=p.color||homeColor;
+      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+        <div class="pnum" style="background:${col}">${p.num||p.number||'?'}</div>
+        <span class="pname">${p.name||'Spieler'}</span>
+        <span class="ppos">${p.position||''}</span>
+      </div>`;
+    });
+  }
+  if(away.length){
+    html+=`<div class="section-head">Gegner</div>`;
+    away.forEach(p=>{
+      const on=objects.some(o=>o.playerId===p.id);
+      const col=p.color||awayColor;
+      html+=`<div class="player-item${on?' on-field':''}" data-pid="${p.id}" onclick="addPlayerToField(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+        <div class="pnum" style="background:${col}">${p.num||p.number||'?'}</div>
+        <span class="pname">${p.name||'Spieler'}</span>
+        <span class="ppos">${p.position||''}</span>
+      </div>`;
+    });
+  }
+  if(!home.length && !away.length){
+    html+=`<div style="color:#555;font-size:10px;padding:8px">Kein Spiel/Training gewählt.<br>Trainingsspieler hinzufügen:</div>`;
+  }
+  html+=`<div class="section-head">Trainingsspieler</div>
+  <div class="tool-item" onclick="openTrainingColorPicker('home')"><span class="ticon">🔴</span>Heim-Spieler</div>
+  <div class="tool-item" onclick="openTrainingColorPicker('away')"><span class="ticon">🔵</span>Gegner-Spieler</div>
+  <div class="tool-item" onclick="openTrainingColorPicker('gk')"><span class="ticon">🟡</span>Torwart</div>`;
+  return html;
+}
+
+function buildToolsSidebar(){
+  return `
+  <div class="section-head">Bälle</div>
+  <div class="tool-item" onclick="addBall()"><span class="ticon">⚽</span>Ball</div>
+  <div class="section-head">Hütchen</div>
+  <div class="tool-item" onclick="addCone('#ff5500')"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
+  <div class="tool-item" onclick="addCone('#ffff00')"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
+  <div class="tool-item" onclick="addCone('#ff0000')"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
+  <div class="tool-item" onclick="addCone('#0077ff')"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
+  <div class="tool-item" onclick="openConeColorPicker()"><span class="ticon">🎨</span>Farbe wählen…</div>
+  <div class="section-head">Stangen</div>
+  <div class="tool-item" onclick="addPole(false)"><span class="ticon">▍</span>Stange</div>
+  <div class="tool-item" onclick="addPole(true)"><span class="ticon">▬</span>Stange quer</div>
+  <div class="section-head">Tore</div>
+  <div class="tool-item" onclick="addGoalObj(2,1)"><span class="ticon">🥅</span>Klein (2m)</div>
+  <div class="tool-item" onclick="addGoalObj(5,2)"><span class="ticon">🥅</span>Mittel (5m)</div>
+  <div class="tool-item" onclick="addGoalObj(7.32,2.44)"><span class="ticon">🥅</span>Normal</div>
+  `;
+}
+
+function buildDrawSidebar(){
+  const colors=['#ffffff','#ffff00','#ff3333','#33aaff','#33ff66','#ff9900'];
+  const swatches=colors.map(c=>`<span class="arrow-swatch${arrowColor===c?' sel':''}" style="background:${c}" onclick="setArrowColor('${c}')"></span>`).join('');
+  return `
+  <div class="section-head">Pfeile / Linien</div>
+  <div id="draw-color-row">
+    <label>Farbe:</label>
+    ${swatches}
+    <input type="color" id="draw-color-custom" value="${arrowColor}" onchange="setArrowColor(this.value)">
+  </div>
+  <div id="draw-style-row">
+    <button class="${arrowStyle==='solid'?'active':''}" onclick="setArrowStyle('solid')">—</button>
+    <button class="${arrowStyle==='dashed'?'active':''}" onclick="setArrowStyle('dashed')">- -</button>
+    <button class="${arrowStyle==='wave'?'active':''}" onclick="setArrowStyle('wave')">〜</button>
+  </div>
+  <div class="draw-item${drawMode==='arrow'?' active':''}" onclick="setDrawMode('arrow')"><span style="font-size:14px">→</span> Pfeil zeichnen</div>
+  <div class="draw-item${drawMode===null?' active':''}" onclick="setDrawMode(null)"><span style="font-size:14px">✋</span> Auswahl</div>
+
+  <div class="section-head">Text</div>
+  <div class="draw-item${drawMode==='text'?' active':''}" onclick="setDrawMode('text')"><span style="font-size:14px">T</span> Text platzieren</div>
+
+  <div class="section-head">Löschen</div>
+  <div class="draw-item" onclick="clearLastLine()"><span style="font-size:14px">↩</span> Letzte Linie</div>
+  <div class="draw-item" onclick="clearLines()"><span style="font-size:14px">🗑</span> Alle Linien</div>
+  `;
+}
+
+function setArrowColor(c){
+  arrowColor=c;
+  updateSidebar();
+}
+function setArrowStyle(s){
+  arrowStyle=s;
+  updateSidebar();
+}
+function setDrawMode(m){
+  drawMode=m;
+  drawStart=null;
+  mousePos=null;
+  document.getElementById('s-mode').textContent = m
+    ? (m==='text' ? 'Modus: Text platzieren (Klick auf Feld)' : 'Modus: Pfeil zeichnen (Klick Start → Klick Ende)')
+    : 'Modus: Auswahl';
+  updateSidebar();
+  render();
+}
+function clearLastLine(){
+  if(drawLines.length){ pushUndo(); drawLines.pop(); render(); scheduleKadrivoSave(); }
+}
+function clearLines(){
+  if(!drawLines.length) return;
+  pushUndo(); drawLines=[]; render(); scheduleKadrivoSave();
+}
+
+// ============================================================
+// COLOR PICKER
+// ============================================================
+let _colorPickerTarget=null;
+let _colorPickerType=null; // 'cone'|'training'|'ctx'
+
+function openConeColorPicker(){
+  _colorPickerType='cone';
+  showColorPopup('Hütchenfarbe');
+}
+function openTrainingColorPicker(team){
+  _colorPickerType='training-'+team;
+  showColorPopup('Spielerfarbe');
+}
+
+function showColorPopup(title){
+  const popup=document.getElementById('color-popup');
+  document.getElementById('color-popup-title').textContent=title;
+  const sw=document.getElementById('color-swatches');
+  sw.innerHTML=PRESET_COLORS.map(c=>`<div class="swatch" style="background:${c}" onclick="selectColorSwatch('${c}')"></div>`).join('');
+  document.getElementById('color-custom').value='#ff6600';
+  popup.style.left='180px';
+  popup.style.top='100px';
+  popup.style.display='block';
+}
+
+function selectColorSwatch(c){
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
+  event.target.classList.add('sel');
+  document.getElementById('color-custom').value=c;
+}
+
+function colorPopupOk(){
+  const c=document.getElementById('color-custom').value;
+  document.getElementById('color-popup').style.display='none';
+  if(_colorPickerType==='cone') addCone(c);
+  else if(_colorPickerType && _colorPickerType.startsWith('training-')){
+    addTrainingPlayer(c);
+  } else if(_colorPickerType==='ctx' && ctxTarget){
+    ctxTarget.color=c;
+    render(); scheduleKadrivoSave();
+  }
+  _colorPickerType=null;
+}
+function colorPopupCancel(){ document.getElementById('color-popup').style.display='none'; _colorPickerType=null; }
+
+// ============================================================
+// TEXT POPUP
+// ============================================================
+let _textPos=null;
+function openTextPopup(fx,fy){
+  _textPos={fx,fy};
+  document.getElementById('text-input').value='';
+  document.getElementById('text-popup').style.left='200px';
+  document.getElementById('text-popup').style.top='120px';
+  document.getElementById('text-popup').style.display='block';
+  setTimeout(()=>document.getElementById('text-input').focus(),50);
+}
+function textPopupOk(){
+  const txt=document.getElementById('text-input').value.trim();
+  document.getElementById('text-popup').style.display='none';
+  if(txt && _textPos) addTextAtPos(_textPos.fx,_textPos.fy,txt);
+  _textPos=null;
+}
+function textPopupCancel(){
+  document.getElementById('text-popup').style.display='none';
+  _textPos=null;
+}
+document.getElementById('text-input').addEventListener('keydown',e=>{ if(e.key==='Enter') textPopupOk(); if(e.key==='Escape') textPopupCancel(); });
+
+// ============================================================
+// CONTEXT MENU ACTIONS
+// ============================================================
+function ctxDelete(){ if(ctxTarget) removeObject(ctxTarget.id); ctxTarget=null; closeContextMenu(); }
+function ctxColor(){
+  if(!ctxTarget) return;
+  _colorPickerType='ctx';
+  showColorPopup('Farbe ändern');
+  closeContextMenu();
+}
+function ctxLabel(){
+  if(!ctxTarget) return;
+  const v=prompt('Name:', ctxTarget.text||ctxTarget.name||'');
+  if(v!==null){
+    if(ctxTarget.type==='text') ctxTarget.text=v;
+    else ctxTarget.name=v;
+    render(); scheduleKadrivoSave();
+  }
+  closeContextMenu();
+}
+function ctxFront(){
+  if(!ctxTarget) return;
+  const i=objects.indexOf(ctxTarget);
+  if(i<objects.length-1){ objects.splice(i,1); objects.push(ctxTarget); render(); }
+  closeContextMenu();
+}
+function ctxBack(){
+  if(!ctxTarget) return;
+  const i=objects.indexOf(ctxTarget);
+  if(i>0){ objects.splice(i,1); objects.unshift(ctxTarget); render(); }
+  closeContextMenu();
+}
+
+// ============================================================
+// TOOLBAR ACTIONS
+// ============================================================
+function toggleNames(){
+  showNames=!showNames;
+  document.getElementById('btn-names').textContent='Namen: '+(showNames?'Ein':'Aus');
+  document.getElementById('btn-names').classList.toggle('active',showNames);
+  render();
+}
+
+function exportPng(){
+  const link=document.createElement('a');
+  link.download='taktik-2d.png';
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+}
+
+function updatePlayerCount(){
+  const n=objects.filter(o=>o.type==='player').length;
+  document.getElementById('s-players').textContent=`Feld: ${n} Spieler`;
+}
+
+// ============================================================
+// KADRIVO PROTOCOL (same as 3D board)
+// ============================================================
+function scheduleKadrivoSave(){
+  if(!kadrivoReady||kadrivoHydrating||!kadrivoBoardId) return;
+  clearTimeout(kadrivoSaveTimer);
+  kadrivoSaveTimer=setTimeout(postKadrivoSave,400);
+}
+
+function postKadrivoSave(){
+  if(!kadrivoReady||!kadrivoBoardId||!window.parent||window.parent===window) return;
+  window.parent.postMessage({
+    type:'kadrivo:tactic-save',
+    boardId:kadrivoBoardId,
+    state:exportState()
+  }, window.location.origin);
+}
+
+function exportState(){
+  return {objects, drawLines, showNames, arrowColor, arrowStyle};
+}
+
+function importState(saved, players){
+  kadrivoPlayers = players||[];
+  if(saved){
+    objects   = saved.objects   || [];
+    drawLines = saved.drawLines || [];
+    showNames = saved.showNames || false;
+    arrowColor= saved.arrowColor|| '#ffffff';
+    arrowStyle= saved.arrowStyle|| 'solid';
+    // restore oidSeq
+    let maxId=0;
+    [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o',''));if(n>maxId)maxId=n; });
+    oidSeq=maxId+1;
+  }
+  updateSidebar();
+  updatePlayerCount();
+  render();
+}
+
+window.addEventListener('message',(event)=>{
+  if(event.origin!==window.location.origin) return;
+  const data=event.data||{};
+  if(data.type==='kadrivo:tactic-export-request'){
+    if(!data.boardId||data.boardId===kadrivoBoardId) postKadrivoSave();
+    return;
+  }
+  if(data.type!=='kadrivo:tactic-load') return;
+  kadrivoBoardId=data.boardId||null;
+  kadrivoReady=true;
+  if(data.players) kadrivoPlayers=data.players;
+  homeColor=data.homeColor||COLORS_HOME;
+  awayColor=data.awayColor||COLORS_AWAY;
+  gkColor  =data.gkColor  ||COLORS_GK;
+  kadrivoHydrating=true;
+  try{
+    importState(data.saved,data.players||[]);
+  } finally {
+    kadrivoHydrating=false;
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('resize', resize);
+resize();
+
+const PRESET_COLORS_GLOBAL = PRESET_COLORS;
+</script>
+</body>
+</html>
