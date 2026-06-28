@@ -1371,6 +1371,27 @@ window.addEventListener('message',event=>{
     }
     return;
   }
+  if(data.type==='kadrivo:player-positions-request'){
+    // Spielerpositionen (Feldkoordinaten 0..W / 0..H) zurueckgeben
+    const positions = objects
+      .filter(o=>o.type==='player' && o.playerId && !o.hidden)
+      .map(o=>({ playerId:o.playerId, fx:o.fx, fy:o.fy, team:o.team||null }));
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'kadrivo:player-positions', from:'2d', positions, fieldW:FIELD.w, fieldH:FIELD.h}, window.location.origin);
+    }
+    return;
+  }
+  if(data.type==='kadrivo:apply-player-positions'){
+    // Positionen von 3D uebernehmen (bereits in 2D-Feldkoordinaten umgerechnet)
+    if(Array.isArray(data.positions)){
+      data.positions.forEach(pp=>{
+        const obj = objects.find(o=>o.type==='player' && o.playerId===pp.playerId && !o.hidden);
+        if(obj){ obj.fx=Math.max(0,Math.min(FIELD.w,pp.fx)); obj.fy=Math.max(0,Math.min(FIELD.h,pp.fy)); }
+      });
+      render(); scheduleKadrivoSave();
+    }
+    return;
+  }
   if(data.type!=='kadrivo:tactic-load') return;
   kadrivoBoardId=data.boardId||null;
   kadrivoReady=true;

@@ -205,6 +205,7 @@
     let tacticRedoStack = [];
     let tacticClipboard = null;
     let tactic3dSaveTimer = null;
+    let pendingModeSync = null;
     let tactic3dSaveRequest = null;
     let tacticNotesSaveTimer = null;
     let deferredInstallPrompt = null;
@@ -5958,11 +5959,51 @@
       // 3D nur für Fußball erlaubt
       if (mode === "3d" && !isSportWith3D()) mode = "2d";
       const is3d = mode === "3d";
+      const wasFrom = is3d ? "2d" : "3d"; // Quell-Modus (von dem wir wechseln)
+
+      // Spielerpositionen vom bisher sichtbaren Frame anfordern (Sync)
+      const sourceFrame = wasFrom === "2d" ? $("#tactic2dFrame") : $("#tactic3dFrame");
+      pendingModeSync = { target: is3d ? "3d" : "2d" };
+      if (sourceFrame?.contentWindow) {
+        sourceFrame.contentWindow.postMessage({ type: "kadrivo:player-positions-request" }, window.location.origin);
+      }
+
       panel3d.style.display = is3d ? "" : "none";
       panel2d.style.display = is3d ? "none" : "";
       btn3d?.classList.toggle("active", is3d);
       btn2d?.classList.toggle("active", !is3d);
-      setTimeout(() => sendTactic3dPayload(), 100);
+      // Payload erst senden falls keine Sync-Antwort kommt (Fallback)
+      setTimeout(() => {
+        if (pendingModeSync) { pendingModeSync = null; sendTactic3dPayload(); }
+      }, 400);
+    }
+
+    // Spieler-Positionen zwischen 2D und 3D umrechnen und an Ziel-Frame senden
+    function applyModeSyncPositions(msg) {
+      if (!pendingModeSync) return;
+      const target = pendingModeSync.target;
+      pendingModeSync = null;
+      const positions = msg.positions || [];
+      // Erst Ziel-Frame mit aktuellem Payload laden, dann Positionen anwenden
+      sendTactic3dPayload();
+      let converted = [];
+      if (msg.from === "2d" && target === "3d") {
+        // 2D (fx 0..W, fy 0..H) → 3D (x = fy - H/2, z = fx - W/2)
+        const W = msg.fieldW || 105, H = msg.fieldH || 68;
+        converted = positions.map(p => ({ playerId: p.playerId, x: p.fy - H/2, z: p.fx - W/2 }));
+      } else if (msg.from === "3d" && target === "2d") {
+        // 3D (x Breite, z Länge) → 2D (fx = z + halfL, fy = x + halfW)
+        const halfW = msg.halfW || 34, halfL = msg.halfL || 52.5;
+        converted = positions.map(p => ({ playerId: p.playerId, fx: p.z + halfL, fy: p.x + halfW }));
+      }
+      if (!converted.length) return;
+      const targetFrame = target === "3d" ? $("#tactic3dFrame") : $("#tactic2dFrame");
+      // kurz warten bis Ziel-Frame das Payload verarbeitet hat, dann Positionen anwenden
+      setTimeout(() => {
+        if (targetFrame?.contentWindow) {
+          targetFrame.contentWindow.postMessage({ type: "kadrivo:apply-player-positions", positions: converted }, window.location.origin);
+        }
+      }, 350);
     }
     window.switchTacticMode          = switchTacticMode;
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
@@ -7802,6 +7843,10 @@
     });
     window.addEventListener("message", (event) => {
       if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "kadrivo:player-positions") {
+        applyModeSyncPositions(event.data);
+        return;
+      }
       if (event.data?.type === "kadrivo:tactic-save") {
         const data = event.data;
         const board = state.tacticBoards.find(b => b.id === data.boardId);

@@ -3458,6 +3458,30 @@ window.addEventListener('message', (event)=>{
     if(!data.boardId || data.boardId === kadrivoBoardId) postKadrivoSave();
     return;
   }
+  if(data.type === 'kadrivo:player-positions-request'){
+    // 3D-Achsen: x = Breite (-34..34), z = Laenge (-52.5..52.5)
+    const positions = Object.values(players)
+      .filter(p=>p.onField && p.mesh)
+      .map(p=>({ playerId:p.id, x:p.mesh.position.x, z:p.mesh.position.z, team:p.team||null }));
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'kadrivo:player-positions', from:'3d', positions, halfW:HFH, halfL:HFW}, window.location.origin);
+    }
+    return;
+  }
+  if(data.type === 'kadrivo:apply-player-positions'){
+    // Positionen von 2D uebernehmen (bereits in 3D-Koordinaten umgerechnet)
+    if(Array.isArray(data.positions)){
+      data.positions.forEach(pp=>{
+        const p = players[pp.playerId];
+        if(p){
+          const dir = p.attackDirection ?? 0;
+          placePlayer(pp.playerId, Number(pp.x||0), Number(pp.z||0), dir);
+        }
+      });
+      updateSidebar(); updateStatus(); scheduleKadrivoSave();
+    }
+    return;
+  }
   if(data.type !== 'kadrivo:tactic-load') return;
   kadrivoBoardId = data.boardId || null;
   kadrivoReady = true;
