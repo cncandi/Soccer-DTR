@@ -371,6 +371,7 @@ function renderDetails() {
             <label>URL-Pfad / Alias <span class="meta" style="font-weight:normal">(app.kadrivo.de/<b>pfad</b>)</span></label>
             <div class="copy-field">
               <input name="slug" value="${escapeHtml(club.slug || "")}" placeholder="z.B. fsv-musterhausen" pattern="[a-z0-9-]+">
+              <button class="btn-secondary" type="button" data-copy-slug="${escapeHtml(club.id)}">Kopieren</button>
               <button class="btn-secondary" type="button" data-save-slug="${escapeHtml(club.id)}">Pfad speichern</button>
             </div>
             <p class="meta">Nur Kleinbuchstaben, Zahlen und Bindestrich. Aendert den Vereinslink sofort – kein FTP-Ordner noetig.</p>
@@ -698,6 +699,15 @@ document.addEventListener("click", async (event) => {
     } finally {
       slugButton.disabled = false;
     }
+    return;
+  }
+  const copySlugButton = event.target.closest("[data-copy-slug]");
+  if (copySlugButton) {
+    const club = backend.clubs.find((item) => item.id === copySlugButton.dataset.copySlug);
+    if (!club) return;
+    await navigator.clipboard?.writeText(clubLink(club)).catch(() => {});
+    copySlugButton.textContent = "Kopiert";
+    window.setTimeout(() => { copySlugButton.textContent = "Kopieren"; }, 1200);
     return;
   }
   const copyButton = event.target.closest("[data-copy-club-link]");
