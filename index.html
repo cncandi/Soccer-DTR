@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v184';
+      const EXPECTED = 'v185';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v184</span></h1>
+          <h1>Kadrivo <span class="app-version">v185</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -103,24 +103,6 @@
       <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary login-existing" type="submit">Anmelden</button>
       <button class="btn-secondary" id="showClubSignupBtn" type="button">Kostenfrei neuen Verein registrieren</button>
-      <button class="btn-secondary" id="changeClubBtn" type="button" hidden>Anderen Verein waehlen</button>
-      <section class="install-panel login-install" id="installPanel" hidden>
-        <div>
-          <h3>Kadrivo installieren</h3>
-          <p id="installHint">Als App auf dem Home-Bildschirm speichern.</p>
-          <div class="club-share">
-            <img id="clubQrCode" alt="QR-Code fuer diesen Verein">
-            <div>
-              <span>Link fuer diesen Verein</span>
-              <a id="clubInstallLink" href="#" target="_blank" rel="noopener"></a>
-              <button class="btn-secondary" id="copyClubLinkBtn" type="button">Link kopieren</button>
-            </div>
-          </div>
-        </div>
-        <div class="row-actions">
-          <button class="btn-primary" id="installAppBtn" type="button">Installieren</button>
-        </div>
-      </section>
     </form>
   </section>
 
@@ -130,7 +112,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v184</span></h1>
+          <h1>Kadrivo <span class="app-version">v185</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -822,7 +804,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=184" defer></script>
+  <script src="js/app.js?v=185" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');

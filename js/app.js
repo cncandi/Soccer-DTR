@@ -8326,7 +8326,7 @@
       renderInstallPanel();
     });
 
-    $("#installAppBtn").addEventListener("click", async () => {
+    $("#installAppBtn")?.addEventListener("click", async () => {
       if (!deferredInstallPrompt) return;
       deferredInstallPrompt.prompt();
       await deferredInstallPrompt.userChoice.catch(() => {});
