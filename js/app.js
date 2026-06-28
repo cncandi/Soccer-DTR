@@ -3601,6 +3601,22 @@
       $("#loginUser").value = names.includes(selected) ? selected : names[0] || "";
       renderLoginClubOptionsForUser();
       fillSavedLoginPassword();
+      // Bei aktivem Vereinslink ist der Verein vorgegeben → Dropdown ausblenden,
+      // stattdessen den Vereinsnamen fest anzeigen.
+      const fixed = $("#loginClubFixed");
+      const sel = $("#loginClubSelect");
+      const linkedClub = requestedClubId ? clubByIdentifier(requestedClubId) : null;
+      if (fixed && sel) {
+        if (linkedClub) {
+          fixed.textContent = linkedClub.name;
+          fixed.style.display = "";
+          sel.style.display = "none";
+          sel.value = linkedClub.id;
+        } else {
+          fixed.style.display = "none";
+          sel.style.display = "";
+        }
+      }
     }
 
     function renderStats() {
