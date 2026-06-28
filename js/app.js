@@ -497,15 +497,17 @@
 
     function loginClubContextIds() {
       const selectable = selectableClubs();
-      // Per Vereinszugang freigeschalteter Verein gilt dauerhaft als Kontext
+      // Vereinslink (Pfad/?club=) hat IMMER Vorrang vor einem frueher
+      // freigeschalteten Verein – sonst ueberschattet ein alter Unlock den Link.
+      if (requestedClubId) {
+        const requestedClub = selectable.find((club) => clubMatchesIdentifier(club, requestedClubId));
+        return requestedClub ? [requestedClub.id] : [];
+      }
+      // Kein Vereinslink → per Vereinszugang freigeschalteter Verein gilt als Kontext
       const unlockedId = localStorage.getItem(UNLOCKED_CLUB_KEY) || "";
       if (unlockedId) {
         const unlockedClub = selectable.find((club) => club.id === unlockedId);
         if (unlockedClub) return [unlockedClub.id];
-      }
-      if (requestedClubId) {
-        const requestedClub = selectable.find((club) => clubMatchesIdentifier(club, requestedClubId));
-        return requestedClub ? [requestedClub.id] : [];
       }
       return [];
     }
