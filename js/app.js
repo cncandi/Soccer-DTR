@@ -8345,22 +8345,31 @@
       if (unlockedId) requestedClubId = clubs.find((c) => c.id === unlockedId)?.slug || unlockedId;
     }
 
-    if (requestedClubId) {
-      // Vereinslink: zuerst lokal versuchen, dann nach Sync erneut aktivieren
+    // Wenn der Nutzer bereits eingeloggt ist, hat sein angemeldeter Verein Vorrang.
+    // Der Vereinslink darf den eingeloggten Club dann NICHT überschreiben.
+    if (restoredLogin && requestedClubId) {
+      const linkedClub = clubByIdentifier(requestedClubId);
+      if (!linkedClub || linkedClub.id !== currentClubId) {
+        // Vereinslink zeigt auf anderen Verein als den eingeloggten → ignorieren
+        requestedClubId = "";
+      }
+    }
+
+    if (requestedClubId && !restoredLogin) {
+      // Vereinslink (nicht eingeloggt): Verein vorwählen, Login-Screen anzeigen
       const knownNow = activateRequestedClub();
       if (!knownNow) {
         setStatus("Vereinsdaten werden geladen …");
         render();
       }
-      setLoginVisible(knownNow ? !restoredLogin : false);
+      setLoginVisible(true);
       syncWithSupabase({ silent: true }).then(() => {
         activateRequestedClub();
-        setLoginVisible(!restoredLogin);
-        if (restoredLogin && location.hash === "#messages") switchView("messages");
+        setLoginVisible(true);
         refreshLoginDirectory().then(() => renderPublicLoginState()).catch(() => {});
       });
     } else {
-      // Kein Verein gewählt → Vereinsliste laden, damit Vereinszugang-Dropdown gefüllt ist
+      // Eingeloggt ODER kein Vereinslink → normalen Zustand laden
       render();
       setLoginVisible(!restoredLogin);
       if (restoredLogin && location.hash === "#messages") switchView("messages");
