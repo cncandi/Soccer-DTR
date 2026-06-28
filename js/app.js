@@ -8253,7 +8253,7 @@
       syncWithSupabase({ silent: true });
     }
     refreshLoginDirectory().catch(() => {});
-    fetchLibraryItems().catch(() => {});
+    if (typeof fetchLibraryItems === "function") fetchLibraryItems().catch(() => {});
     loadPaypalSettings();
 
     if ("serviceWorker" in navigator) {
