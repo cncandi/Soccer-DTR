@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v187';
+      const EXPECTED = 'v188';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v187</span></h1>
+          <h1>Kadrivo <span class="app-version">v188</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -112,7 +112,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v187</span></h1>
+          <h1>Kadrivo <span class="app-version">v188</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -341,27 +341,20 @@
         <div class="tactic-shell">
           <section class="panel tactic-sidebar">
 
-            <!-- GESPEICHERTE TAKTIKEN -->
-            <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Gespeicherte Taktiken</div>
-            <select id="tacticBoardSelect" onchange="onTacticBoardSelectChange()"
+            <!-- SPIEL (führendes Element) -->
+            <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Spiel</div>
+            <select id="tacticEventSelect" onchange="onTacticEventSelectChange()"
               style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;margin-bottom:16px">
             </select>
 
             <form id="tacticBoardForm" onsubmit="return false">
 
-              <!-- Verknüpfte Spiele (Chips) -->
-              <div class="chip-list" id="tacticLinkedEvents" style="margin-bottom:8px;min-height:16px"></div>
-
-              <!-- Spiele zuordnen -->
-              <div style="font-size:12px;color:#888;margin-bottom:4px">Spiele zuordnen</div>
-              <div style="display:flex;gap:6px;margin-bottom:14px">
-                <select id="tacticEventSelect" onchange="onTacticEventSelectChange()"
-                  style="flex:1;padding:7px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
-                </select>
-                <button type="button" id="tacticLinkEventBtn"
-                  style="padding:7px 14px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"
-                  onclick="linkTacticEvent()">+ Zuordnen</button>
-              </div>
+              <!-- TAKTIK (dem Spiel zugeordnet) -->
+              <div style="font-size:12px;color:#888;margin-bottom:4px">Taktik</div>
+              <select id="tacticBoardSelect" onchange="onTacticBoardSelectChange()"
+                style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;margin-bottom:8px">
+              </select>
+              <p class="meta" id="tacticAssignHint" style="margin:0 0 14px;font-size:11px;color:#888"></p>
 
               <!-- Bemerkungen -->
               <div style="font-size:12px;color:#888;margin-bottom:4px">Bemerkungen</div>
@@ -804,7 +797,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=185" defer></script>
+  <script src="js/app.js?v=188" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
