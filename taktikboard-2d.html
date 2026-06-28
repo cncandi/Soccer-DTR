@@ -1335,10 +1335,27 @@ function exportState(){
   return {objects,drawLines,showNames,arrowColor,arrowStyle,scenes:scenes2d,currentScene:currentScene2d};
 }
 
+// Maximal fieldLimit eigene + fieldLimit gegnerische Spieler auf dem Feld.
+// Ueberzaehlige kommen auf die Bank (hidden:true), wie im 3D.
+function enforceFieldLimit(){
+  const isAway = o => o.team==='away' || String(o.playerId||'').startsWith('away_');
+  let home=0, away=0;
+  objects.forEach(o=>{
+    if(o.type!=='player') return;
+    if(o.hidden) return;
+    if(isAway(o)){
+      away++;
+      if(away>fieldLimit) o.hidden=true;
+    } else {
+      home++;
+      if(home>fieldLimit) o.hidden=true;
+    }
+  });
+}
+
 function importState(saved,players){
   kadrivoPlayers=players||[];
   if(_drag) return;
-
   if(saved && typeof saved === 'object' && (saved.objects?.length || saved.drawLines?.length)){
     objects   = saved.objects   || [];
     drawLines = saved.drawLines || [];
@@ -1350,6 +1367,7 @@ function importState(saved,players){
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o','')); if(n>maxId) maxId=n; });
     oidSeq=maxId+1;
+    enforceFieldLimit();
   } else {
     // Kein State oder leer → Board sauber leeren
     objects=[]; drawLines=[];
@@ -1372,10 +1390,15 @@ window.addEventListener('message',event=>{
     return;
   }
   if(data.type==='kadrivo:player-positions-request'){
-    // Spielerpositionen (Feldkoordinaten 0..W / 0..H) zurueckgeben
-    const positions = objects
-      .filter(o=>o.type==='player' && o.playerId && !o.hidden)
-      .map(o=>({ playerId:o.playerId, fx:o.fx, fy:o.fy, team:o.team||null }));
+    // Spielerpositionen (Feldkoordinaten 0..W / 0..H) zurueckgeben, max. fieldLimit je Team
+    const isAway = o => o.team==='away' || String(o.playerId||'').startsWith('away_');
+    let home=0, away=0;
+    const positions = [];
+    objects.filter(o=>o.type==='player' && o.playerId && !o.hidden).forEach(o=>{
+      if(isAway(o)){ if(++away>fieldLimit) return; }
+      else { if(++home>fieldLimit) return; }
+      positions.push({ playerId:o.playerId, fx:o.fx, fy:o.fy, team:o.team||null });
+    });
     if(window.parent && window.parent!==window){
       window.parent.postMessage({type:'kadrivo:player-positions', from:'2d', positions, fieldW:FIELD.w, fieldH:FIELD.h}, window.location.origin);
     }
