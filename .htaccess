@@ -1,0 +1,18 @@
+# Kadrivo – Vereins-Pfad-Routing
+# kadrivo.de/<vereinsname> laedt die App; die App liest den Verein aus dem Pfad.
+# Echte Dateien und Ordner werden normal ausgeliefert.
+
+RewriteEngine On
+
+# HTTPS erzwingen
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Vorhandene Dateien direkt ausliefern (js, css, Bilder, Taktikboards, etc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Alles andere (z.B. /vfl-biedenkopf) auf index.html umschreiben.
+# Die URL im Browser bleibt erhalten; die App ermittelt den Verein aus dem Pfad.
+RewriteRule ^ index.html [L]

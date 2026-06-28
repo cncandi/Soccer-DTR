@@ -185,7 +185,16 @@
     };
 
     let clubs = loadClubs();
-    let requestedClubId = new URLSearchParams(location.search).get(CLUB_URL_PARAM) || "";
+    // Club-Slug aus URL: zuerst ?club=, dann aus dem Pfad (kadrivo.de/<slug>)
+    function clubSlugFromUrl() {
+      const param = new URLSearchParams(location.search).get(CLUB_URL_PARAM) || "";
+      if (param) return param;
+      const seg = (location.pathname || "").split("/").filter(Boolean).pop() || "";
+      const reserved = ["index.html", "soccer", "soccer-dtr", "backend.html", "taktikboard-2d.html", "taktikboard-3d.html"];
+      if (!seg || seg.includes(".") || reserved.includes(seg.toLowerCase())) return "";
+      return seg;
+    }
+    let requestedClubId = clubSlugFromUrl();
     let currentClubId = loadCurrentClubId();
     let state = loadState();
     let settings = loadSettings();
@@ -3269,6 +3278,11 @@
       if (form.elements.league) form.elements.league.innerHTML = optionListWithEmpty(CLUB_LEAGUES, club.league || "");
       if (form.elements.federalState) form.elements.federalState.innerHTML = optionListWithEmpty(FEDERAL_STATES, club.federalState || "");
       form.elements.name.value = club.name;
+      if (form.elements.slug) {
+        form.elements.slug.value = club.slug || "";
+        const hint = $("#clubSlugHint");
+        if (hint) hint.textContent = club.slug ? `Link: kadrivo.de/${club.slug}` : "Noch kein Pfad gesetzt.";
+      }
       if (form.elements.maxFieldPlayers) form.elements.maxFieldPlayers.value = club.maxFieldPlayers || (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS["Andere Sportart"]).fieldPlayers;
       if (form.elements.maxBenchPlayers) form.elements.maxBenchPlayers.value = club.maxBenchPlayers ?? (SPORT_DEFAULTS[club.sport] || SPORT_DEFAULTS["Andere Sportart"]).benchPlayers;
       form.elements.color.value = normalizeHexColor(club.color || "#155e3b");
@@ -7307,6 +7321,18 @@
         club.modules = Object.fromEntries(CLUB_MODULES.map(([key]) => [key, values[`module_${key}`] === "on"]));
       }
       club.color = normalizeHexColor(values.color);
+      // URL-Pfad (slug) nur Superadmin, mit Validierung und Eindeutigkeitspruefung
+      if (isSuperadmin() && typeof values.slug === "string") {
+        const rawSlug = values.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+        if (rawSlug && rawSlug !== club.slug) {
+          const taken = clubs.some((c) => c.id !== club.id && c.slug === rawSlug);
+          if (taken) {
+            window.alert(`Der URL-Pfad "${rawSlug}" ist bereits an einen anderen Verein vergeben.`);
+            return;
+          }
+          club.slug = rawSlug;
+        }
+      }
       if (isSuperadmin() && values.licenseStatus) {
         const nextStatus = normalizeLicenseStatus(values.licenseStatus);
         if (nextStatus !== club.licenseStatus) {

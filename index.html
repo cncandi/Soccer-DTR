@@ -2,6 +2,24 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <script>
+    // Wenn die App unter einem Vereins-Pfad laeuft (kadrivo.de/<verein>),
+    // base auf Root setzen, damit relative Asset-Pfade (js/, css/) korrekt laden.
+    (function(){
+      try {
+        var path = location.pathname || "/";
+        // Pfad enthaelt ein Segment ohne Dateiendung (kein .html etc.) -> Vereins-Pfad
+        var segs = path.split("/").filter(Boolean);
+        var last = segs[segs.length-1] || "";
+        var isFile = last.indexOf(".") !== -1;
+        if (segs.length >= 1 && !isFile) {
+          var b = document.createElement("base");
+          b.href = "/";
+          document.head.appendChild(b);
+        }
+      } catch(e){}
+    })();
+  </script>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -21,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v183';
+      const EXPECTED = 'v184';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v183</span></h1>
+          <h1>Kadrivo <span class="app-version">v184</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -112,7 +130,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v183</span></h1>
+          <h1>Kadrivo <span class="app-version">v184</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -584,6 +602,11 @@ Nein</textarea></div>
             <h3>Vereinsdesign</h3>
             <form id="clubDesignForm" class="form-grid">
               <div class="field full"><label>Vereinsname</label><input name="name" required></div>
+              <div class="field full superadmin-only">
+                <label>URL-Pfad <span class="meta" style="font-weight:normal">(kadrivo.de/<b>pfad</b>, nur Kleinbuchstaben, Zahlen, Bindestrich)</span></label>
+                <input name="slug" id="clubSlugInput" placeholder="z.B. vfl-biedenkopf" autocomplete="off" pattern="[a-z0-9-]+">
+                <p class="meta" id="clubSlugHint" style="margin-top:3px"></p>
+              </div>
               <div class="field"><label>Sportart</label><select name="sport" id="clubSportSelect"></select></div>
               <div class="field full">
                 <label>Positionen <span class="meta" style="font-weight:normal">(kommagetrennt, leer = Vorgabe der Sportart)</span></label>
@@ -799,7 +822,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=183" defer></script>
+  <script src="js/app.js?v=184" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
