@@ -112,9 +112,9 @@ function licenseLabel(club) {
 }
 
 function clubLink(club) {
-  const url = new URL(PUBLIC_APP_URL);
-  url.searchParams.set(CLUB_URL_PARAM, club.slug || club.id);
-  return url.toString();
+  const slug = club.slug || club.id;
+  // Schöner Pfad-Alias; .htaccess routet ihn auf die App.
+  return `${PUBLIC_APP_URL}${encodeURIComponent(slug)}`;
 }
 
 function formValues(form) {
@@ -368,6 +368,14 @@ function renderDetails() {
           <input type="hidden" name="clubId" value="${escapeHtml(club.id)}">
           <div class="field full"><label>Lizenznummer</label><input name="licenseKey" value="${escapeHtml(club.license_key || "")}" readonly></div>
           <div class="field full">
+            <label>URL-Pfad / Alias <span class="meta" style="font-weight:normal">(app.kadrivo.de/<b>pfad</b>)</span></label>
+            <div class="copy-field">
+              <input name="slug" value="${escapeHtml(club.slug || "")}" placeholder="z.B. fsv-musterhausen" pattern="[a-z0-9-]+">
+              <button class="btn-secondary" type="button" data-save-slug="${escapeHtml(club.id)}">Pfad speichern</button>
+            </div>
+            <p class="meta">Nur Kleinbuchstaben, Zahlen und Bindestrich. Aendert den Vereinslink sofort – kein FTP-Ordner noetig.</p>
+          </div>
+          <div class="field full">
             <label>Vereinslink</label>
             <div class="copy-field">
               <input value="${escapeHtml(clubLink(club))}" readonly>
@@ -614,6 +622,18 @@ async function saveClubSettings(values) {
   await loadBackendData();
 }
 
+async function saveClubSlug(clubId, rawSlug) {
+  const slug = String(rawSlug || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!slug) { window.alert("Bitte einen gueltigen Pfad eingeben (Kleinbuchstaben, Zahlen, Bindestrich)."); return; }
+  const taken = (backend.clubs || []).some((c) => c.id !== clubId && (c.slug || "") === slug);
+  if (taken) { window.alert(`Der Pfad "${slug}" ist bereits an einen anderen Verein vergeben.`); return; }
+  const payload = { slug, updated_at: new Date().toISOString() };
+  const result = await client.from("clubs").update(payload).eq("id", clubId).select().single();
+  if (result.error) { window.alert("Pfad konnte nicht gespeichert werden: " + (result.error.message || "")); return; }
+  if (result.data) await updateClubDocument(result.data);
+  await loadBackendData();
+}
+
 function showBackend() {
   $("#backendLogin").hidden = true;
   $("#backendApp").hidden = false;
@@ -666,6 +686,17 @@ document.addEventListener("click", async (event) => {
       await setLicense(club.id, licenseButton.dataset.setLicense);
     } finally {
       licenseButton.disabled = false;
+    }
+    return;
+  }
+  const slugButton = event.target.closest("[data-save-slug]");
+  if (slugButton) {
+    const input = slugButton.closest(".copy-field")?.querySelector('input[name="slug"]');
+    slugButton.disabled = true;
+    try {
+      await saveClubSlug(slugButton.dataset.saveSlug, input?.value || "");
+    } finally {
+      slugButton.disabled = false;
     }
     return;
   }

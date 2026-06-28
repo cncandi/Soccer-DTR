@@ -2481,9 +2481,13 @@
     }
 
     function clubInstallUrl(clubId = currentClubId) {
-      const url = new URL(PUBLIC_APP_URL);
       const club = clubs.find((item) => item.id === clubId) || currentClub();
-      url.searchParams.set(CLUB_URL_PARAM, club?.slug || club?.id || clubId);
+      const slug = club?.slug || club?.id || clubId;
+      // Schöner Pfad-Alias (app.kadrivo.de/<slug>); .htaccess routet ihn auf die App.
+      // Fallback auf ?club= nur wenn kein slug vorhanden ist.
+      if (slug) return `${PUBLIC_APP_URL}${encodeURIComponent(slug)}`;
+      const url = new URL(PUBLIC_APP_URL);
+      url.searchParams.set(CLUB_URL_PARAM, clubId);
       return url.toString();
     }
 
