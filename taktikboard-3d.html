@@ -3490,6 +3490,17 @@ window.addEventListener('message', (event)=>{
   if(data.mode) mode = data.mode;
   applyBoardSettings(data);
   importKadrivoState(data.saved, data.players || []);
+  // Positions-Override vom Modus-Wechsel (2D→3D): Spieler an uebergebene Positionen setzen
+  if(Array.isArray(data.positionOverride) && data.positionOverride.length){
+    data.positionOverride.forEach(pp=>{
+      const p = players[pp.playerId];
+      if(p){
+        const dir = p.attackDirection ?? 0;
+        placePlayer(pp.playerId, Number(pp.x||0), Number(pp.z||0), dir);
+      }
+    });
+    updateSidebar(); updateStatus(); scheduleKadrivoSave();
+  }
 });
 
 function bootKadrivoStandalone(){

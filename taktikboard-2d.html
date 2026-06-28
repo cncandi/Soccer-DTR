@@ -1429,6 +1429,14 @@ window.addEventListener('message',event=>{
   // 2D-Board verwendet saved2d, nicht saved (saved = 3D-State)
   try{ importState(data.saved2d||null, data.players||[]); }
   finally{ kadrivoHydrating=false; }
+  // Positions-Override vom Modus-Wechsel (3D→2D): Spieler an uebergebene Positionen setzen
+  if(Array.isArray(data.positionOverride) && data.positionOverride.length){
+    data.positionOverride.forEach(pp=>{
+      const obj = objects.find(o=>o.type==='player' && o.playerId===pp.playerId && !o.hidden);
+      if(obj){ obj.fx=Math.max(0,Math.min(FIELD.w,pp.fx)); obj.fy=Math.max(0,Math.min(FIELD.h,pp.fy)); }
+    });
+    render(); scheduleKadrivoSave();
+  }
 });
 
 // ============================================================

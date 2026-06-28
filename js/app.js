@@ -5959,7 +5959,7 @@
       };
     }
 
-    function sendTactic3dPayload() {
+    function sendTactic3dPayload(options) {
       // Keine Taktik gewählt → leeres Board mit Auto-Aufstellung (saved2d: null)
       const hasSelection = selectedTacticBoardId && state.tacticBoards.some(b => b.id === selectedTacticBoardId);
       let payload;
@@ -5985,6 +5985,18 @@
         };
       } else {
         payload = tactic3dPayload();
+      }
+      // Positions-Override beim Modus-Wechsel: nur an den Ziel-Frame senden
+      if (options && options.positionOverride && options.positionOverride.positions.length) {
+        payload.positionOverride = options.positionOverride.positions;
+        const targetSel = options.positionOverride.target === "3d"
+          ? ["#tactic3dFrame", "#tactic3dModalFrame"]
+          : ["#tactic2dFrame", "#tactic2dModalFrame"];
+        targetSel.forEach((selector) => {
+          const frame = $(selector);
+          if (frame?.contentWindow) frame.contentWindow.postMessage(payload, window.location.origin);
+        });
+        return;
       }
       try {
         localStorage.setItem(`kadrivo:tactic:${payload.boardId}`, JSON.stringify(payload));
@@ -6086,32 +6098,24 @@
       }, 400);
     }
 
-    // Spieler-Positionen zwischen 2D und 3D umrechnen und an Ziel-Frame senden
+    // Spieler-Positionen zwischen 2D und 3D umrechnen und beim Laden direkt anwenden
     function applyModeSyncPositions(msg) {
       if (!pendingModeSync) return;
       const target = pendingModeSync.target;
       pendingModeSync = null;
       const positions = msg.positions || [];
-      // Erst Ziel-Frame mit aktuellem Payload laden, dann Positionen anwenden
-      sendTactic3dPayload();
-      let converted = [];
+      let overridePositions = [];
       if (msg.from === "2d" && target === "3d") {
         // 2D (fx 0..W, fy 0..H) → 3D (x = fy - H/2, z = fx - W/2)
         const W = msg.fieldW || 105, H = msg.fieldH || 68;
-        converted = positions.map(p => ({ playerId: p.playerId, x: p.fy - H/2, z: p.fx - W/2 }));
+        overridePositions = positions.map(p => ({ playerId: p.playerId, x: p.fy - H/2, z: p.fx - W/2 }));
       } else if (msg.from === "3d" && target === "2d") {
         // 3D (x Breite, z Länge) → 2D (fx = z + halfL, fy = x + halfW)
         const halfW = msg.halfW || 34, halfL = msg.halfL || 52.5;
-        converted = positions.map(p => ({ playerId: p.playerId, fx: p.z + halfL, fy: p.x + halfW }));
+        overridePositions = positions.map(p => ({ playerId: p.playerId, fx: p.z + halfL, fy: p.x + halfW }));
       }
-      if (!converted.length) return;
-      const targetFrame = target === "3d" ? $("#tactic3dFrame") : $("#tactic2dFrame");
-      // kurz warten bis Ziel-Frame das Payload verarbeitet hat, dann Positionen anwenden
-      setTimeout(() => {
-        if (targetFrame?.contentWindow) {
-          targetFrame.contentWindow.postMessage({ type: "kadrivo:apply-player-positions", positions: converted }, window.location.origin);
-        }
-      }, 350);
+      // Payload mit Positions-Override an Ziel-Frame senden (wird beim Laden angewendet)
+      sendTactic3dPayload({ positionOverride: { target, positions: overridePositions } });
     }
     window.switchTacticMode          = switchTacticMode;
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
