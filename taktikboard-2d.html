@@ -1337,6 +1337,30 @@ function exportState(){
 
 // Maximal fieldLimit eigene + fieldLimit gegnerische Spieler auf dem Feld.
 // Ueberzaehlige kommen auf die Bank (hidden:true), wie im 3D.
+// Feld-Objekte mit aktueller Spielerliste abgleichen:
+// - Heim-Spieler-Objekte mit ungueltiger playerId (nicht in der Liste) entfernen (verwaist)
+// - gueltige Objekte: Nummer/Name/Position aus aktuellem Spieler uebernehmen
+// So bleiben Feld und Seitenleiste konsistent. Gegner (away) bleiben unberuehrt.
+function reconcilePlayers(){
+  const byId = new Map((kadrivoPlayers||[]).map(p=>[p.id, p]));
+  objects = objects.filter(o=>{
+    if(o.type!=='player') return true;
+    const isAway = o.team==='away' || String(o.playerId||'').startsWith('away_');
+    if(isAway) return true;                 // Gegner bleiben
+    if(!o.playerId) return true;            // freie Marker bleiben
+    return byId.has(o.playerId);            // verwaiste Heim-Objekte entfernen
+  });
+  objects.forEach(o=>{
+    if(o.type!=='player' || !o.playerId) return;
+    const p = byId.get(o.playerId);
+    if(p){
+      o.num  = p.num || '';
+      o.name = p.name || '';
+      if(p.color) o.color = p.color;
+    }
+  });
+}
+
 function enforceFieldLimit(){
   const isAway = o => o.team==='away' || String(o.playerId||'').startsWith('away_');
   let home=0, away=0;
@@ -1367,6 +1391,7 @@ function importState(saved,players){
     let maxId=0;
     [...objects,...drawLines].forEach(o=>{ const n=parseInt((o.id||'').replace('o','')); if(n>maxId) maxId=n; });
     oidSeq=maxId+1;
+    reconcilePlayers();
     enforceFieldLimit();
   } else {
     // Kein State oder leer → Board sauber leeren
