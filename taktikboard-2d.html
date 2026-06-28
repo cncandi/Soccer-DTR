@@ -68,7 +68,7 @@ canvas{display:block}
 #color-popup .btn-cancel{background:#1a1a2e;color:#666}
 
 /* Text input popup */
-#text-popup{position:fixed;background:#1a1a3e;border:1px solid #3a3a6a;border-radius:8px;padding:12px;z-index:200;display:none;box-shadow:0 4px 20px rgba(0,0,0,.6);min-width:220px}
+#text-popup{position:fixed;background:#1a1a3e;border:1px solid #3a3a6a;border-radius:8px;padding:12px;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.6);min-width:220px}
 #text-popup h4{font-size:11px;color:#aaa;margin-bottom:8px}
 #text-input{width:100%;padding:6px;background:#0d0d1e;border:1px solid #3a3a6a;color:#fff;border-radius:5px;font-size:13px;margin-bottom:8px;outline:none}
 #text-popup .popup-btns{display:flex;gap:6px}
@@ -648,7 +648,7 @@ function onPointerDown(e){
   }
 
   if(activeTool){ placeActiveTool(canvasToField(p.x,p.y)); return; }
-  if(drawMode==='text'){ openTextPopup(canvasToField(p.x,p.y)); return; }
+  if(drawMode==='text'){ openTextPopup(canvasToField(p.x,p.y), p); return; }
   if(drawMode){
     const fp=canvasToField(p.x,p.y);
     if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; }
@@ -1050,11 +1050,25 @@ function colorPopupCancel(){ document.getElementById('color-popup').style.displa
 // ============================================================
 // TEXTPOPUP
 // ============================================================
-function openTextPopup(fp){
+function openTextPopup(fp, px){
   _textFx=fp.x; _textFy=fp.y;
-  document.getElementById('text-input').value='';
-  document.getElementById('text-popup').style.display='flex';
-  setTimeout(()=>document.getElementById('text-input').focus(),50);
+  const popup=document.getElementById('text-popup');
+  const inp=document.getElementById('text-input');
+  inp.value='';
+  popup.style.display='flex';
+  popup.style.flexDirection='column';
+  // Popup am Klickpunkt platzieren, aber im sichtbaren Bereich halten
+  const cv=document.querySelector('canvas');
+  const rect=cv.getBoundingClientRect();
+  let left = (px ? rect.left + px.x : rect.left + rect.width/2);
+  let top  = (px ? rect.top  + px.y : rect.top  + rect.height/2);
+  const pw=popup.offsetWidth||240, ph=popup.offsetHeight||120;
+  left=Math.max(8, Math.min(left, window.innerWidth  - pw - 8));
+  top =Math.max(8, Math.min(top,  window.innerHeight - ph - 8));
+  popup.style.left=left+'px';
+  popup.style.top =top+'px';
+  popup.style.transform='none';
+  setTimeout(()=>inp.focus(),50);
 }
 
 function textPopupOk(){
