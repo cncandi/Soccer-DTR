@@ -1472,13 +1472,27 @@ window.addEventListener('message',event=>{
   // 2D-Board verwendet saved2d, nicht saved (saved = 3D-State)
   try{ importState(data.saved2d||null, data.players||[]); }
   finally{ kadrivoHydrating=false; }
-  // Positions-Override vom Modus-Wechsel (3D→2D): Spieler an uebergebene Positionen setzen
+  // Positions-Override vom Modus-Wechsel (3D→2D): EXAKT die 3D-Aufstellung uebernehmen.
   if(Array.isArray(data.positionOverride) && data.positionOverride.length){
-    data.positionOverride.forEach(pp=>{
-      const obj = objects.find(o=>o.type==='player' && o.playerId===pp.playerId && !o.hidden);
-      if(obj){ obj.fx=Math.max(0,Math.min(FIELD.w,pp.fx)); obj.fy=Math.max(0,Math.min(FIELD.h,pp.fy)); }
+    const byId = new Map((kadrivoPlayers||[]).map(p=>[p.id, p]));
+    // Alle Heim-Feldspieler entfernen (Gegner/Marker bleiben)
+    objects = objects.filter(o=>{
+      if(o.type!=='player') return true;
+      const isAway = o.team==='away' || String(o.playerId||'').startsWith('away_');
+      if(isAway) return true;
+      return !o.playerId; // Heim-Spieler mit playerId entfernen
     });
-    render(); scheduleKadrivoSave();
+    // Uebergebene Spieler an ihre Positionen setzen (nur Heim; Gegner separat)
+    data.positionOverride.forEach(pp=>{
+      if(pp.team==='away' || String(pp.playerId||'').startsWith('away_')) return;
+      const p = byId.get(pp.playerId);
+      const role = p ? positionRole(p.pos) : '';
+      const col = (p&&p.color) || (role==='keeper'?gkColor:homeColor);
+      objects.push({type:'player',id:newId(),
+        fx:Math.max(0,Math.min(FIELD.w,pp.fx)), fy:Math.max(0,Math.min(FIELD.h,pp.fy)),
+        color:col, name:(p&&p.name)||'', num:(p&&p.num)||'', playerId:pp.playerId, hidden:false});
+    });
+    updateSidebar(); updatePlayerCount(); render(); scheduleKadrivoSave();
   }
 });
 

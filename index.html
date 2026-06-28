@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v192';
+      const EXPECTED = 'v193';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v192</span></h1>
+          <h1>Kadrivo <span class="app-version">v193</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -112,7 +112,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v192</span></h1>
+          <h1>Kadrivo <span class="app-version">v193</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -397,7 +397,7 @@
                 </div>
                 <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=145" title="3D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=146" title="3D Taktiktafel"></iframe>
             </div>
             <div class="tactic-3d-panel" id="tactic-panel-2d">
               <div class="item-head">
@@ -407,7 +407,7 @@
                 </div>
                 <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=172" title="2D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=173" title="2D Taktiktafel"></iframe>
             </div>
           </div><!-- /tactic-workspace -->
         </div>
@@ -681,7 +681,7 @@ Nein</textarea></div>
         </div>
         <button class="mini" id="closeTactic3dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=145" title="3D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic3dModalFrame" src="taktikboard-3d.html?v=146" title="3D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -694,7 +694,7 @@ Nein</textarea></div>
         </div>
         <button class="mini" id="closeTactic2dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=172" title="2D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=173" title="2D Taktiktafel gross"></iframe>
     </section>
   </div>
 

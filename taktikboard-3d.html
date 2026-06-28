@@ -1726,8 +1726,7 @@ function placePlayer(pid_str, x, z, attackDirection=null){
   const alreadyOnField = Boolean(p.onField);
   const onFieldCount = Object.values(players).filter(player=>player.team===p.team&&player.onField).length;
   if(!alreadyOnField && onFieldCount >= teamFieldLimit()){
-    alert(`Maximal ${teamFieldLimit()} Spieler auf dem Feld.`);
-    return;
+    return; // Feld voll – still ignorieren (keine Meldung)
   }
   if(p.mesh){scene.remove(p.mesh); fieldObjects=fieldObjects.filter(f=>f!==p.mesh);}
   const m=createPlayerMesh(p.team,p.num,p.name,p.pos,p.vestColor);
@@ -3490,8 +3489,15 @@ window.addEventListener('message', (event)=>{
   if(data.mode) mode = data.mode;
   applyBoardSettings(data);
   importKadrivoState(data.saved, data.players || []);
-  // Positions-Override vom Modus-Wechsel (2D→3D): Spieler an uebergebene Positionen setzen
+  // Positions-Override vom Modus-Wechsel (2D→3D): EXAKT die 2D-Aufstellung uebernehmen.
+  // Dazu erst alle Heim-Spieler vom Feld nehmen, dann nur die uebergebenen platzieren.
   if(Array.isArray(data.positionOverride) && data.positionOverride.length){
+    // Alle Heim-Spieler vom Feld nehmen (Gegner bleiben unberuehrt)
+    Object.keys(players).forEach(id=>{
+      const p = players[id];
+      if(p && p.team!=='away' && p.onField) removeFromField(id);
+    });
+    // Nur die uebergebenen Spieler an ihre 2D-Positionen setzen
     data.positionOverride.forEach(pp=>{
       const p = players[pp.playerId];
       if(p){
