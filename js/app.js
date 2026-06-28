@@ -8218,27 +8218,33 @@
     $("#settingsForm").elements.key.value = settings.key;
     $("#settingsForm").elements.table.value = settings.table;
 
-    // Wenn URL-Club angefordert und nicht im localStorage → erst sync, dann render
-    const urlClubKnown = requestedClubId && clubs.some(c => clubMatchesIdentifier(c, requestedClubId));
-    if (requestedClubId && !urlClubKnown && settings.url && settings.key) {
-      // Zeige Ladeindikator sofort
-      setStatus("Vereinsdaten werden geladen …");
-      render();
-      setLoginVisible(false);
-      // Sync mit hoher Priorität – danach Club aktivieren, render und Login
+    // Funktion: angefragten Verein aktivieren und Login-Darstellung aktualisieren
+    function activateRequestedClub() {
+      const club = clubByIdentifier(requestedClubId);
+      if (!club) return false;
+      currentClubId = club.id;
+      localStorage.setItem(CURRENT_CLUB_KEY, club.id);
+      state = loadState();
+      renderClubSelect();
+      renderLoginUsers();
+      renderPublicLoginState();
+      renderAll();
+      return true;
+    }
+
+    if (requestedClubId) {
+      // Vereinslink: zuerst lokal versuchen, dann nach Sync erneut aktivieren
+      const knownNow = activateRequestedClub();
+      if (!knownNow) {
+        setStatus("Vereinsdaten werden geladen …");
+        render();
+      }
+      setLoginVisible(knownNow ? !restoredLogin : false);
       syncWithSupabase({ silent: true }).then(() => {
-        // Angefragten Club nach dem Sync explizit aktivieren
-        const club = clubByIdentifier(requestedClubId);
-        if (club) {
-          currentClubId = club.id;
-          localStorage.setItem(CURRENT_CLUB_KEY, club.id);
-          state = loadState();
-          renderClubSelect();
-          renderLoginUsers();
-          renderAll();
-        }
+        activateRequestedClub();
         setLoginVisible(!restoredLogin);
         if (restoredLogin && location.hash === "#messages") switchView("messages");
+        refreshLoginDirectory().then(() => renderPublicLoginState()).catch(() => {});
       });
     } else {
       render();
