@@ -8225,8 +8225,18 @@
       setStatus("Vereinsdaten werden geladen …");
       render();
       setLoginVisible(false);
-      // Sync mit hoher Priorität – danach render und Login
+      // Sync mit hoher Priorität – danach Club aktivieren, render und Login
       syncWithSupabase({ silent: true }).then(() => {
+        // Angefragten Club nach dem Sync explizit aktivieren
+        const club = clubByIdentifier(requestedClubId);
+        if (club) {
+          currentClubId = club.id;
+          localStorage.setItem(CURRENT_CLUB_KEY, club.id);
+          state = loadState();
+          renderClubSelect();
+          renderLoginUsers();
+          renderAll();
+        }
         setLoginVisible(!restoredLogin);
         if (restoredLogin && location.hash === "#messages") switchView("messages");
       });
