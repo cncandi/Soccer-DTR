@@ -1,6 +1,7 @@
     const STORE_KEY = "soccer-dtr-club-state";
     const CLUBS_KEY = "soccer-dtr-clubs";
     const CURRENT_CLUB_KEY = "soccer-dtr-current-club";
+    const UNLOCKED_CLUB_KEY = "soccer-dtr-unlocked-club";
     const LOGIN_KEY = "soccer-dtr-logged-in";
     const LOGIN_USER_KEY = "soccer-dtr-current-user";
     const LOGIN_PREFILL_KEY = "soccer-dtr-login-prefill";
@@ -486,6 +487,12 @@
 
     function loginClubContextIds() {
       const selectable = selectableClubs();
+      // Per Vereinszugang freigeschalteter Verein gilt dauerhaft als Kontext
+      const unlockedId = localStorage.getItem(UNLOCKED_CLUB_KEY) || "";
+      if (unlockedId) {
+        const unlockedClub = selectable.find((club) => club.id === unlockedId);
+        if (unlockedClub) return [unlockedClub.id];
+      }
       if (requestedClubId) {
         const requestedClub = selectable.find((club) => clubMatchesIdentifier(club, requestedClubId));
         return requestedClub ? [requestedClub.id] : [];
@@ -507,6 +514,18 @@
       const source = stored || legacyStored;
       const loadedState = source ? JSON.parse(source) : structuredClone(defaultState);
       return normalizeState(loadedState);
+    }
+
+    function loadStateForClub(clubId) {
+      try {
+        const stored = localStorage.getItem(stateKey(clubId));
+        const legacyStored = clubId === DEFAULT_CLUB_ID ? localStorage.getItem(STORE_KEY) : null;
+        const source = stored || legacyStored;
+        if (!source) return null;
+        return normalizeState(JSON.parse(source));
+      } catch (error) {
+        return null;
+      }
     }
 
     function playerNameKey(name) {
@@ -3147,11 +3166,17 @@
         el.hidden = publicOnly;
       });
       const hint = $("#publicLoginHint");
-      if (hint) hint.hidden = !publicOnly;
+      if (hint) hint.hidden = true;
+      // Vereinszugang anzeigen, wenn noch kein Verein gewählt
+      const accessBlock = $("#clubAccessBlock");
+      if (accessBlock) {
+        accessBlock.hidden = !publicOnly;
+        if (publicOnly) renderClubAccessOptions();
+      }
       const intro = $("#loginIntro");
       if (intro) {
         intro.textContent = publicOnly
-          ? "Kostenfrei registrieren und direkt starten."
+          ? "Verein auswaehlen und freischalten."
           : "Mit Namen anmelden.";
       }
       const signupButton = $("#showClubSignupBtn");
@@ -3160,9 +3185,78 @@
           ? "Kostenfrei neuen Verein registrieren"
           : "Neuen Verein registrieren";
       }
+      // "Anderen Verein waehlen" nur zeigen, wenn ein Verein freigeschaltet ist
+      const changeBtn = $("#changeClubBtn");
+      if (changeBtn) changeBtn.hidden = publicOnly || !localStorage.getItem(UNLOCKED_CLUB_KEY);
       if (publicOnly) {
-        $("#loginError").textContent = requestedClubId ? "Dieser Vereinslink wurde nicht gefunden oder ist nicht mehr aktiv." : "";
+        $("#loginError").textContent = "";
       }
+    }
+
+    // Vereinszugang: Dropdown mit allen Vereinen füllen
+    function renderClubAccessOptions() {
+      const select = $("#clubAccessSelect");
+      if (!select) return;
+      const visibleClubs = selectableClubs()
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
+      select.innerHTML = visibleClubs
+        .map((club) => `<option value="${club.id}">${escapeHtml(club.name)}</option>`)
+        .join("");
+    }
+
+    // Vereinszugang: gewählten Verein per Passwort freischalten
+    async function unlockClubAccess() {
+      const select = $("#clubAccessSelect");
+      const errorEl = $("#clubAccessError");
+      const btn = $("#clubAccessBtn");
+      const clubId = select?.value;
+      const password = ($("#clubAccessPassword")?.value || "").trim();
+      if (!clubId) { if (errorEl) errorEl.textContent = "Bitte einen Verein waehlen."; return; }
+      if (!password) { if (errorEl) errorEl.textContent = "Bitte ein Passwort eingeben."; return; }
+      if (btn) btn.disabled = true;
+      if (errorEl) errorEl.textContent = "Verein wird geprueft …";
+      try {
+        const ok = await clubPasswordValid(clubId, password);
+        if (!ok) {
+          if (errorEl) errorEl.textContent = "Passwort stimmt mit keinem Spieler dieses Vereins ueberein.";
+          return;
+        }
+        // Verein dauerhaft als Kontext speichern
+        currentClubId = clubId;
+        localStorage.setItem(CURRENT_CLUB_KEY, clubId);
+        localStorage.setItem(UNLOCKED_CLUB_KEY, clubId);
+        requestedClubId = clubs.find((c) => c.id === clubId)?.slug || clubId;
+        state = loadState();
+        if (errorEl) errorEl.textContent = "";
+        if ($("#clubAccessPassword")) $("#clubAccessPassword").value = "";
+        await refreshLoginDirectory().catch(() => {});
+        renderClubSelect();
+        renderLoginUsers();
+        renderPublicLoginState();
+        renderAll();
+      } catch (error) {
+        if (errorEl) errorEl.textContent = "Fehler bei der Pruefung. Bitte erneut versuchen.";
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // Prüft ob das Passwort einem Spieler-Passwort des Vereins entspricht
+    async function clubPasswordValid(clubId, password) {
+      // Erst lokal (falls Spieler schon geladen)
+      const localState = loadStateForClub(clubId);
+      const localPlayers = localState?.players || [];
+      if (localPlayers.some((p) => (p.password || DEFAULT_PASSWORD) === password)) return true;
+      // Sonst direkt aus Supabase die Spieler des Vereins laden
+      const client = getSupabaseClient();
+      if (!client) return false;
+      const { data, error } = await client
+        .from("players")
+        .select("password")
+        .eq("club_id", clubId);
+      if (error) return false;
+      return (data || []).some((row) => (row.password || DEFAULT_PASSWORD) === password);
     }
 
     function renderClubDesignForm() {
@@ -8087,6 +8181,19 @@
       renderLoginClubOptionsForUser();
       fillSavedLoginPassword();
     });
+    $("#changeClubBtn")?.addEventListener("click", () => {
+      // Vereinszugang zurücksetzen → Auswahl erscheint wieder
+      localStorage.removeItem(UNLOCKED_CLUB_KEY);
+      requestedClubId = "";
+      localStorage.removeItem(LOGIN_KEY);
+      sessionStorage.removeItem(LOGIN_KEY);
+      renderPublicLoginState();
+      setLoginVisible(true);
+    });
+    $("#clubAccessBtn")?.addEventListener("click", unlockClubAccess);
+    $("#clubAccessPassword")?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); unlockClubAccess(); }
+    });
     $("#loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!hasLoginClubContext() || !$("#loginClubSelect").value || !$("#loginUser").value) {
@@ -8232,6 +8339,12 @@
       return true;
     }
 
+    // Bereits per Vereinszugang freigeschalteter Verein → wie Vereinslink behandeln
+    if (!requestedClubId) {
+      const unlockedId = localStorage.getItem(UNLOCKED_CLUB_KEY) || "";
+      if (unlockedId) requestedClubId = clubs.find((c) => c.id === unlockedId)?.slug || unlockedId;
+    }
+
     if (requestedClubId) {
       // Vereinslink: zuerst lokal versuchen, dann nach Sync erneut aktivieren
       const knownNow = activateRequestedClub();
@@ -8247,10 +8360,13 @@
         refreshLoginDirectory().then(() => renderPublicLoginState()).catch(() => {});
       });
     } else {
+      // Kein Verein gewählt → Vereinsliste laden, damit Vereinszugang-Dropdown gefüllt ist
       render();
       setLoginVisible(!restoredLogin);
       if (restoredLogin && location.hash === "#messages") switchView("messages");
-      syncWithSupabase({ silent: true });
+      syncWithSupabase({ silent: true }).then(() => {
+        renderPublicLoginState();
+      });
     }
     refreshLoginDirectory().catch(() => {});
     if (typeof fetchLibraryItems === "function") fetchLibraryItems().catch(() => {});

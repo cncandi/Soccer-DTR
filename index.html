@@ -21,7 +21,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v181';
+      const EXPECTED = 'v182';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -45,11 +45,27 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v181</span></h1>
+          <h1>Kadrivo <span class="app-version">v182</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
       <p class="meta public-login-hint" id="publicLoginHint" hidden>Starte kostenfrei: Die Registrierung kostet nichts und die meisten Funktionen koennen direkt ohne Zahlung genutzt werden. Wenn du neu bist, registriere zuerst deinen Verein.</p>
+
+      <!-- VEREINSZUGANG (erster Start, kein Verein gespeichert) -->
+      <div id="clubAccessBlock" hidden>
+        <p class="meta" style="margin-bottom:12px">Waehle deinen Verein und gib ein Vereins-Passwort ein. Das Passwort ist eines der Spieler-Passwoerter deines Vereins. Danach erscheint diese Auswahl nicht mehr.</p>
+        <div class="field">
+          <label for="clubAccessSelect">Verein</label>
+          <select id="clubAccessSelect"></select>
+        </div>
+        <div class="field">
+          <label for="clubAccessPassword">Vereins-Passwort</label>
+          <input id="clubAccessPassword" type="password" autocomplete="off">
+        </div>
+        <p class="meta" id="clubAccessError" aria-live="polite"></p>
+        <button class="btn-primary" id="clubAccessBtn" type="button">Verein freischalten</button>
+      </div>
+
       <div class="field login-existing">
         <label for="loginUser">Name</label>
         <select id="loginUser"></select>
@@ -69,6 +85,7 @@
       <p class="meta" id="loginError" aria-live="polite"></p>
       <button class="btn-primary login-existing" type="submit">Anmelden</button>
       <button class="btn-secondary" id="showClubSignupBtn" type="button">Kostenfrei neuen Verein registrieren</button>
+      <button class="btn-secondary" id="changeClubBtn" type="button" hidden>Anderen Verein waehlen</button>
       <section class="install-panel login-install" id="installPanel" hidden>
         <div>
           <h3>Kadrivo installieren</h3>
@@ -95,7 +112,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v181</span></h1>
+          <h1>Kadrivo <span class="app-version">v182</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -782,7 +799,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=181" defer></script>
+  <script src="js/app.js?v=182" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
