@@ -3582,9 +3582,15 @@
       const selected = loginPrefillFor().user;
       const contextIds = new Set(loginClubContextIds());
       const directoryRows = loginDirectory.filter((row) => contextIds.has(row.club_id));
+      // state.players nur als Fallback nutzen, wenn der aktuell geladene Verein
+      // auch der Login-Kontext-Verein ist (sonst werden Spieler des falschen
+      // Vereins angezeigt, solange das Login-Verzeichnis noch laedt).
+      const contextMatchesLoaded = contextIds.has(currentClubId);
       const sourceNames = loginDirectoryLoaded
         ? directoryRows.map((row) => row.name)
-        : (hasLoginClubContext() ? state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name) : []);
+        : (hasLoginClubContext() && contextMatchesLoaded
+            ? state.players.filter((player) => !pendingIncomingTransfer(player)).map((player) => player.name)
+            : []);
       const names = [...new Set(sourceNames)]
         .sort((a, b) => a.localeCompare(b, "de"));
       $("#loginUser").innerHTML = names
