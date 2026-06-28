@@ -238,6 +238,7 @@ let _colorPickerMode = null;
 let _colorPickerFx = 0, _colorPickerFy = 0;
 let _textFx = 0, _textFy = 0;
 let kadrivoBoardId = null;
+let lastLoadSig    = null;
 let kadrivoReady   = false;
 let kadrivoHydrating = false;
 let kadrivoSaveTimer = null;
@@ -1328,7 +1329,11 @@ function scheduleKadrivoSave(){
 
 function postKadrivoSave(){
   if(!kadrivoReady||!kadrivoBoardId||!window.parent||window.parent===window) return;
-  window.parent.postMessage({type:'kadrivo:tactic-save',boardId:kadrivoBoardId,state:exportState()},window.location.origin);
+  const state=exportState();
+  // Signatur mitziehen, damit das von der App zurueckkommende Payload
+  // (mit jetzt aktualisiertem saved2d) das Board nicht neu laedt.
+  lastLoadSig = JSON.stringify({ b:kadrivoBoardId, s:state });
+  window.parent.postMessage({type:'kadrivo:tactic-save',boardId:kadrivoBoardId,state},window.location.origin);
 }
 
 function exportState(){
@@ -1441,6 +1446,19 @@ window.addEventListener('message',event=>{
     return;
   }
   if(data.type!=='kadrivo:tactic-load') return;
+  // Schutz: identisches Board mit gleichem Inhalt nicht erneut laden
+  // (App ruft render() häufig auf → wuerde sonst gezeichnete Linien ueberschreiben).
+  // Bei Positions-Override (Modus-Wechsel) immer laden.
+  const loadSig = JSON.stringify({ b:data.boardId||null, s:data.saved2d||null });
+  if(!(Array.isArray(data.positionOverride) && data.positionOverride.length)
+     && kadrivoReady && loadSig === lastLoadSig && data.boardId === kadrivoBoardId){
+    // Nur Stammdaten/Farben aktualisieren, Board-Inhalt unberuehrt lassen
+    if(data.players) kadrivoPlayers=data.players;
+    if(data.limits){ fieldLimit=data.limits.fieldPlayers||11; benchLimit=data.limits.benchPlayers??9; }
+    updateSidebar();
+    return;
+  }
+  lastLoadSig = loadSig;
   kadrivoBoardId=data.boardId||null;
   kadrivoReady=true;
   if(data.limits){ fieldLimit=data.limits.fieldPlayers||11; benchLimit=data.limits.benchPlayers??9; }
