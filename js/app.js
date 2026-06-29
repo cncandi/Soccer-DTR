@@ -8685,18 +8685,49 @@
       if (preview) { preview.src = drill?.image_url||""; preview.style.display = drill?.image_url?"block":"none"; }
       const tbSel = $("#drillTacticBoardId");
       if (tbSel) {
-        const boards = state.tacticBoards || [];
+        // Nur Taktiken die einem Training zugeordnet sind (nicht Spieltaktiken)
+        const trainingEventIds = new Set((state.events||[]).filter(e=>normalizedEventType(e.type)==="Training").map(e=>e.id));
+        const boards = (state.tacticBoards||[]).filter(tb => !tb.event_id || trainingEventIds.has(tb.event_id));
         tbSel.innerHTML = `<option value="">— kein Taktikboard —</option>` +
           boards.map(tb=>`<option value="${escapeAttr(tb.id)}"${tb.id===drill?.tactic_board_id?" selected":""}>${escapeHtml(tb.title||"Taktik")}</option>`).join("");
       }
       updateDrillTypeUI();
-      $("#drillModal").style.display = "flex";
-      $("#drillModal").setAttribute("aria-hidden","false");
+      const modal = $("#drillModal");
+      modal.style.display = "flex";
+      modal.setAttribute("aria-hidden","false");
+      // Paste-Handler für Bild aus Zwischenablage
+      modal._pasteHandler = (e) => {
+        if ($("#drillType").value !== "image") return;
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file.size > 1024*1024) { alert("Bild ist größer als 1 MB."); return; }
+            const reader = new FileReader();
+            reader.onload = ev => {
+              $("#drillImageUrl").value = ev.target.result;
+              const preview = $("#drillImagePreview");
+              if (preview) { preview.src=ev.target.result; preview.style.display="block"; }
+            };
+            reader.readAsDataURL(file);
+            e.preventDefault();
+            return;
+          }
+        }
+      };
+      document.addEventListener("paste", modal._pasteHandler);
     }
 
     function closeDrillModal() {
       const m = $("#drillModal");
-      if (m) { m.style.display="none"; m.setAttribute("aria-hidden","true"); }
+      if (!m) return;
+      m.style.display="none";
+      m.setAttribute("aria-hidden","true");
+      if (m._pasteHandler) {
+        document.removeEventListener("paste", m._pasteHandler);
+        m._pasteHandler = null;
+      }
     }
 
     function updateDrillTypeUI() {

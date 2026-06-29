@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=211">
+  <link rel="stylesheet" href="css/app.css?v=212">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v211';
+      const EXPECTED = 'v212';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v211</span></h1>
+          <h1>Kadrivo <span class="app-version">v212</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v211</span></h1>
+          <h1>Kadrivo <span class="app-version">v212</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -866,7 +866,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=211" defer></script>
+  <script src="js/app.js?v=212" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
@@ -1012,7 +1012,7 @@ Nein</textarea></div>
 
   <!-- DRILL MODAL: Übung anlegen/bearbeiten -->
   <div class="modal-backdrop" id="drillModal" aria-hidden="true" style="display:none">
-    <div class="modal" style="max-width:520px;width:95%">
+    <div class="modal" style="max-width:520px;width:95%;background:var(--surface, #fff);border-radius:12px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
       <h3 id="drillModalTitle">Neue Übung</h3>
       <form id="drillForm" class="form-grid" style="margin-top:12px">
         <input type="hidden" id="drillId">
@@ -1027,18 +1027,19 @@ Nein</textarea></div>
           </select>
         </div>
         <div class="field"><label>Dauer (Minuten)</label><input id="drillDuration" type="number" min="0" max="180" step="5" placeholder="15"></div>
-        <div class="field">
+        <div class="field full">
           <label>Typ</label>
           <select id="drillType" onchange="updateDrillTypeUI()">
-            <option value="tactic">Taktikboard</option>
-            <option value="image">PNG (max. 1 MB)</option>
-            <option value="youtube">YouTube</option>
+            <option value="tactic">Trainingstaktik (Taktikboard)</option>
+            <option value="image">PNG / Bild (max. 1 MB)</option>
+            <option value="youtube">YouTube-Link</option>
           </select>
         </div>
-        <div class="field full" id="drillTypeTactic"><label>Taktikboard verknüpfen</label><select id="drillTacticBoardId"><option value="">— kein Taktikboard —</option></select></div>
+        <div class="field full" id="drillTypeTactic"><label>Taktikboard verknüpfen (nur Trainings-Taktiken)</label><select id="drillTacticBoardId"><option value="">— kein Taktikboard —</option></select></div>
         <div class="field full" id="drillTypeImage" style="display:none">
-          <label>Bild hochladen (max. 1 MB)</label>
+          <label>Bild hochladen oder aus Zwischenablage einfügen (max. 1 MB)</label>
           <input id="drillImageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="handleDrillImageUpload(this)">
+          <p class="meta" style="margin:4px 0">Oder Bild aus Zwischenablage: <strong>Strg+V / ⌘V</strong> im Modal</p>
           <img id="drillImagePreview" style="max-width:100%;max-height:160px;margin-top:8px;display:none;border-radius:6px;object-fit:contain">
           <input type="hidden" id="drillImageUrl">
         </div>
