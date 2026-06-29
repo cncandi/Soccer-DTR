@@ -119,6 +119,7 @@ canvas{display:block}
       <button class="tb-btn" onclick="toggleOpponents2d()" id="btn-opponents">Gegner: An</button>
       <span id="modebadge2d" class="tb-btn" style="background:#155e3b;color:#fff;border-color:#155e3b;font-weight:700">SPIEL</span>
       <button class="tb-btn" onclick="toggleMode2d()">Wechseln</button>
+      <button class="tb-btn" id="btn-clear-field" onclick="clearAllFromField()" style="display:none;border-color:#cc3333;color:#ff8888">Alle vom Feld</button>
       <button class="tb-btn" onclick="toggleSceneBar()" id="btn-scenes">🎬 Szenen</button>
       <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
     </div>
@@ -1049,12 +1050,23 @@ function highlightPlayer(pid){
 function toggleMode2d(){
   mode2d = mode2d==='spiel' ? 'training' : 'spiel';
   const badge = document.getElementById('modebadge2d');
+  const clearBtn = document.getElementById('btn-clear-field');
   if(badge){
     badge.textContent = mode2d==='spiel' ? 'SPIEL' : 'TRAINING';
     badge.style.background = mode2d==='spiel' ? '#155e3b' : '#1a3a7a';
     badge.style.borderColor = mode2d==='spiel' ? '#155e3b' : '#1a3a7a';
   }
+  if(clearBtn) clearBtn.style.display = mode2d==='training' ? '' : 'none';
   if(currentTab==='tools') updateSidebar();
+}
+
+function clearAllFromField(){
+  if(!confirm('Alle Spieler vom Feld entfernen?')) return;
+  pushUndo();
+  objects = objects.filter(o => o.type !== 'player');
+  render();
+  scheduleKadrivoSave();
+  if(currentTab==='players') updateSidebar();
 }
 
 function buildToolsSidebar(){
@@ -1200,6 +1212,7 @@ function colorPopupOk(){
   const c=document.getElementById('color-custom').value;
   document.getElementById('color-popup').style.display='none';
   if(_colorPickerMode==='cone') setActiveTool('cone-custom',{type:'cone',color:c});
+  else if(_colorPickerMode==='player') setActiveTool('player-custom',{type:'player',color:c,isTrainingPlayer:true});
   else if(_colorPickerMode==='training') setActiveTool('tp-custom',{type:'player',color:c});
   else if(_colorPickerMode==='ctx'&&ctxTarget){
     ctxTarget.obj.color=c; render(); scheduleKadrivoSave();
