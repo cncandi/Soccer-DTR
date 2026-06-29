@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v201';
+      const EXPECTED = 'v202';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v201</span></h1>
+          <h1>Kadrivo <span class="app-version">v202</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -113,7 +113,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v201</span></h1>
+          <h1>Kadrivo <span class="app-version">v202</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -386,9 +386,9 @@
                 <div class="item-head">
                   <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
                   <div style="display:flex;gap:4px;align-items:center">
-                    <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button" style="display:none">3D</button>
-                    <button class="mini" id="btn-tactic-2d-from3d" onclick="switchTacticMode('2d')" type="button" style="display:none">2D</button>
-                    <button class="mini" id="tacticCollapseBtn" type="button" onclick="toggleTacticBoard()" style="display:none">▲ Einklappen</button>
+                    <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button">3D</button>
+                    <button class="mini" id="btn-tactic-2d-from3d" onclick="switchTacticMode('2d')" type="button">2D</button>
+                    <button class="mini" id="tacticCollapseBtn" type="button" onclick="toggleTacticBoard()">▲ Einklappen</button>
                     <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
                   </div>
                 </div>
@@ -398,9 +398,9 @@
                 <div class="item-head">
                   <p class="meta" id="tactic2dMeta">Bitte Spiel oder Training auswaehlen.</p>
                   <div style="display:flex;gap:4px;align-items:center">
-                    <button class="mini" id="btn-tactic-3d-from2d" onclick="switchTacticMode('3d')" type="button" style="display:none">3D</button>
-                    <button class="mini active" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button" style="display:none">2D</button>
-                    <button class="mini" id="tacticCollapseBtn2d" type="button" onclick="toggleTacticBoard()" style="display:none">▲ Einklappen</button>
+                    <button class="mini" id="btn-tactic-3d-from2d" onclick="switchTacticMode('3d')" type="button">3D</button>
+                    <button class="mini active" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button">2D</button>
+                    <button class="mini" id="tacticCollapseBtn2d" type="button" onclick="toggleTacticBoard()">▲ Einklappen</button>
                     <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
                   </div>
                 </div>
