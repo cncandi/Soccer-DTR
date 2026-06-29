@@ -6620,7 +6620,7 @@
           .sort((a,b)=>(b.date||"")>(a.date||"")?1:-1);
         const gameOptions = games.map(g=>`<option value="${escapeAttr(g.id)}"${g.id===selectedTacticEventId?" selected":""}>${escapeHtml(g.title||"Spiel")} – ${formatDate(g.date)}</option>`).join("");
         const trainingOptions = trainings.map(t=>`<option value="${escapeAttr(t.id)}"${t.id===selectedTacticEventId?" selected":""}>${escapeHtml("Training"+(t.focus?` – ${t.focus}`:""))} – ${formatDate(t.date)}</option>`).join("");
-        evSel.innerHTML = `<option value="">— wählen —</option>` +
+        evSel.innerHTML = `<option value="">— Spieltag wählen —</option>` +
           `<option value="__free__"${selectedTacticEventId==="__free__"?" selected":""}>Freie Taktik (ohne Zuordnung)</option>` +
           (gameOptions ? `<optgroup label="Spiele">${gameOptions}</optgroup>` : "") +
           (trainingOptions ? `<optgroup label="Training">${trainingOptions}</optgroup>` : "");

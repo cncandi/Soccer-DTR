@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=223">
+  <link rel="stylesheet" href="css/app.css?v=224">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v223';
+      const EXPECTED = 'v224';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v223</span></h1>
+          <h1>Kadrivo <span class="app-version">v224</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v223</span></h1>
+          <h1>Kadrivo <span class="app-version">v224</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -375,7 +375,7 @@
         <div class="panel" id="tactic-anchor-spiel" style="margin-bottom:12px;scroll-margin-top:12px">
           <form id="tacticBoardForm" onsubmit="return false">
             <div class="item-head" style="margin-bottom:12px">
-              <h3>Spiel / Training</h3>
+              <h3>Spiel</h3>
               <div style="display:flex;gap:8px;align-items:center">
                 <button type="button" id="saveTacticBoardBtn"
                   style="padding:8px 16px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"
@@ -876,7 +876,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=223" defer></script>
+  <script src="js/app.js?v=224" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
