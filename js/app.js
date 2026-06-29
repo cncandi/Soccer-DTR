@@ -6108,6 +6108,8 @@
       const panel2d = $("#tactic-panel-2d");
       const btn3d   = $("#btn-tactic-3d");
       const btn2d   = $("#btn-tactic-2d");
+      const btn3d2  = $("#btn-tactic-3d-from2d");
+      const btn2d2  = $("#btn-tactic-2d-from3d");
       if (!panel3d || !panel2d) return;
       // 3D nur für Fußball erlaubt
       if (mode === "3d" && !isSportWith3D()) mode = "2d";
@@ -6125,6 +6127,8 @@
       panel2d.style.display = is3d ? "none" : "";
       btn3d?.classList.toggle("active", is3d);
       btn2d?.classList.toggle("active", !is3d);
+      btn3d2?.classList.toggle("active", is3d);
+      btn2d2?.classList.toggle("active", !is3d);
       // Payload erst senden falls keine Sync-Antwort kommt (Fallback)
       setTimeout(() => {
         if (pendingModeSync) { pendingModeSync = null; sendTactic3dPayload(); }
@@ -8776,9 +8780,12 @@
       tacticBoardCollapsed = !tacticBoardCollapsed;
       const content = $("#tacticBoardContent");
       const btn = $("#tacticCollapseBtn");
-      if (!content || !btn) return;
+      const btn2d = $("#tacticCollapseBtn2d");
+      const label = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
+      if (!content) return;
       content.style.display = tacticBoardCollapsed ? "none" : "";
-      btn.textContent = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
+      if (btn) btn.textContent = label;
+      if (btn2d) btn2d.textContent = label;
     }
 
     function setupDrillListeners() {
