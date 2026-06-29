@@ -8468,6 +8468,7 @@
     // ============================================================
 
     let drillsData = [];
+    let selectedDrillId = null;
     let eventDrillsData = {};
     let drillAssignDirty = false;
     let pendingTacticDrill = null;
@@ -8550,16 +8551,16 @@
           : d.type === "tactic" && d.tactic_board_id
           ? `<span style="font-size:12px">⬛</span>`
           : `<span style="color:#ccc;font-size:11px">—</span>`;
-        return `<tr>
+        return `<tr class="${d.id===selectedDrillId?'drill-row-selected':''}" onclick="selectDrillRow('${escapeAttr(d.id)}')" style="cursor:pointer">
           <td><button class="drill-add-btn${inPlan?" in-plan":""}" title="${inPlan?"Bereits im Training":"Zum Training hinzufügen"}"
-            onclick="drillToggleAssign('${escapeAttr(d.id)}')">${inPlan?"✓":"+"}</button></td>
+            onclick="event.stopPropagation();drillToggleAssign('${escapeAttr(d.id)}')">${inPlan?"✓":"+"}</button></td>
           <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</td>
           <td>${drillFocusBadge(d.focus)}</td>
           <td style="color:#888;white-space:nowrap">${d.duration_min?d.duration_min+" min":"—"}</td>
           <td style="text-align:center">${pngThumb}</td>
           <td style="text-align:center">${linkCell}</td>
           <td style="color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.remark||"")}</td>
-          <td><button class="drill-edit-btn" onclick="openDrillModal('${escapeAttr(d.id)}')" title="Bearbeiten">✎</button></td>
+          <td><button class="drill-edit-btn" onclick="event.stopPropagation();openDrillModal('${escapeAttr(d.id)}')" title="Bearbeiten">✎</button></td>
         </tr>`;
       }).join("") || `<tr><td colspan="8" style="color:#aaa;text-align:center;padding:16px">Keine Übungen gefunden</td></tr>`;
 
@@ -8614,8 +8615,13 @@
       if (saveBtn) saveBtn.style.display = drillAssignDirty ? "inline-flex" : "none";
     }
 
+    function selectDrillRow(drillId) {
+      selectedDrillId = selectedDrillId === drillId ? null : drillId;
+      renderDrillsTable();
+    }
+    window.selectDrillRow = selectDrillRow;
+
     function drillToggleAssign(drillId) {
-      const eventId = $("#drillEventSelect")?.value;
       if (!eventId) { alert("Bitte zuerst einen Trainingstermin wählen."); return; }
       if (!eventDrillsData[eventId]) eventDrillsData[eventId] = [];
       const idx = eventDrillsData[eventId].findIndex(r=>r.drillId===drillId);
@@ -8818,20 +8824,18 @@
 
       const saveDrillBtn = $("#saveDrillBtn");
       if (saveDrillBtn) saveDrillBtn.addEventListener("click", () => {
-        const form = $("#drillForm");
-        if (form) form.requestSubmit();
+        openDrillModal(selectedDrillId || null);
       });
 
       const deleteDrillBtn = $("#deleteDrillBtn");
       if (deleteDrillBtn) deleteDrillBtn.addEventListener("click", async () => {
-        const id = $("#drillId")?.value;
-        if (!id) return;
+        if (!selectedDrillId) { alert("Bitte zuerst eine Übung in der Tabelle auswählen."); return; }
         if (!confirm("Übung wirklich löschen?")) return;
         const client = getSupabaseClient();
         if (!client) return;
         try {
-          await client.from("drills").delete().eq("id", id);
-          closeDrillModal();
+          await client.from("drills").delete().eq("id", selectedDrillId);
+          selectedDrillId = null;
           await loadDrills();
         } catch(e) {
           alert("Fehler: " + (e.message||e));

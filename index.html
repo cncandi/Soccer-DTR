@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=224">
+  <link rel="stylesheet" href="css/app.css?v=225">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v224';
+      const EXPECTED = 'v225';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v224</span></h1>
+          <h1>Kadrivo <span class="app-version">v225</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v224</span></h1>
+          <h1>Kadrivo <span class="app-version">v225</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -420,8 +420,8 @@
             <h3>Training</h3>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
-              <button class="mini" type="button" id="saveDrillBtn" style="display:none">Übung speichern</button>
-              <button class="mini" type="button" id="deleteDrillBtn" style="display:none;color:#cc0000;border-color:#cc0000">Übung löschen</button>
+              <button class="mini" type="button" id="saveDrillBtn">Übung speichern</button>
+              <button class="mini" type="button" id="deleteDrillBtn" style="color:#cc0000;border-color:#cc0000">Übung löschen</button>
             </div>
           </div>
           <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none;margin-bottom:10px">
@@ -876,7 +876,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=224" defer></script>
+  <script src="js/app.js?v=225" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
