@@ -6121,8 +6121,6 @@
       panel2d.style.display = is3d ? "none" : "";
       btn3d?.classList.toggle("active", is3d);
       btn2d?.classList.toggle("active", !is3d);
-      $("#btn-tactic-3d-alt")?.classList.toggle("active", is3d);
-      $("#btn-tactic-2d-alt")?.classList.toggle("active", !is3d);
       // Payload erst senden falls keine Sync-Antwort kommt (Fallback)
       setTimeout(() => {
         if (pendingModeSync) { pendingModeSync = null; sendTactic3dPayload(); }
@@ -6154,12 +6152,9 @@
     function toggleTacticBoard() {
       tacticBoardCollapsed = !tacticBoardCollapsed;
       const content = $("#tacticBoardContent");
-      const label = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
+      const btn = $("#tacticCollapseBtn");
       if (content) content.style.display = tacticBoardCollapsed ? "none" : "";
-      const btn1 = $("#tacticCollapseBtn");
-      const btn2 = $("#tacticCollapseBtn2d");
-      if (btn1) btn1.textContent = label;
-      if (btn2) btn2.textContent = label;
+      if (btn) btn.textContent = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
     }
     window.toggleTacticBoard = toggleTacticBoard;
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
