@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v234";
+const CACHE_NAME = "soccer-dtr-v235";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
@@ -7,7 +7,7 @@ const APP_SHELL = [
   "index.html",
   "backend.html",
   "taktikboard-3d.html?v=146",
-  "taktikboard-2d.html?v=174",
+  "taktikboard-2d.html?v=233",
   "css/app.css?v=171",
   "css/backend.css?v=143",
   "js/app.js?v=197",
