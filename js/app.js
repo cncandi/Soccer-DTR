@@ -3032,11 +3032,11 @@
         renderCalendar();
         renderEvents();
         renderAllEventsList();
-        renderDrillEventSelect();
-        if (drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "tactics") {
         renderTacticBoard();
+        renderDrillEventSelect();
+        if (drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "scouting") {
         renderScouting();
@@ -8540,17 +8540,26 @@
 
       tbody.innerHTML = filtered.map(d => {
         const inPlan = assignedIds.has(d.id);
+        const pngThumb = d.type === "image" && d.image_url
+          ? `<img src="${escapeAttr(d.image_url)}" style="width:28px;height:20px;object-fit:cover;border-radius:3px;display:block">`
+          : `<span style="color:#ccc;font-size:11px">—</span>`;
+        const linkCell = d.type === "youtube" && d.youtube_url
+          ? `<a href="${escapeAttr(d.youtube_url)}" target="_blank" rel="noopener" style="font-size:12px;color:#e53e3e" title="${escapeAttr(d.youtube_url)}">▶</a>`
+          : d.type === "tactic" && d.tactic_board_id
+          ? `<span style="font-size:12px" title="Taktikboard verknüpft">⬛</span>`
+          : `<span style="color:#ccc;font-size:11px">—</span>`;
         return `<tr>
           <td><button class="drill-add-btn${inPlan?" in-plan":""}" title="${inPlan?"Bereits im Training":"Zum Training hinzufügen"}"
             onclick="drillToggleAssign('${escapeAttr(d.id)}')">${inPlan?"✓":"+"}</button></td>
-          <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</td>
+          <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</td>
           <td>${drillFocusBadge(d.focus)}</td>
           <td style="color:#888;white-space:nowrap">${d.duration_min?d.duration_min+" min":"—"}</td>
-          <td style="color:#888;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.remark||"")}</td>
-          <td style="text-align:center;font-size:14px" title="${d.type}">${drillTypeIcon(d.type)}</td>
+          <td style="text-align:center">${pngThumb}</td>
+          <td style="text-align:center">${linkCell}</td>
+          <td style="color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.remark||"")}</td>
           <td><button class="drill-edit-btn" onclick="openDrillModal('${escapeAttr(d.id)}')" title="Bearbeiten">✎</button></td>
         </tr>`;
-      }).join("") || `<tr><td colspan="7" style="color:#aaa;text-align:center;padding:16px">Keine Übungen gefunden</td></tr>`;
+      }).join("") || `<tr><td colspan="8" style="color:#aaa;text-align:center;padding:16px">Keine Übungen gefunden</td></tr>`;
 
       if (footer) footer.textContent = `${filtered.length} Übung${filtered.length!==1?"en":""}`;
     }
@@ -8761,6 +8770,17 @@
     }
 
     // Event-Listener Setup (wird nach DOM-Ready aufgerufen)
+    let tacticBoardCollapsed = false;
+
+    function toggleTacticBoard() {
+      tacticBoardCollapsed = !tacticBoardCollapsed;
+      const content = $("#tacticBoardContent");
+      const btn = $("#tacticCollapseBtn");
+      if (!content || !btn) return;
+      content.style.display = tacticBoardCollapsed ? "none" : "";
+      btn.textContent = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
+    }
+
     function setupDrillListeners() {
       const form = $("#drillForm");
       if (form) form.addEventListener("submit", saveDrill);

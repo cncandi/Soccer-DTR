@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v198';
+      const EXPECTED = 'v199';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v198</span></h1>
+          <h1>Kadrivo <span class="app-version">v199</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -113,7 +113,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v198</span></h1>
+          <h1>Kadrivo <span class="app-version">v199</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -274,80 +274,6 @@
           </div>
           <div class="list" id="allEventsList"></div>
         </section>
-
-        <!-- ÜBUNGEN SUB-PANEL -->
-        <section class="panel admin-only" id="drillsPanel">
-          <div class="item-head">
-            <h3>Übungsdatenbank</h3>
-            <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
-          </div>
-          <div class="drills-workspace">
-            <!-- Linke Seite: Tabelle -->
-            <div class="drills-table-col">
-              <div class="drills-filters">
-                <input type="text" id="drillSearchInput" placeholder="Name suchen…" oninput="renderDrillsTable()">
-                <select id="drillFocusFilter" onchange="renderDrillsTable()">
-                  <option value="">Alle Schwerpunkte</option>
-                  <option>Taktik</option>
-                  <option>Pressing</option>
-                  <option>Angriff</option>
-                  <option>Abwehr</option>
-                  <option>Kondition</option>
-                  <option>Kette</option>
-                  <option>Konter</option>
-                  <option>Zentrum</option>
-                  <option>Standards</option>
-                  <option>Sonstiges</option>
-                </select>
-                <select id="drillTypeFilter" onchange="renderDrillsTable()">
-                  <option value="">Alle Typen</option>
-                  <option value="tactic">Taktikboard</option>
-                  <option value="image">PNG</option>
-                  <option value="youtube">YouTube</option>
-                </select>
-              </div>
-              <div class="drills-table-wrap">
-                <table class="drills-table" id="drillsTable">
-                  <thead>
-                    <tr>
-                      <th style="width:32px"></th>
-                      <th>Name</th>
-                      <th>Schwerpunkt</th>
-                      <th style="width:70px">Dauer</th>
-                      <th>Bemerkung</th>
-                      <th style="width:28px">Typ</th>
-                      <th style="width:28px"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="drillsTableBody"></tbody>
-                </table>
-              </div>
-              <div class="drills-table-footer" id="drillsTableFooter"></div>
-            </div>
-            <!-- Rechte Seite: Zuweisung -->
-            <div class="drills-assign-col">
-              <div class="drills-assign-header">
-                <label class="meta">Trainingstermin</label>
-                <select id="drillEventSelect" onchange="renderDrillAssignPanel()">
-                  <option value="">— Termin wählen —</option>
-                </select>
-              </div>
-              <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none">
-                <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
-                <div class="row-actions" style="margin-top:6px">
-                  <button class="mini btn-primary" type="button" id="drillTacticSaveYes">Ja, übernehmen</button>
-                  <button class="mini" type="button" id="drillTacticSaveNo">Verwerfen</button>
-                </div>
-              </div>
-              <div class="drills-assign-label">Einheiten für dieses Training</div>
-              <div id="drillAssignList" class="drills-assign-list"></div>
-              <div class="drills-assign-footer">
-                <span id="drillAssignTotal" class="meta"></span>
-                <button class="mini btn-primary" type="button" id="saveDrillAssignBtn" style="display:none">Speichern</button>
-              </div>
-            </div>
-          </div>
-        </section>
       </section>
 
       <section class="view" id="scouting">
@@ -462,30 +388,108 @@
               <div style="display:flex;gap:6px;align-items:center">
                 <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button" title="3D-Ansicht (nur Fußball)">3D</button>
                 <button class="mini active" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
+                <button class="mini" id="tacticCollapseBtn" type="button" onclick="toggleTacticBoard()" title="Taktikboard ein-/ausklappen">▲ Einklappen</button>
               </div>
             </div>
-            <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
-              <div class="item-head">
-                <div>
-                  <h3>3D Taktiktafel</h3>
-                  <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
+            <div id="tacticBoardContent">
+              <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
+                <div class="item-head">
+                  <div>
+                    <h3>3D Taktiktafel</h3>
+                    <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
+                  </div>
+                  <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
                 </div>
-                <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
+                <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=146" title="3D Taktiktafel"></iframe>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=146" title="3D Taktiktafel"></iframe>
-            </div>
-            <div class="tactic-3d-panel" id="tactic-panel-2d">
-              <div class="item-head">
-                <div>
-                  <h3>2D Taktiktafel</h3>
-                  <p class="meta" id="tactic2dMeta">Bitte Spiel oder Training auswaehlen.</p>
+              <div class="tactic-3d-panel" id="tactic-panel-2d">
+                <div class="item-head">
+                  <div>
+                    <h3>2D Taktiktafel</h3>
+                    <p class="meta" id="tactic2dMeta">Bitte Spiel oder Training auswaehlen.</p>
+                  </div>
+                  <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
                 </div>
-                <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
+                <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=174" title="2D Taktiktafel"></iframe>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=174" title="2D Taktiktafel"></iframe>
             </div>
           </div><!-- /tactic-workspace -->
         </div>
+
+        <!-- ÜBUNGSDATENBANK – volle Breite unterhalb des Boards -->
+        <section class="panel admin-only" id="drillsPanel" style="margin-top:16px">
+          <div class="item-head">
+            <h3>Training</h3>
+            <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
+          </div>
+          <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none;margin-bottom:10px">
+            <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
+            <div class="row-actions" style="margin-top:6px">
+              <button class="mini btn-primary" type="button" id="drillTacticSaveYes">Ja, übernehmen</button>
+              <button class="mini" type="button" id="drillTacticSaveNo">Verwerfen</button>
+            </div>
+          </div>
+          <div class="drills-workspace">
+            <!-- Linke Seite: Tabelle -->
+            <div class="drills-table-col">
+              <div class="drills-filters">
+                <input type="text" id="drillSearchInput" placeholder="Name suchen…" oninput="renderDrillsTable()">
+                <select id="drillFocusFilter" onchange="renderDrillsTable()">
+                  <option value="">Alle Schwerpunkte</option>
+                  <option>Taktik</option>
+                  <option>Pressing</option>
+                  <option>Angriff</option>
+                  <option>Abwehr</option>
+                  <option>Kondition</option>
+                  <option>Kette</option>
+                  <option>Konter</option>
+                  <option>Zentrum</option>
+                  <option>Standards</option>
+                  <option>Sonstiges</option>
+                </select>
+                <select id="drillTypeFilter" onchange="renderDrillsTable()">
+                  <option value="">Alle Typen</option>
+                  <option value="tactic">Taktikboard</option>
+                  <option value="image">PNG</option>
+                  <option value="youtube">YouTube</option>
+                </select>
+              </div>
+              <div class="drills-table-wrap">
+                <table class="drills-table" id="drillsTable">
+                  <thead>
+                    <tr>
+                      <th style="width:32px"></th>
+                      <th>Name</th>
+                      <th>Schwerpunkt</th>
+                      <th style="width:65px">Dauer</th>
+                      <th style="width:36px">PNG</th>
+                      <th style="width:36px">Link</th>
+                      <th>Bemerkung</th>
+                      <th style="width:28px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="drillsTableBody"></tbody>
+                </table>
+              </div>
+              <div class="drills-table-footer" id="drillsTableFooter"></div>
+            </div>
+            <!-- Rechte Seite: Zuweisung -->
+            <div class="drills-assign-col">
+              <div class="drills-assign-header">
+                <label class="meta">Trainingstermin</label>
+                <select id="drillEventSelect" onchange="renderDrillAssignPanel()">
+                  <option value="">— Termin wählen —</option>
+                </select>
+              </div>
+              <div class="drills-assign-label">Einheiten für dieses Training</div>
+              <div id="drillAssignList" class="drills-assign-list"></div>
+              <div class="drills-assign-footer">
+                <span id="drillAssignTotal" class="meta"></span>
+                <button class="mini btn-primary" type="button" id="saveDrillAssignBtn" style="display:none">Speichern</button>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="cash">
