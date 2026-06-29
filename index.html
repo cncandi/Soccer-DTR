@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=225">
+  <link rel="stylesheet" href="css/app.css?v=226">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v225';
+      const EXPECTED = 'v226';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v225</span></h1>
+          <h1>Kadrivo <span class="app-version">v226</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v225</span></h1>
+          <h1>Kadrivo <span class="app-version">v226</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -377,12 +377,8 @@
             <div class="item-head" style="margin-bottom:12px">
               <h3>Spiel</h3>
               <div style="display:flex;gap:8px;align-items:center">
-                <button type="button" id="saveTacticBoardBtn"
-                  style="padding:8px 16px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"
-                  >Taktik speichern</button>
-                <button type="button"
-                  style="padding:6px 16px;background:#fff;color:#cc0000;border:1.5px solid #cc0000;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap"
-                  onclick="deleteCurrentTacticBoard()">Taktik löschen</button>
+                <button type="button" id="saveTacticBoardBtn" class="mini btn-primary">Taktik speichern</button>
+                <button type="button" class="mini" style="color:#cc0000;border-color:#cc0000" onclick="deleteCurrentTacticBoard()">Taktik löschen</button>
                 <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
               </div>
             </div>
@@ -876,7 +872,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=225" defer></script>
+  <script src="js/app.js?v=226" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
