@@ -907,12 +907,12 @@ document.addEventListener('keydown',e=>{
     }
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
-  if(e.key==='['||e.key===']'){
+  if(e.key==='+'||e.key==='-'){
     if(!selected) return;
     const obj=objects.find(o=>o.id===selected);
     if(!obj) return;
     e.preventDefault();
-    obj.rot=(((obj.rot||0)+(e.key===']'?45:-45))%360+360)%360;
+    obj.rot=(((obj.rot||0)+(e.key==='+'?45:-45))%360+360)%360;
     pushUndo(); render(); scheduleKadrivoSave();
   }
 });
