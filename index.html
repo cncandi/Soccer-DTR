@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=222">
+  <link rel="stylesheet" href="css/app.css?v=223">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v222';
+      const EXPECTED = 'v223';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v222</span></h1>
+          <h1>Kadrivo <span class="app-version">v223</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v222</span></h1>
+          <h1>Kadrivo <span class="app-version">v223</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -374,31 +374,34 @@
         <!-- 2. SPIEL + TAKTIK – volle Breite, eine Zeile -->
         <div class="panel" id="tactic-anchor-spiel" style="margin-bottom:12px;scroll-margin-top:12px">
           <form id="tacticBoardForm" onsubmit="return false">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;margin-bottom:10px">
+            <div class="item-head" style="margin-bottom:12px">
+              <h3>Spiel / Training</h3>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button type="button" id="saveTacticBoardBtn"
+                  style="padding:8px 16px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"
+                  >Taktik speichern</button>
+                <button type="button"
+                  style="padding:6px 16px;background:#fff;color:#cc0000;border:1.5px solid #cc0000;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap"
+                  onclick="deleteCurrentTacticBoard()">Taktik löschen</button>
+                <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
               <div>
-                <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Spiel / Training</div>
+                <div style="font-size:12px;color:#888;margin-bottom:4px">Termin</div>
                 <select id="tacticEventSelect" onchange="onTacticEventSelectChange()"
                   style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
                 </select>
               </div>
               <div>
-                <div style="font-size:12px;color:#888;margin-bottom:6px">Taktik</div>
+                <div style="font-size:12px;color:#888;margin-bottom:4px">Taktik</div>
                 <select id="tacticBoardSelect" onchange="onTacticBoardSelectChange()"
                   style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
                 </select>
+                <p class="meta" id="tacticAssignHint" style="font-size:11px;color:#888;margin:4px 0 0"></p>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <button type="button" id="saveTacticBoardBtn"
-                style="padding:8px 16px;background:#155e3b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"
-                >Taktik speichern</button>
-              <button type="button"
-                style="padding:6px 16px;background:#fff;color:#cc0000;border:1.5px solid #cc0000;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap"
-                onclick="deleteCurrentTacticBoard()">Taktik löschen</button>
-              <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
-              <p class="meta" id="tacticAssignHint" style="font-size:11px;color:#888;margin:0"></p>
-            </div>
-            <div style="margin-top:10px">
+            <div>
               <div style="font-size:12px;color:#888;margin-bottom:4px">Bemerkungen</div>
               <div class="rich-toolbar" style="margin-bottom:4px">
                 <button class="mini" type="button" data-rich-command="bold"><strong>B</strong></button>
@@ -873,7 +876,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=222" defer></script>
+  <script src="js/app.js?v=223" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
