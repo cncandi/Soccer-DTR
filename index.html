@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=217">
+  <link rel="stylesheet" href="css/app.css?v=218">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v217';
+      const EXPECTED = 'v218';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v217</span></h1>
+          <h1>Kadrivo <span class="app-version">v218</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v217</span></h1>
+          <h1>Kadrivo <span class="app-version">v218</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -338,8 +338,14 @@
 
       <section class="view" id="tactics">
 
+        <!-- Schnellnavigation -->
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <a href="#tactic-anchor-board" class="mini" style="text-decoration:none">▦ Taktikboard</a>
+          <a href="#drillsPanel" class="mini" style="text-decoration:none">⚽ Training</a>
+        </div>
+
         <!-- 1. TAKTIKBOARD – volle Breite oben -->
-        <div class="tactic-workspace" style="margin-bottom:12px">
+        <div id="tactic-anchor-board" class="tactic-workspace" style="margin-bottom:12px;scroll-margin-top:12px">
           <div class="item-head" style="margin-bottom:4px">
             <div style="display:flex;gap:4px;align-items:center;margin-left:auto">
               <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
@@ -408,7 +414,7 @@
         </div>
 
         <!-- ÜBUNGSDATENBANK -->
-        <section class="panel admin-only" id="drillsPanel" style="margin-top:16px">
+        <section class="panel admin-only" id="drillsPanel" style="margin-top:16px;scroll-margin-top:12px" data-anchor="tactic-anchor-training">
           <div class="item-head">
             <h3>Training</h3>
             <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
@@ -865,7 +871,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=217" defer></script>
+  <script src="js/app.js?v=218" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
