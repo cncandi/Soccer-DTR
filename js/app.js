@@ -6149,6 +6149,19 @@
       sendTactic3dPayload({ positionOverride: { target, positions: overridePositions } });
     }
     window.switchTacticMode          = switchTacticMode;
+
+    let tacticBoardCollapsed = false;
+    function toggleTacticBoard() {
+      tacticBoardCollapsed = !tacticBoardCollapsed;
+      const content = $("#tacticBoardContent");
+      const label = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
+      if (content) content.style.display = tacticBoardCollapsed ? "none" : "";
+      const btn1 = $("#tacticCollapseBtn");
+      const btn2 = $("#tacticCollapseBtn2d");
+      if (btn1) btn1.textContent = label;
+      if (btn2) btn2.textContent = label;
+    }
+    window.toggleTacticBoard = toggleTacticBoard;
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
 
     // Neue Taktik mit Name anlegen und 2D-State speichern

@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=205">
+  <link rel="stylesheet" href="css/app.css?v=206">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v205';
+      const EXPECTED = 'v206';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v205</span></h1>
+          <h1>Kadrivo <span class="app-version">v206</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -113,7 +113,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v205</span></h1>
+          <h1>Kadrivo <span class="app-version">v206</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -383,12 +383,14 @@
           </section><!-- /tactic-sidebar -->
 
           <div class="tactic-workspace">
+            <div id="tacticBoardContent">
             <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
               <div class="item-head">
                 <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
                 <div style="display:flex;gap:4px;align-items:center">
                   <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
                   <button class="mini" id="btn-tactic-2d-alt" onclick="switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
+                  <button class="mini" id="tacticCollapseBtn" type="button" onclick="toggleTacticBoard()">▲ Einklappen</button>
                   <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
                 </div>
               </div>
@@ -400,11 +402,13 @@
                 <div style="display:flex;gap:4px;align-items:center">
                   <button class="mini" id="btn-tactic-3d-alt" onclick="switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
                   <button class="mini active" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
+                  <button class="mini" id="tacticCollapseBtn2d" type="button" onclick="toggleTacticBoard()">▲ Einklappen</button>
                   <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
                 </div>
               </div>
               <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=174" title="2D Taktiktafel"></iframe>
             </div>
+            </div><!-- /tacticBoardContent -->
           </div><!-- /tactic-workspace -->
         </div>
       </section>
@@ -793,7 +797,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=205" defer></script>
+  <script src="js/app.js?v=206" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
