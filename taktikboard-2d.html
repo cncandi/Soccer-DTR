@@ -177,6 +177,9 @@ canvas{display:block}
   <div class="ctx-item" id="ctx-color" onclick="ctxColor()">🎨 Farbe ändern</div>
   <div class="ctx-item" id="ctx-label" onclick="ctxLabel()">✏️ Name ändern</div>
   <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-rot-l" onclick="ctxRotate(-45)">↺ -45°</div>
+  <div class="ctx-item" id="ctx-rot-r" onclick="ctxRotate(45)">↻ +45°</div>
+  <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-front" onclick="ctxFront()">↑ Vordergrund</div>
   <div class="ctx-item" id="ctx-back" onclick="ctxBack()">↓ Hintergrund</div>
 </div>
@@ -482,6 +485,12 @@ function drawObj(obj){
   const p=fieldToCanvas(obj.fx,obj.fy);
   const sel=obj.id===selected;
   if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,20,0,Math.PI*2); ctx.fillStyle='rgba(100,180,255,0.25)'; ctx.fill(); }
+  if(obj.rot){
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    ctx.rotate(obj.rot*Math.PI/180);
+    ctx.translate(-p.x,-p.y);
+  }
   switch(obj.type){
     case 'player': drawPlayer(obj,p,sel); break;
     case 'cone':   drawCone(obj,p,sel); break;
@@ -492,6 +501,7 @@ function drawObj(obj){
     case 'text':   drawTextObj(obj,p,sel); break;
     case 'ladder': drawLadder2d(obj,p,sel); break;
   }
+  if(obj.rot) ctx.restore();
 }
 
 function drawPlayer(obj,p,sel){
@@ -897,6 +907,14 @@ document.addEventListener('keydown',e=>{
     }
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
+  if(e.key==='['||e.key===']'){
+    if(!selected) return;
+    const obj=objects.find(o=>o.id===selected);
+    if(!obj) return;
+    e.preventDefault();
+    obj.rot=(((obj.rot||0)+(e.key===']'?45:-45))%360+360)%360;
+    pushUndo(); render(); scheduleKadrivoSave();
+  }
 });
 
 // ============================================================
@@ -1233,6 +1251,16 @@ document.getElementById('text-input').addEventListener('keydown',e=>{
 // ============================================================
 // KONTEXTMENÜ
 // ============================================================
+function ctxRotate(deg){
+  if(!ctxTarget||ctxTarget.src!=='obj') return;
+  const obj=ctxTarget.obj;
+  obj.rot=(((obj.rot||0)+deg)%360+360)%360;
+  closeContextMenu();
+  pushUndo();
+  render();
+  scheduleKadrivoSave();
+}
+
 function ctxDelete(){
   if(!ctxTarget) return;
   pushUndo();
