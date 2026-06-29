@@ -8495,7 +8495,7 @@
 
     async function loadDrills() {
       if (!currentClubId) return;
-      const client = supabaseClient();
+      const client = getSupabaseClient();
       if (!client) return;
       try {
         const { data, error } = await client.from("drills").select("*").eq("club_id", currentClubId).order("name");
@@ -8637,7 +8637,7 @@
     async function saveDrillAssign() {
       const eventId = $("#drillEventSelect")?.value;
       if (!eventId || !currentClubId) return;
-      const client = supabaseClient();
+      const client = getSupabaseClient();
       if (!client) { alert("Kein Supabase-Zugang."); return; }
       const btn = $("#saveDrillAssignBtn");
       if (btn) { btn.textContent = "Speichert…"; btn.disabled = true; }
@@ -8762,7 +8762,7 @@
 
     async function saveDrill(e) {
       e.preventDefault();
-      const client = supabaseClient();
+      const client = getSupabaseClient();
       if (!client || !currentClubId) { alert("Kein Supabase-Zugang."); return; }
       const id = $("#drillId").value || gen_uuid();
       const type = $("#drillType").value;
