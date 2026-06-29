@@ -1960,12 +1960,12 @@
 
     .tactic-3d-panel {
       display: grid;
-      gap: 10px;
-      margin: 0 0 16px;
-      padding: 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #f7faf8;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
     }
 
     .tactic-3d-frame {
