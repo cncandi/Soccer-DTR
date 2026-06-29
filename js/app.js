@@ -3035,6 +3035,8 @@
       }
       if (activeView === "tactics") {
         renderTacticBoard();
+        if (typeof renderDrillEventSelect === "function") renderDrillEventSelect();
+        if (typeof loadDrills === "function" && drillsData && drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "scouting") {
         renderScouting();
@@ -3072,6 +3074,8 @@
         renderClubDesignForm(); renderPlayerCreateFormOptions();
         renderSelfProfileForm(); renderPushPanel();
         renderPaypalSettingsForm(); renderKadrivoSubscriptionButton();
+        if (typeof renderDrillEventSelect === "function") renderDrillEventSelect();
+        if (typeof loadDrills === "function" && currentClubId) loadDrills();
       }
     }
 
@@ -8780,17 +8784,6 @@
       });
       const modal = $("#drillModal");
       if (modal) modal.addEventListener("click", e=>{ if(e.target===modal) closeDrillModal(); });
-    }
-
-    // render()-Hook für tactics
-    const _origRenderForDrills = render;
-    function render() {
-      _origRenderForDrills();
-      const activeView = $(".view.active")?.id;
-      if (activeView === "tactics") {
-        renderDrillEventSelect();
-        if (drillsData.length === 0 && currentClubId) loadDrills();
-      }
     }
 
     document.addEventListener("stateLoaded", () => { loadDrills(); });
