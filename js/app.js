@@ -8703,14 +8703,8 @@
         for (const item of items) {
           if (item.type.startsWith("image/")) {
             const file = item.getAsFile();
-            if (file.size > 1024*1024) { alert("Bild ist größer als 1 MB."); return; }
-            const reader = new FileReader();
-            reader.onload = ev => {
-              $("#drillImageUrl").value = ev.target.result;
-              const preview = $("#drillImagePreview");
-              if (preview) { preview.src=ev.target.result; preview.style.display="block"; }
-            };
-            reader.readAsDataURL(file);
+            if (file.size > 5*1024*1024) { alert("Bild ist größer als 5 MB."); return; }
+            compressDrillImage(file);
             e.preventDefault();
             return;
           }
@@ -8741,12 +8735,27 @@
       const file = input.files?.[0];
       if (!file) return;
       if (file.size > 1024*1024) { alert("Datei ist größer als 1 MB."); input.value=""; return; }
+      compressDrillImage(file);
+    }
+
+    function compressDrillImage(file) {
       const reader = new FileReader();
       reader.onload = e => {
-        const url = e.target.result;
-        $("#drillImageUrl").value = url;
-        const preview = $("#drillImagePreview");
-        if (preview) { preview.src=url; preview.style.display="block"; }
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 800;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const url = canvas.toDataURL('image/jpeg', 0.75);
+          $("#drillImageUrl").value = url;
+          const preview = $("#drillImagePreview");
+          if (preview) { preview.src=url; preview.style.display="block"; }
+        };
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -8775,7 +8784,8 @@
         closeDrillModal();
         await loadDrills();
       } catch(err) {
-        alert("Fehler: " + (err.message||err));
+        console.error("saveDrill Fehler:", err);
+        alert("Fehler beim Speichern: " + (err.message || err.details || JSON.stringify(err)));
       }
     }
 
