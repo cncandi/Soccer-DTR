@@ -8685,9 +8685,9 @@
       if (preview) { preview.src = drill?.image_url||""; preview.style.display = drill?.image_url?"block":"none"; }
       const tbSel = $("#drillTacticBoardId");
       if (tbSel) {
-        // Nur Taktiken die einem Training zugeordnet sind (nicht Spieltaktiken)
+        // Nur Taktiken die explizit einem Trainingstermin zugeordnet sind
         const trainingEventIds = new Set((state.events||[]).filter(e=>normalizedEventType(e.type)==="Training").map(e=>e.id));
-        const boards = (state.tacticBoards||[]).filter(tb => !tb.event_id || trainingEventIds.has(tb.event_id));
+        const boards = (state.tacticBoards||[]).filter(tb => tb.event_id && trainingEventIds.has(tb.event_id));
         tbSel.innerHTML = `<option value="">— kein Taktikboard —</option>` +
           boards.map(tb=>`<option value="${escapeAttr(tb.id)}"${tb.id===drill?.tactic_board_id?" selected":""}>${escapeHtml(tb.title||"Taktik")}</option>`).join("");
       }
