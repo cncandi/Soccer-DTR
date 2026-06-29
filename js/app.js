@@ -8798,7 +8798,7 @@
 
     function setupDrillListeners() {
       const form = $("#drillForm");
-      if (form) form.addEventListener("submit", saveDrill);
+      if (form) form.addEventListener("submit", (e) => saveDrill(e));
       const newBtn = $("#newDrillBtn");
       if (newBtn) newBtn.addEventListener("click", ()=>openDrillModal(null));
       const saveAssignBtn = $("#saveDrillAssignBtn");
@@ -8829,6 +8829,14 @@
 
     document.addEventListener("stateLoaded", () => { loadDrills(); });
     setupDrillListeners();
+
+    // Drill-Funktionen die vom HTML (onclick) oder global aufgerufen werden
+    window.openDrillModal = openDrillModal;
+    window.closeDrillModal = closeDrillModal;
+    window.updateDrillTypeUI = updateDrillTypeUI;
+    window.handleDrillImageUpload = handleDrillImageUpload;
+    window.drillToggleAssign = drillToggleAssign;
+    window.drillRemoveAssign = drillRemoveAssign;
 
     // Taktikboard-Notice bei tactic-save
     (function() {
