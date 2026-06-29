@@ -8700,6 +8700,11 @@
       const modal = $("#drillModal");
       modal.style.display = "flex";
       modal.setAttribute("aria-hidden","false");
+      // Header-Buttons im drillsPanel aktualisieren
+      const saveDrillBtn = $("#saveDrillBtn");
+      const deleteDrillBtn = $("#deleteDrillBtn");
+      if (saveDrillBtn) saveDrillBtn.style.display = "inline-flex";
+      if (deleteDrillBtn) deleteDrillBtn.style.display = drill ? "inline-flex" : "none";
       // Paste-Handler für Bild aus Zwischenablage
       modal._pasteHandler = (e) => {
         if ($("#drillType").value !== "image") return;
@@ -8727,6 +8732,10 @@
         document.removeEventListener("paste", m._pasteHandler);
         m._pasteHandler = null;
       }
+      const saveDrillBtn = $("#saveDrillBtn");
+      const deleteDrillBtn = $("#deleteDrillBtn");
+      if (saveDrillBtn) saveDrillBtn.style.display = "none";
+      if (deleteDrillBtn) deleteDrillBtn.style.display = "none";
     }
 
     function updateDrillTypeUI() {
@@ -8806,6 +8815,28 @@
       if (form) form.addEventListener("submit", (e) => saveDrill(e));
       const newBtn = $("#newDrillBtn");
       if (newBtn) newBtn.addEventListener("click", ()=>openDrillModal(null));
+
+      const saveDrillBtn = $("#saveDrillBtn");
+      if (saveDrillBtn) saveDrillBtn.addEventListener("click", () => {
+        const form = $("#drillForm");
+        if (form) form.requestSubmit();
+      });
+
+      const deleteDrillBtn = $("#deleteDrillBtn");
+      if (deleteDrillBtn) deleteDrillBtn.addEventListener("click", async () => {
+        const id = $("#drillId")?.value;
+        if (!id) return;
+        if (!confirm("Übung wirklich löschen?")) return;
+        const client = getSupabaseClient();
+        if (!client) return;
+        try {
+          await client.from("drills").delete().eq("id", id);
+          closeDrillModal();
+          await loadDrills();
+        } catch(e) {
+          alert("Fehler: " + (e.message||e));
+        }
+      });
       const saveAssignBtn = $("#saveDrillAssignBtn");
       if (saveAssignBtn) saveAssignBtn.addEventListener("click", saveDrillAssign);
       const evSel = $("#drillEventSelect");
