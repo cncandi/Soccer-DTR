@@ -230,6 +230,8 @@ let drawMode     = null;
 let drawStart    = null;
 let arrowColor   = '#ffffff';
 let arrowStyle   = 'solid';
+let drawWidth    = 2.5;
+let arcStep      = 0; // 0=start, 1=mid, 2=end für Bogen
 let showNames    = false;
 let showOpponents = true;
 let activeTool   = null;
@@ -549,31 +551,87 @@ function drawTextObj(obj,p,sel){
 // PFEILE
 // ============================================================
 function drawArrow(line){
-  const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
+  const type=line.type||'arrow';
   const col=line.color||'#ffffff', style=line.style||'solid';
+  const lw=line.w||2.5;
   const isSel=line.id===selected;
-  ctx.save(); ctx.lineCap='round';
-  if(isSel){ ctx.strokeStyle='rgba(100,180,255,0.4)'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
-  ctx.strokeStyle=col; ctx.lineWidth=2.5;
+  ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.strokeStyle=col; ctx.lineWidth=lw;
   ctx.setLineDash(style==='dashed'?[10,6]:style==='wave'?[6,3]:[]);
-  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-  ctx.setLineDash([]);
-  if(line.arrow!==false){
+
+  if(isSel){ ctx.save(); ctx.strokeStyle='rgba(100,180,255,0.4)'; ctx.lineWidth=lw+6; }
+
+  if(type==='line'||type==='arrow'||(type==='solid')){
+    const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
+    if(isSel){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); ctx.restore(); ctx.strokeStyle=col; ctx.lineWidth=lw; }
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    if(type==='arrow'||line.arrow){
+      const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
+      if(len>5){ const ux=dx/len,uy=dy/len,ah=10,aw=6,tx=b.x-ux*ah,ty=b.y-uy*ah;
+        ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-uy*aw,ty+ux*aw); ctx.lineTo(tx+uy*aw,ty-ux*aw); ctx.closePath();
+        ctx.fillStyle=col; ctx.fill(); }
+    }
+  } else if(type==='rect'){
+    const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
+    if(isSel){ ctx.beginPath(); ctx.rect(a.x,a.y,b.x-a.x,b.y-a.y); ctx.stroke(); ctx.restore(); ctx.strokeStyle=col; ctx.lineWidth=lw; }
+    ctx.beginPath(); ctx.rect(a.x,a.y,b.x-a.x,b.y-a.y); ctx.stroke();
+  } else if(type==='circle'){
+    const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
+    const r=Math.hypot(b.x-a.x,b.y-a.y);
+    if(isSel){ ctx.beginPath(); ctx.arc(a.x,a.y,r,0,Math.PI*2); ctx.stroke(); ctx.restore(); ctx.strokeStyle=col; ctx.lineWidth=lw; }
+    ctx.beginPath(); ctx.arc(a.x,a.y,r,0,Math.PI*2); ctx.stroke();
+  } else if(type==='dribble'){
+    const a=fieldToCanvas(line.x1,line.y1), b=fieldToCanvas(line.x2,line.y2);
     const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
-    if(len>5){
-      const ux=dx/len, uy=dy/len, ah=10, aw=6;
-      const tx=b.x-ux*ah, ty=b.y-uy*ah;
+    if(len>0){
+      const steps=Math.max(3,Math.floor(len/12));
+      ctx.beginPath(); ctx.moveTo(a.x,a.y);
+      for(let i=1;i<=steps;i++){
+        const t=i/steps, px=a.x+dx*t, py=a.y+dy*t;
+        const nx=-dy/len*8*(i%2===0?1:-1);
+        const ny= dx/len*8*(i%2===0?1:-1);
+        ctx.lineTo(px+nx,py+ny);
+      }
+      ctx.stroke();
+      // Pfeilspitze
+      const ux=dx/len,uy=dy/len,ah=8,aw=5,tx=b.x-ux*ah,ty=b.y-uy*ah;
+      ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-uy*aw,ty+ux*aw); ctx.lineTo(tx+uy*aw,ty-ux*aw); ctx.closePath();
       ctx.fillStyle=col; ctx.fill();
     }
+  } else if(type==='arc'||type==='arc-arrow'){
+    if(line.mx!==undefined){
+      const a=fieldToCanvas(line.x1,line.y1), m=fieldToCanvas(line.mx,line.my), b=fieldToCanvas(line.x2,line.y2);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(m.x,m.y,b.x,b.y); ctx.stroke();
+      if(type==='arc-arrow'){
+        ctx.setLineDash([]);
+        const dx=b.x-m.x, dy=b.y-m.y, len=Math.hypot(dx,dy);
+        if(len>2){ const ux=dx/len,uy=dy/len,ah=10,aw=6,tx=b.x-ux*ah,ty=b.y-uy*ah;
+          ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-uy*aw,ty+ux*aw); ctx.lineTo(tx+uy*aw,ty-ux*aw); ctx.closePath();
+          ctx.fillStyle=col; ctx.fill(); }
+      }
+    }
   }
+  ctx.setLineDash([]);
+  if(isSel&&type!=='line'&&type!=='arrow'&&type!=='solid'&&type!=='rect'&&type!=='circle'&&type!=='dribble'&&type!=='arc'&&type!=='arc-arrow') ctx.restore();
   ctx.restore();
 }
 
 function drawPreviewLine(start,canvasPos){
   const a=fieldToCanvas(start.x,start.y);
   ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
-  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(canvasPos.x,canvasPos.y); ctx.stroke();
+  if((drawMode==='arc'||drawMode==='arc-arrow')&&arcStep===2&&start.mx!==undefined){
+    const m=fieldToCanvas(start.mx,start.my);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(m.x,m.y,canvasPos.x,canvasPos.y); ctx.stroke();
+  } else if(drawMode==='circle'){
+    const r=Math.hypot(canvasPos.x-a.x,canvasPos.y-a.y);
+    ctx.beginPath(); ctx.arc(a.x,a.y,r,0,Math.PI*2); ctx.stroke();
+  } else if(drawMode==='rect'){
+    ctx.beginPath(); ctx.rect(a.x,a.y,canvasPos.x-a.x,canvasPos.y-a.y); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(canvasPos.x,canvasPos.y); ctx.stroke();
+  }
   ctx.setLineDash([]); ctx.restore();
 }
 
@@ -651,10 +709,21 @@ function onPointerDown(e){
   if(drawMode==='text'){ openTextPopup(canvasToField(p.x,p.y), p); return; }
   if(drawMode){
     const fp=canvasToField(p.x,p.y);
-    if(!drawStart){ drawStart={x:fp.x,y:fp.y}; mousePos=p; }
-    else{
+    if(drawMode==='arc'||drawMode==='arc-arrow'){
+      if(arcStep===0){ drawStart={x:fp.x,y:fp.y}; arcStep=1; mousePos=p; }
+      else if(arcStep===1){ drawStart.mx=fp.x; drawStart.my=fp.y; arcStep=2; mousePos=p; }
+      else{
+        pushUndo();
+        drawLines.push({id:newId(),type:drawMode,x1:drawStart.x,y1:drawStart.y,mx:drawStart.mx,my:drawStart.my,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,w:drawWidth});
+        drawStart=null; arcStep=0; mousePos=null;
+        render(); scheduleKadrivoSave();
+      }
+    } else if(!drawStart){
+      drawStart={x:fp.x,y:fp.y}; mousePos=p;
+    } else {
       pushUndo();
-      drawLines.push({id:newId(),x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,arrow:true});
+      const type=drawMode||'arrow';
+      drawLines.push({id:newId(),type,x1:drawStart.x,y1:drawStart.y,x2:fp.x,y2:fp.y,color:arrowColor,style:arrowStyle,w:drawWidth,arrow:(type==='arrow')});
       drawStart=null; mousePos=null;
       render(); scheduleKadrivoSave();
     }
@@ -954,19 +1023,42 @@ function buildToolsSidebar(){
 
 function buildDrawSidebar(){
   const dc=id=>'draw-item'+(drawMode===id?' active':'');
-  return `<div class="section-head">Pfeile / Linien</div>
-  <div style="display:flex;gap:4px;padding:2px 0 6px;flex-wrap:wrap" id="draw-color-row">
-    ${['#ffffff','#ffff00','#ff3333','#44aaff','#44ff88','#ff8800'].map(c=>`<div onclick="setArrowColor('${c}')" style="width:18px;height:18px;border-radius:3px;background:${c};cursor:pointer;border:2px solid ${arrowColor===c?'#fff':'transparent'}"></div>`).join('')}
-  </div>
-  <div class="${dc('solid')} draw-item" onclick="setArrowStyle('solid')"><span style="width:20px;height:2px;background:#fff;display:inline-block"></span> Linie</div>
-  <div class="${dc('dashed')} draw-item" onclick="setArrowStyle('dashed')"><span style="width:20px;height:2px;background:#fff;display:inline-block;border-top:2px dashed #fff"></span> Gestrichelt</div>
-  <div class="draw-item${drawMode?'':(activeTool?'':' active')}" onclick="setDrawMode('solid')">→ Pfeil zeichnen</div>
-  <div class="draw-item" style="${!drawMode&&!activeTool?'border-color:#44ccff;background:#003044':''}" onclick="setDrawMode(null)">✋ Auswahl</div>
+  const cols=['#ffffff','#ffff00','#ff3333','#44aaff','#44ff88','#ff8800','#ff44cc','#00ffff'];
+  return `
+  <div class="section-head">Auswahl</div>
+  <div class="${!drawMode&&!activeTool?'draw-item active':'draw-item'}" onclick="setDrawMode(null)">✋ Auswahl</div>
+  <div class="section-head">Linien</div>
+  <div class="${dc('line')} draw-item" onclick="setDrawMode('line')">— Linie</div>
+  <div class="${dc('arrow')} draw-item" onclick="setDrawMode('arrow')">→ Pfeil</div>
+  <div class="${dc('dribble')} draw-item" onclick="setDrawMode('dribble')">〜 Dribbling</div>
+  <div class="section-head">Bögen (3 Klicks)</div>
+  <div class="${dc('arc')} draw-item" onclick="setDrawMode('arc')">⌒ Bogen</div>
+  <div class="${dc('arc-arrow')} draw-item" onclick="setDrawMode('arc-arrow')">⌒→ Bogen+Pfeil</div>
+  <div class="section-head">Flächen</div>
+  <div class="${dc('rect')} draw-item" onclick="setDrawMode('rect')">▭ Rechteck</div>
+  <div class="${dc('circle')} draw-item" onclick="setDrawMode('circle')">○ Kreis</div>
   <div class="section-head">Text</div>
-  <div class="draw-item" onclick="setDrawMode('text')">T Text platzieren</div>
+  <div class="${dc('text')} draw-item" onclick="setDrawMode('text')">T Text</div>
+  <div class="section-head">Stil</div>
+  <div style="display:flex;gap:4px;margin-bottom:6px">
+    <button onclick="arrowStyle='solid';if(currentTab==='draw')updateSidebar()" style="flex:1;padding:3px;border:1px solid ${arrowStyle==='solid'?'#7070cc':'#2a2a4a'};background:#1a1a3e;color:${arrowStyle==='solid'?'#fff':'#888'};border-radius:4px;cursor:pointer;font-size:10px">Voll</button>
+    <button onclick="arrowStyle='dashed';if(currentTab==='draw')updateSidebar()" style="flex:1;padding:3px;border:1px solid ${arrowStyle==='dashed'?'#7070cc':'#2a2a4a'};background:#1a1a3e;color:${arrowStyle==='dashed'?'#fff':'#888'};border-radius:4px;cursor:pointer;font-size:10px">Gestrichelt</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+    <label style="font-size:10px;color:#888">Dicke</label>
+    <input type="range" min="1" max="8" step="0.5" value="${drawWidth}" oninput="drawWidth=parseFloat(this.value)" style="flex:1;accent-color:#7070cc">
+    <span style="font-size:10px;color:#aaa">${drawWidth}</span>
+  </div>
+  <div class="section-head">Farbe</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 4px">
+    ${cols.map(c=>`<div onclick="setArrowColor('${c}')" class="arrow-swatch${arrowColor===c?' sel':''}" style="background:${c}"></div>`).join('')}
+    <input type="color" value="${arrowColor}" onchange="setArrowColor(this.value)" style="width:22px;height:16px;border:1px solid #3a3a6a;background:none;border-radius:3px;cursor:pointer;padding:0">
+  </div>
+  <div style="width:100%;height:3px;border-radius:2px;background:${arrowColor};margin:4px 0"></div>
   <div class="section-head">Löschen</div>
-  <div class="draw-item" onclick="clearLastLine()">↩ Letzte Linie</div>
-  <div class="draw-item" onclick="clearLines()">🗑 Alle Linien</div>`;
+  <div class="draw-item" onclick="clearLastLine()">↩ Letzte</div>
+  <div class="draw-item" onclick="clearLines()">🗑 Alle Linien</div>
+  `;
 }
 
 // ============================================================
@@ -1007,7 +1099,7 @@ function placeActiveTool(fp){
 // ZEICHEN-MODUS
 // ============================================================
 function setDrawMode(mode){
-  drawMode=mode; drawStart=null; cancelActiveTool();
+  drawMode=mode; drawStart=null; arcStep=0; cancelActiveTool();
   if(currentTab==='draw') updateSidebar();
   showStatus(mode?`Zeichnen: ${mode}`:'');
 }

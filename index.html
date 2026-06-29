@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=226">
+  <link rel="stylesheet" href="css/app.css?v=227">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v226';
+      const EXPECTED = 'v227';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -61,7 +61,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v226</span></h1>
+          <h1>Kadrivo <span class="app-version">v227</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v226</span></h1>
+          <h1>Kadrivo <span class="app-version">v227</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -366,7 +366,7 @@
                 <p class="meta" id="tactic2dMetaInner">Bitte Spiel oder Training auswaehlen.</p>
                 <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=174" title="2D Taktiktafel"></iframe>
+              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=175" title="2D Taktiktafel"></iframe>
             </div>
           </div>
         </div>
@@ -769,7 +769,7 @@ Nein</textarea></div>
         </div>
         <button class="mini" id="closeTactic2dModalBtn" type="button">Schliessen</button>
       </div>
-      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=174" title="2D Taktiktafel gross"></iframe>
+      <iframe class="tactic-3d-frame tactic-3d-frame-large" id="tactic2dModalFrame" src="taktikboard-2d.html?v=175" title="2D Taktiktafel gross"></iframe>
     </section>
   </div>
 
@@ -872,7 +872,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=226" defer></script>
+  <script src="js/app.js?v=227" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
