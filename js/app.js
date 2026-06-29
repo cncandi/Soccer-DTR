@@ -8622,6 +8622,7 @@
     window.selectDrillRow = selectDrillRow;
 
     function drillToggleAssign(drillId) {
+      const eventId = $("#drillEventSelect")?.value;
       if (!eventId) { alert("Bitte zuerst einen Trainingstermin wählen."); return; }
       if (!eventDrillsData[eventId]) eventDrillsData[eventId] = [];
       const idx = eventDrillsData[eventId].findIndex(r=>r.drillId===drillId);
