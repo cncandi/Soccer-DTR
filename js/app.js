@@ -6121,6 +6121,8 @@
       panel2d.style.display = is3d ? "none" : "";
       btn3d?.classList.toggle("active", is3d);
       btn2d?.classList.toggle("active", !is3d);
+      $("#btn-tactic-3d-alt")?.classList.toggle("active", is3d);
+      $("#btn-tactic-2d-alt")?.classList.toggle("active", !is3d);
       // Payload erst senden falls keine Sync-Antwort kommt (Fallback)
       setTimeout(() => {
         if (pendingModeSync) { pendingModeSync = null; sendTactic3dPayload(); }
