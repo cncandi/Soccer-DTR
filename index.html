@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v197';
+      const EXPECTED = 'v198';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored && stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -63,7 +63,7 @@
       <div class="brand">
         <div class="brand-mark app-logo"><img src="kadrivo-icon-192.png" alt="Kadrivo Logo"></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v197</span></h1>
+          <h1>Kadrivo <span class="app-version">v198</span></h1>
           <p id="loginIntro">Mit Namen anmelden und Verein auswaehlen.</p>
         </div>
       </div>
@@ -113,7 +113,7 @@
       <div class="brand">
         <div class="brand-mark" id="clubLogoMark"><span class="brand-initials">K</span></div>
         <div>
-          <h1>Kadrivo <span class="app-version">v197</span></h1>
+          <h1>Kadrivo <span class="app-version">v198</span></h1>
           <span id="clubBrandName">Vereinsmanager</span>
         </div>
       </div>
@@ -273,6 +273,80 @@
             </div>
           </div>
           <div class="list" id="allEventsList"></div>
+        </section>
+
+        <!-- ÜBUNGEN SUB-PANEL -->
+        <section class="panel admin-only" id="drillsPanel">
+          <div class="item-head">
+            <h3>Übungsdatenbank</h3>
+            <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
+          </div>
+          <div class="drills-workspace">
+            <!-- Linke Seite: Tabelle -->
+            <div class="drills-table-col">
+              <div class="drills-filters">
+                <input type="text" id="drillSearchInput" placeholder="Name suchen…" oninput="renderDrillsTable()">
+                <select id="drillFocusFilter" onchange="renderDrillsTable()">
+                  <option value="">Alle Schwerpunkte</option>
+                  <option>Taktik</option>
+                  <option>Pressing</option>
+                  <option>Angriff</option>
+                  <option>Abwehr</option>
+                  <option>Kondition</option>
+                  <option>Kette</option>
+                  <option>Konter</option>
+                  <option>Zentrum</option>
+                  <option>Standards</option>
+                  <option>Sonstiges</option>
+                </select>
+                <select id="drillTypeFilter" onchange="renderDrillsTable()">
+                  <option value="">Alle Typen</option>
+                  <option value="tactic">Taktikboard</option>
+                  <option value="image">PNG</option>
+                  <option value="youtube">YouTube</option>
+                </select>
+              </div>
+              <div class="drills-table-wrap">
+                <table class="drills-table" id="drillsTable">
+                  <thead>
+                    <tr>
+                      <th style="width:32px"></th>
+                      <th>Name</th>
+                      <th>Schwerpunkt</th>
+                      <th style="width:70px">Dauer</th>
+                      <th>Bemerkung</th>
+                      <th style="width:28px">Typ</th>
+                      <th style="width:28px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="drillsTableBody"></tbody>
+                </table>
+              </div>
+              <div class="drills-table-footer" id="drillsTableFooter"></div>
+            </div>
+            <!-- Rechte Seite: Zuweisung -->
+            <div class="drills-assign-col">
+              <div class="drills-assign-header">
+                <label class="meta">Trainingstermin</label>
+                <select id="drillEventSelect" onchange="renderDrillAssignPanel()">
+                  <option value="">— Termin wählen —</option>
+                </select>
+              </div>
+              <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none">
+                <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
+                <div class="row-actions" style="margin-top:6px">
+                  <button class="mini btn-primary" type="button" id="drillTacticSaveYes">Ja, übernehmen</button>
+                  <button class="mini" type="button" id="drillTacticSaveNo">Verwerfen</button>
+                </div>
+              </div>
+              <div class="drills-assign-label">Einheiten für dieses Training</div>
+              <div id="drillAssignList" class="drills-assign-list"></div>
+              <div class="drills-assign-footer">
+                <span id="drillAssignTotal" class="meta"></span>
+                <button class="mini btn-primary" type="button" id="saveDrillAssignBtn" style="display:none">Speichern</button>
+              </div>
+            </div>
+          </div>
         </section>
       </section>
 
@@ -862,83 +936,69 @@ Nein</textarea></div>
       });
     });
   </script>
-  <!-- BIBLIOTHEK: Übung anlegen/bearbeiten -->
-  <div class="modal-backdrop" id="libraryItemModal" aria-hidden="true" style="display:none">
+  <!-- DRILL MODAL: Übung anlegen/bearbeiten -->
+  <div class="modal-backdrop" id="drillModal" aria-hidden="true" style="display:none">
     <div class="modal" style="max-width:520px;width:95%">
-      <h3 id="libModalTitle">Neue Übung</h3>
-      <form id="libraryItemForm" class="form-grid" style="margin-top:12px">
-        <input type="hidden" id="libItemId">
+      <h3 id="drillModalTitle">Neue Übung</h3>
+      <form id="drillForm" class="form-grid" style="margin-top:12px">
+        <input type="hidden" id="drillId">
         <div class="field full">
-          <label>Titel *</label>
-          <input id="libItemTitle" required placeholder="z.B. Pressing-Übung 4-4-2">
+          <label>Name *</label>
+          <input id="drillName" required placeholder="z.B. Pressing 4-2-3-1">
         </div>
         <div class="field">
-          <label>Kategorie</label>
-          <input id="libItemCategory" list="libCategoryList" placeholder="z.B. Pressing, Aufbau…">
-          <datalist id="libCategoryList"></datalist>
+          <label>Schwerpunkt</label>
+          <select id="drillFocus">
+            <option value="">— wählen —</option>
+            <option>Taktik</option>
+            <option>Pressing</option>
+            <option>Angriff</option>
+            <option>Abwehr</option>
+            <option>Kondition</option>
+            <option>Kette</option>
+            <option>Konter</option>
+            <option>Zentrum</option>
+            <option>Standards</option>
+            <option>Sonstiges</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Dauer (Minuten)</label>
+          <input id="drillDuration" type="number" min="0" max="180" step="5" placeholder="15">
         </div>
         <div class="field">
           <label>Typ</label>
-          <select id="libItemType" onchange="updateLibItemTypeUI()">
+          <select id="drillType" onchange="updateDrillTypeUI()">
             <option value="tactic">Taktikboard</option>
-            <option value="youtube">YouTube-Video</option>
-            <option value="image">Bild</option>
-            <option value="training">Komplett-Training</option>
+            <option value="image">PNG (max. 1 MB)</option>
+            <option value="youtube">YouTube</option>
           </select>
         </div>
-        <!-- Taktik -->
-        <div class="field full" id="libTypeTactic">
-          <label>Taktikboard wählen</label>
-          <select id="libItemTacticBoard"></select>
+        <div class="field full" id="drillTypeTactic">
+          <label>Taktikboard verknüpfen</label>
+          <select id="drillTacticBoardId">
+            <option value="">— kein Taktikboard —</option>
+          </select>
         </div>
-        <!-- YouTube -->
-        <div class="field full" id="libTypeYoutube" style="display:none">
-          <label>YouTube-URL</label>
-          <input id="libItemYoutubeUrl" placeholder="https://www.youtube.com/watch?v=…" type="url">
-        </div>
-        <!-- Bild -->
-        <div class="field full" id="libTypeImage" style="display:none">
+        <div class="field full" id="drillTypeImage" style="display:none">
           <label>Bild hochladen (max. 1 MB)</label>
-          <input id="libItemImageFile" type="file" accept="image/*" onchange="handleLibImageUpload(this)">
-          <p class="meta">Oder URL eingeben:</p>
-          <input id="libItemImageUrl" placeholder="https://… oder leer lassen" type="url">
-          <img id="libItemImagePreview" style="max-width:100%;max-height:150px;margin-top:6px;display:none;border-radius:6px">
+          <input id="drillImageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="handleDrillImageUpload(this)">
+          <img id="drillImagePreview" style="max-width:100%;max-height:160px;margin-top:8px;display:none;border-radius:6px;object-fit:contain">
+          <input type="hidden" id="drillImageUrl">
         </div>
-        <!-- Komplett-Training: Liste von Library-Einträgen -->
-        <div class="field full" id="libTypeTraining" style="display:none">
-          <label>Einheiten (aus Bibliothek auswählen)</label>
-          <div id="libTrainingItems" style="margin-bottom:8px"></div>
-          <button type="button" class="btn-secondary" onclick="addLibTrainingItem()">+ Einheit hinzufügen</button>
+        <div class="field full" id="drillTypeYoutube" style="display:none">
+          <label>YouTube-URL</label>
+          <input id="drillYoutubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…">
         </div>
         <div class="field full">
-          <label>Beschreibung / Kommentar</label>
-          <textarea id="libItemDescription" rows="3" placeholder="Erläuterungen zur Übung…"></textarea>
-        </div>
-        <div class="field full" id="libGlobalField" style="display:none">
-          <label class="check-row"><input type="checkbox" id="libItemIsGlobal"> Global (für alle Vereine sichtbar)</label>
+          <label>Bemerkung</label>
+          <textarea id="drillRemark" rows="3" placeholder="Hinweise, Varianten…"></textarea>
         </div>
         <div class="field full row-actions">
           <button class="btn-primary" type="submit">Speichern</button>
-          <button class="btn-secondary" type="button" onclick="closeLibraryItemModal()">Abbrechen</button>
+          <button class="btn-secondary" type="button" onclick="closeDrillModal()">Abbrechen</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- TRAININGSPLAN: Einheit zum Plan hinzufügen -->
-  <div class="modal-backdrop" id="addToPlanModal" aria-hidden="true" style="display:none">
-    <div class="modal" style="max-width:460px;width:95%">
-      <h3>Einheit zum Trainingsplan hinzufügen</h3>
-      <div style="margin-top:12px">
-        <input id="planAddSearch" placeholder="🔍 Suchen…" oninput="renderPlanAddList()" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
-        <select id="planAddCategory" onchange="renderPlanAddList()" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px">
-          <option value="">Alle Kategorien</option>
-        </select>
-        <div id="planAddList" style="max-height:300px;overflow-y:auto"></div>
-      </div>
-      <div style="margin-top:12px;text-align:right">
-        <button class="btn-secondary" onclick="closeAddToPlanModal()">Schließen</button>
-      </div>
     </div>
   </div>
 

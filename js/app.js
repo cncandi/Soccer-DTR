@@ -3032,6 +3032,8 @@
         renderCalendar();
         renderEvents();
         renderAllEventsList();
+        renderDrillEventSelect();
+        if (drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "tactics") {
         renderTacticBoard();
@@ -3072,6 +3074,8 @@
         renderClubDesignForm(); renderPlayerCreateFormOptions();
         renderSelfProfileForm(); renderPushPanel();
         renderPaypalSettingsForm(); renderKadrivoSubscriptionButton();
+        renderDrillEventSelect();
+        if (currentClubId) loadDrills();
       }
     }
 
@@ -8002,6 +8006,10 @@
         }
         clearTimeout(tactic3dSaveTimer);
         tactic3dSaveTimer = setTimeout(() => saveState(), 600);
+        // Drill-Notice: nur wenn Taktikboard-Bereich offen und in events-View
+        if ($(".view.active")?.id === "events" && typeof showDrillTacticSaveNotice === "function") {
+          showDrillTacticSaveNotice(data.boardId, board.title || "Taktik");
+        }
       }
     });
     $("#tacticTool")?.addEventListener("change", () => {
@@ -8443,4 +8451,358 @@
         });
       });
     }
+
+    // ============================================================
+    // ÜBUNGSDATENBANK (DRILLS)
+    // ============================================================
+
+    let drillsData = [];          // lokaler Cache aller Übungen dieses Vereins
+    let eventDrillsData = {};     // { eventId: [drillId, ...] } – Zuordnung
+    let drillAssignDirty = false; // Flag: ungespeicherte Änderungen rechte Seite
+    let pendingTacticDrill = null;// Taktikboard-Einheit die auf Übernahme wartet
+
+    const DRILL_FOCUS_COLORS = {
+      "Taktik":    "#dbeafe:#1e40af",
+      "Pressing":  "#fee2e2:#991b1b",
+      "Angriff":   "#fce7f3:#9d174d",
+      "Abwehr":    "#ede9fe:#5b21b6",
+      "Kondition": "#dcfce7:#166534",
+      "Kette":     "#f1f5f9:#334155",
+      "Konter":    "#fef3c7:#92400e",
+      "Zentrum":   "#e0f2fe:#075985",
+      "Standards": "#f0fdf4:#14532d",
+      "Sonstiges": "#f3f4f6:#374151",
+    };
+
+    function drillFocusBadge(focus) {
+      const colors = DRILL_FOCUS_COLORS[focus];
+      if (!colors) return `<span class="drill-focus-badge">${escapeHtml(focus||"–")}</span>`;
+      const [bg, color] = colors.split(":");
+      return `<span class="drill-focus-badge" style="background:${bg};color:${color}">${escapeHtml(focus)}</span>`;
+    }
+
+    function drillTypeIcon(type) {
+      if (type === "youtube") return "▶";
+      if (type === "image")   return "🖼";
+      return "⬛"; // tactic
+    }
+
+    // Übungen aus Supabase laden
+    async function loadDrills() {
+      if (!currentClubId) return;
+      const client = supabaseClient();
+      if (!client) return;
+      try {
+        const { data, error } = await client
+          .from("drills")
+          .select("*")
+          .eq("club_id", currentClubId)
+          .order("name");
+        if (error) throw error;
+        drillsData = data || [];
+        const evRes = await client
+          .from("event_drills")
+          .select("*")
+          .eq("club_id", currentClubId);
+        if (!evRes.error) {
+          eventDrillsData = {};
+          (evRes.data || []).forEach(row => {
+            if (!eventDrillsData[row.event_id]) eventDrillsData[row.event_id] = [];
+            eventDrillsData[row.event_id].push({ drillId: row.drill_id, sortOrder: row.sort_order, id: row.id });
+          });
+          Object.values(eventDrillsData).forEach(arr => arr.sort((a,b)=>a.sortOrder-b.sortOrder));
+        }
+      } catch(e) {
+        console.warn("Drills laden fehlgeschlagen:", e);
+      }
+      renderDrillsTable();
+      renderDrillEventSelect();
+      renderDrillAssignPanel();
+    }
+
+    // Tabelle links rendern
+    function renderDrillsTable() {
+      const tbody = $("#drillsTableBody");
+      const footer = $("#drillsTableFooter");
+      if (!tbody) return;
+      const search = ($("#drillSearchInput")?.value || "").toLowerCase();
+      const focusFilter = $("#drillFocusFilter")?.value || "";
+      const typeFilter = $("#drillTypeFilter")?.value || "";
+      const selectedEventId = $("#drillEventSelect")?.value || "";
+      const assignedIds = new Set((eventDrillsData[selectedEventId] || []).map(r=>r.drillId));
+
+      const filtered = drillsData.filter(d => {
+        if (search && !d.name.toLowerCase().includes(search)) return false;
+        if (focusFilter && d.focus !== focusFilter) return false;
+        if (typeFilter && d.type !== typeFilter) return false;
+        return true;
+      });
+
+      tbody.innerHTML = filtered.map(d => {
+        const inPlan = assignedIds.has(d.id);
+        return `<tr>
+          <td><button class="drill-add-btn${inPlan?" in-plan":""}" title="${inPlan?"Bereits im Training":"Zum Training hinzufügen"}"
+            onclick="drillToggleAssign('${escapeAttr(d.id)}')">${inPlan?"✓":"+"}</button></td>
+          <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</td>
+          <td>${drillFocusBadge(d.focus)}</td>
+          <td style="color:#888;white-space:nowrap">${d.duration_min?d.duration_min+" min":"—"}</td>
+          <td style="color:#888;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.remark||"")}</td>
+          <td style="text-align:center;font-size:14px" title="${d.type}">${drillTypeIcon(d.type)}</td>
+          <td><button class="drill-edit-btn" onclick="openDrillModal('${escapeAttr(d.id)}')" title="Bearbeiten">✎</button></td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="7" style="color:#aaa;text-align:center;padding:16px">Keine Übungen gefunden</td></tr>`;
+
+      if (footer) footer.textContent = `${filtered.length} Übung${filtered.length!==1?"en":""}`;
+    }
+
+    // Termin-Dropdown rechts befüllen
+    function renderDrillEventSelect() {
+      const sel = $("#drillEventSelect");
+      if (!sel) return;
+      const trainings = (state.events||[])
+        .filter(e => normalizedEventType(e.type)==="Training")
+        .sort((a,b)=>(b.date||"")>(a.date||"")?-1:1);
+      sel.innerHTML = `<option value="">— Termin wählen —</option>` +
+        trainings.map(e=>`<option value="${escapeAttr(e.id)}">${formatDate(e.date)} ${e.time||""} ${e.focus?`– ${e.focus}`:""}</option>`).join("");
+    }
+
+    // Zuordnungs-Panel rechts rendern
+    function renderDrillAssignPanel() {
+      const list = $("#drillAssignList");
+      const total = $("#drillAssignTotal");
+      const saveBtn = $("#saveDrillAssignBtn");
+      if (!list) return;
+      const eventId = $("#drillEventSelect")?.value || "";
+      const slots = eventDrillsData[eventId] || [];
+      const drillsById = new Map(drillsData.map(d=>[d.id,d]));
+
+      if (!eventId) {
+        list.innerHTML = `<div class="drill-slot drill-slot-empty"><span>Zuerst Termin wählen</span></div>`;
+        if (total) total.textContent = "";
+        if (saveBtn) saveBtn.style.display = "none";
+        return;
+      }
+
+      if (!slots.length) {
+        list.innerHTML = `<div class="drill-slot drill-slot-empty"><span>Noch keine Übungen — links + klicken</span></div>`;
+      } else {
+        let totalMin = 0;
+        list.innerHTML = slots.map((s,i)=>{
+          const d = drillsById.get(s.drillId);
+          if (!d) return "";
+          totalMin += d.duration_min||0;
+          return `<div class="drill-slot" data-drill-id="${escapeAttr(d.id)}">
+            <span class="drill-slot-num">${i+1}</span>
+            <div class="drill-slot-info">
+              <div class="drill-slot-name">${escapeHtml(d.name)}</div>
+              <div class="drill-slot-meta">${drillFocusBadge(d.focus)} ${d.duration_min?`${d.duration_min} min`:""}</div>
+            </div>
+            <button class="drill-slot-rm" onclick="drillRemoveAssign('${escapeAttr(d.id)}')" title="Entfernen">✕</button>
+          </div>`;
+        }).join("");
+        if (total) total.textContent = `Gesamt: ${totalMin} min`;
+      }
+      if (saveBtn) saveBtn.style.display = drillAssignDirty ? "inline-flex" : "none";
+    }
+
+    // Übung zum Training hinzufügen / entfernen (Toggle)
+    function drillToggleAssign(drillId) {
+      const eventId = $("#drillEventSelect")?.value;
+      if (!eventId) { alert("Bitte zuerst einen Trainingstermin wählen."); return; }
+      if (!eventDrillsData[eventId]) eventDrillsData[eventId] = [];
+      const idx = eventDrillsData[eventId].findIndex(r=>r.drillId===drillId);
+      if (idx >= 0) {
+        eventDrillsData[eventId].splice(idx,1);
+      } else {
+        const maxOrder = eventDrillsData[eventId].reduce((m,r)=>Math.max(m,r.sortOrder),0);
+        eventDrillsData[eventId].push({ drillId, sortOrder: maxOrder+1, id: null });
+      }
+      drillAssignDirty = true;
+      renderDrillsTable();
+      renderDrillAssignPanel();
+    }
+
+    function drillRemoveAssign(drillId) {
+      const eventId = $("#drillEventSelect")?.value;
+      if (!eventId || !eventDrillsData[eventId]) return;
+      eventDrillsData[eventId] = eventDrillsData[eventId].filter(r=>r.drillId!==drillId);
+      drillAssignDirty = true;
+      renderDrillsTable();
+      renderDrillAssignPanel();
+    }
+
+    // Zuordnung in Supabase speichern
+    async function saveDrillAssign() {
+      const eventId = $("#drillEventSelect")?.value;
+      if (!eventId || !currentClubId) return;
+      const client = supabaseClient();
+      if (!client) { alert("Kein Supabase-Zugang."); return; }
+      const btn = $("#saveDrillAssignBtn");
+      if (btn) { btn.textContent = "Speichert…"; btn.disabled = true; }
+      try {
+        await client.from("event_drills").delete().eq("event_id", eventId);
+        const slots = eventDrillsData[eventId] || [];
+        if (slots.length) {
+          const rows = slots.map((s,i)=>({
+            id: s.id || (gen_uuid()),
+            event_id: eventId,
+            drill_id: s.drillId,
+            club_id: currentClubId,
+            sort_order: i
+          }));
+          const { error } = await client.from("event_drills").insert(rows);
+          if (error) throw error;
+        }
+        drillAssignDirty = false;
+        renderDrillAssignPanel();
+      } catch(e) {
+        alert("Fehler beim Speichern: " + (e.message||e));
+      } finally {
+        if (btn) { btn.textContent = "Speichern"; btn.disabled = false; }
+      }
+    }
+
+    function gen_uuid() {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{
+        const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);
+      });
+    }
+
+    // Modal öffnen
+    function openDrillModal(drillId) {
+      const drill = drillId ? drillsData.find(d=>d.id===drillId) : null;
+      $("#drillId").value = drillId || "";
+      $("#drillModalTitle").textContent = drill ? "Übung bearbeiten" : "Neue Übung";
+      $("#drillName").value = drill?.name || "";
+      $("#drillFocus").value = drill?.focus || "";
+      $("#drillDuration").value = drill?.duration_min || "";
+      $("#drillRemark").value = drill?.remark || "";
+      $("#drillType").value = drill?.type || "tactic";
+      $("#drillTacticBoardId").value = drill?.tactic_board_id || "";
+      $("#drillYoutubeUrl").value = drill?.youtube_url || "";
+      $("#drillImageUrl").value = drill?.image_url || "";
+      const preview = $("#drillImagePreview");
+      if (preview) { preview.src = drill?.image_url||""; preview.style.display = drill?.image_url?"block":"none"; }
+      // Taktikboards befüllen
+      const tbSel = $("#drillTacticBoardId");
+      if (tbSel) {
+        const boards = state.tacticBoards || [];
+        tbSel.innerHTML = `<option value="">— kein Taktikboard —</option>` +
+          boards.map(tb=>`<option value="${escapeAttr(tb.id)}"${tb.id===drill?.tactic_board_id?" selected":""}>${escapeHtml(tb.title||"Taktik")}</option>`).join("");
+      }
+      updateDrillTypeUI();
+      $("#drillModal").style.display = "flex";
+      $("#drillModal").setAttribute("aria-hidden","false");
+    }
+
+    function closeDrillModal() {
+      const m = $("#drillModal");
+      if (m) { m.style.display="none"; m.setAttribute("aria-hidden","true"); }
+    }
+
+    function updateDrillTypeUI() {
+      const type = $("#drillType")?.value;
+      $("#drillTypeTactic").style.display = type==="tactic" ? "" : "none";
+      $("#drillTypeImage").style.display  = type==="image"  ? "" : "none";
+      $("#drillTypeYoutube").style.display= type==="youtube"? "" : "none";
+    }
+
+    function handleDrillImageUpload(input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 1024*1024) { alert("Datei ist größer als 1 MB. Bitte kleineres Bild wählen."); input.value=""; return; }
+      const reader = new FileReader();
+      reader.onload = e => {
+        const url = e.target.result;
+        $("#drillImageUrl").value = url;
+        const preview = $("#drillImagePreview");
+        if (preview) { preview.src=url; preview.style.display="block"; }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Drill speichern
+    async function saveDrill(e) {
+      e.preventDefault();
+      const client = supabaseClient();
+      if (!client || !currentClubId) { alert("Kein Supabase-Zugang."); return; }
+      const id = $("#drillId").value || gen_uuid();
+      const type = $("#drillType").value;
+      const row = {
+        id,
+        club_id: currentClubId,
+        name: $("#drillName").value.trim(),
+        focus: $("#drillFocus").value,
+        duration_min: parseInt($("#drillDuration").value)||0,
+        remark: $("#drillRemark").value.trim(),
+        type,
+        tactic_board_id: type==="tactic" ? ($("#drillTacticBoardId").value||null) : null,
+        image_url: type==="image" ? ($("#drillImageUrl").value||"") : "",
+        youtube_url: type==="youtube" ? ($("#drillYoutubeUrl").value||"") : "",
+        updated_at: new Date().toISOString()
+      };
+      try {
+        const { error } = await client.from("drills").upsert(row);
+        if (error) throw error;
+        closeDrillModal();
+        await loadDrills();
+      } catch(err) {
+        alert("Fehler: " + (err.message||err));
+      }
+    }
+
+    // Taktikboard-Einheit in Bibliothek übernehmen
+    function showDrillTacticSaveNotice(tacticBoardId, title) {
+      pendingTacticDrill = { tacticBoardId, title };
+      const notice = $("#drillTacticSaveNotice");
+      if (notice) notice.style.display = "block";
+      // In drillsPanel scrollen damit Notice sichtbar ist
+      $("#drillsPanel")?.scrollIntoView({ behavior:"smooth", block:"nearest" });
+    }
+
+    // Event-Listener Setup (wird nach DOM-Ready aufgerufen)
+    function setupDrillListeners() {
+      const form = $("#drillForm");
+      if (form) form.addEventListener("submit", saveDrill);
+
+      const newBtn = $("#newDrillBtn");
+      if (newBtn) newBtn.addEventListener("click", ()=>openDrillModal(null));
+
+      const saveAssignBtn = $("#saveDrillAssignBtn");
+      if (saveAssignBtn) saveAssignBtn.addEventListener("click", saveDrillAssign);
+
+      const evSel = $("#drillEventSelect");
+      if (evSel) evSel.addEventListener("change", ()=>{ renderDrillAssignPanel(); renderDrillsTable(); });
+
+      const tacticYes = $("#drillTacticSaveYes");
+      if (tacticYes) tacticYes.addEventListener("click", ()=>{
+        if (!pendingTacticDrill) return;
+        openDrillModal(null);
+        $("#drillType").value = "tactic";
+        $("#drillName").value = pendingTacticDrill.title || "";
+        $("#drillTacticBoardId").value = pendingTacticDrill.tacticBoardId || "";
+        updateDrillTypeUI();
+        const notice = $("#drillTacticSaveNotice");
+        if (notice) notice.style.display="none";
+        pendingTacticDrill = null;
+      });
+
+      const tacticNo = $("#drillTacticSaveNo");
+      if (tacticNo) tacticNo.addEventListener("click", ()=>{
+        const notice = $("#drillTacticSaveNotice");
+        if (notice) notice.style.display="none";
+        pendingTacticDrill = null;
+      });
+
+      // Modal schließen bei Klick auf Backdrop
+      const modal = $("#drillModal");
+      if (modal) modal.addEventListener("click", e=>{ if(e.target===modal) closeDrillModal(); });
+    }
+
+    // Drills laden wenn State geladen wurde
+    document.addEventListener("stateLoaded", () => {
+      loadDrills();
+    });
+
+    setupDrillListeners();
   
