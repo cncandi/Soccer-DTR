@@ -6163,6 +6163,16 @@
       if (btn) btn.textContent = tacticBoardCollapsed ? "▼ Ausklappen" : "▲ Einklappen";
     }
     window.toggleTacticBoard = toggleTacticBoard;
+
+    // Generische Collapse-Funktion für alle Bereiche
+    window.toggleSection = function(sectionId, chevronId) {
+      const section = document.getElementById(sectionId);
+      const chevron = document.getElementById(chevronId);
+      if (!section) return;
+      const collapsed = section.classList.toggle('collapsed');
+      if (chevron) chevron.classList.toggle('collapsed', collapsed);
+    };
+
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
 
     // Neue Taktik mit Name anlegen und 2D-State speichern

@@ -1958,6 +1958,45 @@
       min-width: 0;
     }
 
+    .section-header {
+      border-bottom: 1px solid var(--line);
+      transition: background .15s;
+    }
+    .section-header:hover {
+      background: color-mix(in srgb, var(--green) 4%, transparent);
+    }
+    .section-chevron {
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--muted);
+      transition: transform .2s, background .15s;
+      flex-shrink: 0;
+    }
+    .section-chevron:hover {
+      background: var(--surface-2, #f0f4f2);
+    }
+    .section-chevron.collapsed {
+      transform: rotate(180deg);
+    }
+    .section-body {
+      overflow: hidden;
+      transition: max-height .25s ease, opacity .2s ease;
+      max-height: 2000px;
+      opacity: 1;
+    }
+    .section-body.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+
     .tactic-3d-panel {
       display: grid;
       gap: 10px;

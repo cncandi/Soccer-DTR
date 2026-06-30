@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=242">
+  <link rel="stylesheet" href="css/app.css?v=249">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v248';
+      const EXPECTED = 'v249';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -345,28 +345,34 @@
         </div>
 
         <!-- 1. TAKTIKBOARD – volle Breite oben -->
-        <div id="tactic-anchor-board" class="tactic-workspace" style="margin-bottom:12px;scroll-margin-top:12px">
-          <div class="item-head" style="margin-bottom:4px">
-            <div style="display:flex;gap:4px;align-items:center;margin-left:auto">
-              <button class="mini" id="btn-tactic-3d" onclick="switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
-              <button class="mini active" id="btn-tactic-2d" onclick="switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
-              <button class="mini" id="tacticCollapseBtn" type="button" onclick="toggleTacticBoard()">▲ Einklappen</button>
+        <div id="tactic-anchor-board" class="tactic-workspace panel" style="margin-bottom:12px;scroll-margin-top:12px;padding:0;overflow:hidden">
+          <div class="section-header" onclick="toggleSection('tacticBoardSection','tacticBoardChevron')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;user-select:none">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:1rem;font-weight:600">Taktikboard</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="mini" id="btn-tactic-3d" onclick="event.stopPropagation();switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
+              <button class="mini active" id="btn-tactic-2d" onclick="event.stopPropagation();switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
+              <button class="mini" id="tacticCollapseBtn" type="button" onclick="event.stopPropagation();toggleTacticBoard()" style="display:none">▲</button>
+              <button class="section-chevron" id="tacticBoardChevron" type="button" onclick="event.stopPropagation();toggleSection('tacticBoardSection','tacticBoardChevron')" title="Ein-/Ausklappen">▲</button>
             </div>
           </div>
-          <div id="tacticBoardContent">
-            <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
-              <div class="item-head">
-                <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
-                <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
+          <div id="tacticBoardSection" class="section-body">
+            <div id="tacticBoardContent" style="padding:0 16px 8px">
+              <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
+                <div class="item-head">
+                  <p class="meta" id="tactic3dMeta">Bitte Spiel oder Training auswaehlen.</p>
+                  <button class="mini" id="openTactic3dBtn" type="button">Maximiert</button>
+                </div>
+                <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=147" title="3D Taktiktafel"></iframe>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic3dFrame" src="taktikboard-3d.html?v=147" title="3D Taktiktafel"></iframe>
-            </div>
-            <div class="tactic-3d-panel" id="tactic-panel-2d">
-              <div class="item-head">
-                <p class="meta" id="tactic2dMetaInner">Bitte Spiel oder Training auswaehlen.</p>
-                <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
+              <div class="tactic-3d-panel" id="tactic-panel-2d">
+                <div class="item-head">
+                  <p class="meta" id="tactic2dMetaInner">Bitte Spiel oder Training auswaehlen.</p>
+                  <button class="mini" id="openTactic2dBtn" type="button">Maximiert</button>
+                </div>
+                <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=246" title="2D Taktiktafel"></iframe>
               </div>
-              <iframe class="tactic-3d-frame" id="tactic2dFrame" src="taktikboard-2d.html?v=246" title="2D Taktiktafel"></iframe>
             </div>
           </div>
         </div>
