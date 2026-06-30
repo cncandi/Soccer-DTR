@@ -1986,6 +1986,15 @@
     .section-chevron.collapsed {
       transform: rotate(180deg);
     }
+    .section-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
     .section-body {
       overflow: hidden;
       transition: max-height .25s ease, opacity .2s ease;

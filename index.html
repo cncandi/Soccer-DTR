@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=249">
+  <link rel="stylesheet" href="css/app.css?v=250">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v249';
+      const EXPECTED = 'v250';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -348,13 +348,15 @@
         <div id="tactic-anchor-board" class="tactic-workspace panel" style="margin-bottom:12px;scroll-margin-top:12px;padding:0;overflow:hidden">
           <div class="section-header" onclick="toggleSection('tacticBoardSection','tacticBoardChevron')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;user-select:none">
             <div style="display:flex;align-items:center;gap:10px">
+              <span class="section-icon" style="background:#e8f5ee">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="#2d7a4f"/><rect x="9" y="1" width="6" height="6" rx="1" fill="#2d7a4f"/><rect x="1" y="9" width="6" height="6" rx="1" fill="#2d7a4f"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#2d7a4f"/></svg>
+              </span>
               <span style="font-size:1rem;font-weight:600">Taktikboard</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <button class="mini" id="btn-tactic-3d" onclick="event.stopPropagation();switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
               <button class="mini active" id="btn-tactic-2d" onclick="event.stopPropagation();switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
-              <button class="mini" id="tacticCollapseBtn" type="button" onclick="event.stopPropagation();toggleTacticBoard()" style="display:none">▲</button>
-              <button class="section-chevron" id="tacticBoardChevron" type="button" onclick="event.stopPropagation();toggleSection('tacticBoardSection','tacticBoardChevron')" title="Ein-/Ausklappen">▲</button>
+              <button class="section-chevron" id="tacticBoardChevron" type="button" onclick="event.stopPropagation();toggleSection('tacticBoardSection','tacticBoardChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>
           <div id="tacticBoardSection" class="section-body">
@@ -378,61 +380,77 @@
         </div>
 
         <!-- 2. SPIEL + TAKTIK – volle Breite, eine Zeile -->
-        <div class="panel" id="tactic-anchor-spiel" style="margin-bottom:12px;scroll-margin-top:12px">
-          <form id="tacticBoardForm" onsubmit="return false">
-            <div class="item-head" style="margin-bottom:12px">
-              <h3>Spiel</h3>
-              <div style="display:flex;gap:8px;align-items:center">
-                <button type="button" id="saveTacticBoardBtn" class="mini btn-primary">Taktik speichern</button>
-                <button type="button" class="mini" style="color:#cc0000;border-color:#cc0000" onclick="deleteCurrentTacticBoard()">Taktik löschen</button>
-                <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
-              </div>
+        <div class="panel" id="tactic-anchor-spiel" style="margin-bottom:12px;scroll-margin-top:12px;padding:0;overflow:hidden">
+          <div class="section-header" onclick="toggleSection('spielSection','spielChevron')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;user-select:none">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="section-icon" style="background:#eef2ff">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#3b5bdb" stroke-width="1.5"/><path d="M8 3.5 L9.5 6.5 L13 7 L10.5 9.5 L11 13 L8 11.5 L5 13 L5.5 9.5 L3 7 L6.5 6.5 Z" fill="#3b5bdb"/></svg>
+              </span>
+              <span style="font-size:1rem;font-weight:600">Spiel</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <button type="button" id="saveTacticBoardBtn" class="mini btn-primary" onclick="event.stopPropagation()">Taktik speichern</button>
+              <button type="button" class="mini" style="color:#cc0000;border-color:#cc0000" onclick="event.stopPropagation();deleteCurrentTacticBoard()">Taktik löschen</button>
+              <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
+              <button class="section-chevron" id="spielChevron" type="button" onclick="event.stopPropagation();toggleSection('spielSection','spielChevron')" title="Ein-/Ausklappen">▼</button>
+            </div>
+          </div>
+          <div id="spielSection" class="section-body">
+            <form id="tacticBoardForm" onsubmit="return false" style="padding:16px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+                <div>
+                  <div style="font-size:12px;color:#888;margin-bottom:4px">Termin</div>
+                  <select id="tacticEventSelect" onchange="onTacticEventSelectChange()"
+                    style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
+                  </select>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#888;margin-bottom:4px">Taktik</div>
+                  <select id="tacticBoardSelect" onchange="onTacticBoardSelectChange()"
+                    style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
+                  </select>
+                  <p class="meta" id="tacticAssignHint" style="font-size:11px;color:#888;margin:4px 0 0"></p>
+                </div>
+              </div>
               <div>
-                <div style="font-size:12px;color:#888;margin-bottom:4px">Termin</div>
-                <select id="tacticEventSelect" onchange="onTacticEventSelectChange()"
-                  style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
-                </select>
+                <div style="font-size:12px;color:#888;margin-bottom:4px">Bemerkungen</div>
+                <div class="rich-toolbar" style="margin-bottom:4px">
+                  <button class="mini" type="button" data-rich-command="bold"><strong>B</strong></button>
+                  <button class="mini" type="button" data-rich-command="italic"><em>I</em></button>
+                  <button class="mini" type="button" data-rich-command="insertUnorderedList">Liste</button>
+                </div>
+                <div id="tacticBoardNotes" class="rich-field" contenteditable="true" role="textbox" aria-multiline="true"
+                  style="min-height:60px"></div>
               </div>
-              <div>
-                <div style="font-size:12px;color:#888;margin-bottom:4px">Taktik</div>
-                <select id="tacticBoardSelect" onchange="onTacticBoardSelectChange()"
-                  style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
-                </select>
-                <p class="meta" id="tacticAssignHint" style="font-size:11px;color:#888;margin:4px 0 0"></p>
-              </div>
-            </div>
-            <div>
-              <div style="font-size:12px;color:#888;margin-bottom:4px">Bemerkungen</div>
-              <div class="rich-toolbar" style="margin-bottom:4px">
-                <button class="mini" type="button" data-rich-command="bold"><strong>B</strong></button>
-                <button class="mini" type="button" data-rich-command="italic"><em>I</em></button>
-                <button class="mini" type="button" data-rich-command="insertUnorderedList">Liste</button>
-              </div>
-              <div id="tacticBoardNotes" class="rich-field" contenteditable="true" role="textbox" aria-multiline="true"
-                style="min-height:60px"></div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
 
         <!-- ÜBUNGSDATENBANK -->
-        <section class="panel admin-only" id="drillsPanel" style="margin-top:16px;scroll-margin-top:12px" data-anchor="tactic-anchor-training">
-          <div class="item-head">
-            <h3>Training</h3>
-            <div style="display:flex;gap:8px;align-items:center">
-              <button class="mini btn-primary" type="button" id="newDrillBtn">+ Neue Übung</button>
-              <button class="mini" type="button" id="saveDrillBtn">Übung speichern</button>
-              <button class="mini" type="button" id="deleteDrillBtn" style="color:#cc0000;border-color:#cc0000">Übung löschen</button>
+        <section class="panel admin-only" id="drillsPanel" style="margin-top:16px;scroll-margin-top:12px;padding:0;overflow:hidden" data-anchor="tactic-anchor-training">
+          <div class="section-header" onclick="toggleSection('trainingSection','trainingChevron')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;user-select:none">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="section-icon" style="background:#fff8e6">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="4" r="2.5" fill="#e67700"/><path d="M4 14c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="#e67700" stroke-width="1.5" stroke-linecap="round"/><path d="M8 8 L6 11 M8 8 L10 11" stroke="#e67700" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </span>
+              <span style="font-size:1rem;font-weight:600">Training</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="mini btn-primary" type="button" id="newDrillBtn" onclick="event.stopPropagation()">+ Neue Übung</button>
+              <button class="mini" type="button" id="saveDrillBtn" onclick="event.stopPropagation()">Übung speichern</button>
+              <button class="mini" type="button" id="deleteDrillBtn" style="color:#cc0000;border-color:#cc0000" onclick="event.stopPropagation()">Übung löschen</button>
+              <button class="section-chevron" id="trainingChevron" type="button" onclick="event.stopPropagation();toggleSection('trainingSection','trainingChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>
-          <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none;margin-bottom:10px">
-            <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
-            <div class="row-actions" style="margin-top:6px">
-              <button class="mini btn-primary" type="button" id="drillTacticSaveYes">Ja, übernehmen</button>
-              <button class="mini" type="button" id="drillTacticSaveNo">Verwerfen</button>
-            </div>
-          </div>
+          <div id="trainingSection" class="section-body">
+            <div style="padding:0 16px 16px">
+              <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none;margin-bottom:10px">
+                <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
+                <div class="row-actions" style="margin-top:6px">
+                  <button class="mini btn-primary" type="button" id="drillTacticSaveYes">Ja, übernehmen</button>
+                  <button class="mini" type="button" id="drillTacticSaveNo">Verwerfen</button>
+                </div>
+              </div>
           <div class="drills-workspace">
             <div class="drills-table-col">
               <div class="drills-filters">
@@ -495,6 +513,8 @@
               </div>
             </div>
           </div>
+            </div><!-- /padding-wrapper -->
+          </div><!-- /trainingSection -->
         </section>
       </section>
 
