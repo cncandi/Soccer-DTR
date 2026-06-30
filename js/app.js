@@ -8474,6 +8474,8 @@
     let eventDrillsData = {};
     let drillAssignDirty = false;
     let pendingTacticDrill = null;
+    let pendingDrillTacticData; // aktuell exportierte Taktikboard-Zeichnung für "Übung speichern" (undefined = nichts exportiert)
+    let drillRowClickTimer = null; // Verzögerung beim Laden einer Übung ins Taktikboard (Mehrfachklick beim Scrollen abfangen)
 
     const DRILL_FOCUS_COLORS = {
       "Taktik":    "#dbeafe:#1e40af",
@@ -8620,8 +8622,31 @@
     function selectDrillRow(drillId) {
       selectedDrillId = selectedDrillId === drillId ? null : drillId;
       renderDrillsTable();
+
+      // Zeichnung der Übung mit kurzer Verzögerung ins Taktikboard laden
+      // (Verzögerung verhindert Laden bei jedem Klick während des Scrollens über mehrere Zeilen).
+      if (drillRowClickTimer) { clearTimeout(drillRowClickTimer); drillRowClickTimer = null; }
+      if (!selectedDrillId) return;
+      drillRowClickTimer = setTimeout(() => {
+        drillRowClickTimer = null;
+        loadDrillIntoTacticBoard(selectedDrillId);
+      }, 600);
     }
     window.selectDrillRow = selectDrillRow;
+
+    // Lädt die eigenständige Taktikboard-Zeichnung einer Übung in das aktuell offene Taktikboard.
+    // Überschreibt den dortigen Inhalt ohne Rückfrage (gewünschtes Verhalten).
+    function loadDrillIntoTacticBoard(drillId) {
+      const drill = drillsData.find(d => d.id === drillId);
+      if (!drill || drill.type !== "tactic" || !drill.tactic_data) return;
+      const board = typeof currentTacticBoard === "function" ? currentTacticBoard() : null;
+      if (!board) return;
+      board.twoData = drill.tactic_data;
+      if (typeof saveState === "function") saveState();
+      if (typeof sendTactic3dPayload === "function") sendTactic3dPayload();
+      if (typeof renderTacticBoard === "function") renderTacticBoard();
+    }
+    window.loadDrillIntoTacticBoard = loadDrillIntoTacticBoard;
 
     function drillToggleAssign(drillId) {
       const eventId = $("#drillEventSelect")?.value;
@@ -8732,6 +8757,7 @@
       if (!m) return;
       m.style.display="none";
       m.setAttribute("aria-hidden","true");
+      pendingDrillTacticData = undefined;
       if (m._pasteHandler) {
         document.removeEventListener("paste", m._pasteHandler);
         m._pasteHandler = null;
@@ -8792,9 +8818,15 @@
         youtube_url: type==="youtube" ? ($("#drillYoutubeUrl").value||"") : "",
         updated_at: new Date().toISOString()
       };
+      // Übung speichert ihre Taktikboard-Zeichnung eigenständig (unabhängig von Spiel/Training-Boards).
+      // Wird nur erfasst, wenn beim Öffnen des Modals eine aktuelle Zeichnung exportiert wurde (pendingDrillTacticData).
+      if (type === "tactic" && pendingDrillTacticData !== undefined) {
+        row.tactic_data = pendingDrillTacticData;
+      }
       try {
         const { error } = await client.from("drills").upsert(row);
         if (error) throw error;
+        pendingDrillTacticData = undefined;
         closeDrillModal();
         await loadDrills();
       } catch(err) {
@@ -8817,19 +8849,29 @@
       if (newBtn) newBtn.addEventListener("click", ()=>openDrillModal(null));
 
       const saveDrillBtn = $("#saveDrillBtn");
-      if (saveDrillBtn) saveDrillBtn.addEventListener("click", () => {
-        openDrillModal(selectedDrillId || null);
-        // Wenn keine Auswahl: Typ auf tactic vorbelegen wenn Taktikboard aktiv
-        if (!selectedDrillId) {
-          const tacticBoardId = typeof selectedTacticBoardId !== "undefined" ? selectedTacticBoardId : null;
-          if (tacticBoardId) {
-            const typeEl = $("#drillType");
-            const tbEl = $("#drillTacticBoardId");
-            if (typeEl) typeEl.value = "tactic";
-            if (tbEl) tbEl.value = tacticBoardId;
-            if (typeof updateDrillTypeUI === "function") updateDrillTypeUI();
+      if (saveDrillBtn) saveDrillBtn.addEventListener("click", async () => {
+        // Immer das aktuell offene Taktikboard exportieren und der Übung zuordnen,
+        // unabhängig davon ob in der Tabelle eine bestehende Übung markiert ist.
+        pendingDrillTacticData = undefined;
+        const board = typeof currentTacticBoard === "function" ? currentTacticBoard() : null;
+        if (board && typeof requestTactic3dState === "function") {
+          saveDrillBtn.disabled = true;
+          const originalLabel = saveDrillBtn.textContent;
+          saveDrillBtn.textContent = "Lade Taktik…";
+          try {
+            await requestTactic3dState(board);
+            pendingDrillTacticData = board.twoData || null;
+          } finally {
+            saveDrillBtn.disabled = false;
+            saveDrillBtn.textContent = originalLabel;
           }
         }
+        openDrillModal(selectedDrillId || null);
+        const typeEl = $("#drillType");
+        const tbEl = $("#drillTacticBoardId");
+        if (typeEl) typeEl.value = "tactic";
+        if (tbEl && board) tbEl.value = board.id;
+        if (typeof updateDrillTypeUI === "function") updateDrillTypeUI();
       });
 
       const deleteDrillBtn = $("#deleteDrillBtn");
