@@ -8707,11 +8707,6 @@
       const modal = $("#drillModal");
       modal.style.display = "flex";
       modal.setAttribute("aria-hidden","false");
-      // Header-Buttons im drillsPanel aktualisieren
-      const saveDrillBtn = $("#saveDrillBtn");
-      const deleteDrillBtn = $("#deleteDrillBtn");
-      if (saveDrillBtn) saveDrillBtn.style.display = "inline-flex";
-      if (deleteDrillBtn) deleteDrillBtn.style.display = drill ? "inline-flex" : "none";
       // Paste-Handler für Bild aus Zwischenablage
       modal._pasteHandler = (e) => {
         if ($("#drillType").value !== "image") return;
@@ -8739,10 +8734,6 @@
         document.removeEventListener("paste", m._pasteHandler);
         m._pasteHandler = null;
       }
-      const saveDrillBtn = $("#saveDrillBtn");
-      const deleteDrillBtn = $("#deleteDrillBtn");
-      if (saveDrillBtn) saveDrillBtn.style.display = "none";
-      if (deleteDrillBtn) deleteDrillBtn.style.display = "none";
     }
 
     function updateDrillTypeUI() {
@@ -8826,6 +8817,17 @@
       const saveDrillBtn = $("#saveDrillBtn");
       if (saveDrillBtn) saveDrillBtn.addEventListener("click", () => {
         openDrillModal(selectedDrillId || null);
+        // Wenn keine Auswahl: Typ auf tactic vorbelegen wenn Taktikboard aktiv
+        if (!selectedDrillId) {
+          const tacticBoardId = typeof selectedTacticBoardId !== "undefined" ? selectedTacticBoardId : null;
+          if (tacticBoardId) {
+            const typeEl = $("#drillType");
+            const tbEl = $("#drillTacticBoardId");
+            if (typeEl) typeEl.value = "tactic";
+            if (tbEl) tbEl.value = tacticBoardId;
+            if (typeof updateDrillTypeUI === "function") updateDrillTypeUI();
+          }
+        }
       });
 
       const deleteDrillBtn = $("#deleteDrillBtn");
