@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v247';
+      const EXPECTED = 'v248';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);

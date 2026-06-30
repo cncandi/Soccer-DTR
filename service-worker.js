@@ -1,19 +1,13 @@
-const CACHE_NAME = "soccer-dtr-v247";
+const CACHE_NAME = "soccer-dtr-v248";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";
+// APP_SHELL nur mit unveränderlichen Assets — versionierte JS/CSS/HTML werden
+// vom fetch-Handler dynamisch gecacht und bei CACHE_NAME-Wechsel automatisch erneuert.
 const APP_SHELL = [
   "./",
   "index.html",
-  "backend.html",
-  "taktikboard-3d.html?v=147",
-  "taktikboard-2d.html?v=246",
-  "css/app.css?v=242",
-  "css/backend.css?v=143",
-  "js/app.js?v=243",
-  "js/backend.js?v=145",
   "manifest.webmanifest",
-  "assets/kadrivo-login-banner.jpg",
   "kadrivo-icon-192.png",
   "kadrivo-icon-512.png",
   "kadrivo-apple-touch-icon.png"
