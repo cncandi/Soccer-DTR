@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v253';
+      const EXPECTED = 'v254';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -458,16 +458,47 @@
                 <input type="text" id="drillSearchInput" placeholder="Name suchen…" oninput="renderDrillsTable()">
                 <select id="drillFocusFilter" onchange="renderDrillsTable()">
                   <option value="">Alle Schwerpunkte</option>
-                  <option>Taktik</option>
-                  <option>Pressing</option>
-                  <option>Angriff</option>
-                  <option>Abwehr</option>
-                  <option>Kondition</option>
-                  <option>Kette</option>
-                  <option>Konter</option>
-                  <option>Zentrum</option>
-                  <option>Standards</option>
-                  <option>Sonstiges</option>
+                  <optgroup label="Taktik">
+                    <option>Taktik</option>
+                    <option>Pressing</option>
+                    <option>Gegenpressing</option>
+                    <option>Angriff</option>
+                    <option>Abwehr</option>
+                    <option>Kette</option>
+                    <option>Konter</option>
+                    <option>Umschaltspiel</option>
+                    <option>Zentrum</option>
+                    <option>Spielaufbau</option>
+                    <option>Raumdeckung</option>
+                    <option>Ballbesitz</option>
+                  </optgroup>
+                  <optgroup label="Technik">
+                    <option>Passspiel</option>
+                    <option>Kombination</option>
+                    <option>Torabschluss</option>
+                    <option>Flanken</option>
+                    <option>Kopfball</option>
+                    <option>Zweikampf</option>
+                    <option>Dribbling</option>
+                  </optgroup>
+                  <optgroup label="Fitness">
+                    <option>Kondition</option>
+                    <option>Ausdauer</option>
+                    <option>Schnelligkeit</option>
+                    <option>Koordination</option>
+                    <option>Athletik</option>
+                  </optgroup>
+                  <optgroup label="Standards">
+                    <option>Standards</option>
+                    <option>Freistoß</option>
+                    <option>Eckball</option>
+                    <option>Einwurf</option>
+                    <option>Elfmeter</option>
+                  </optgroup>
+                  <optgroup label="Spezial">
+                    <option>Torhüter</option>
+                    <option>Sonstiges</option>
+                  </optgroup>
                 </select>
                 <select id="drillTypeFilter" onchange="renderDrillsTable()">
                   <option value="">Alle Typen</option>
@@ -1058,9 +1089,27 @@ Nein</textarea></div>
           <label>Schwerpunkt</label>
           <select id="drillFocus">
             <option value="">— wählen —</option>
-            <option>Taktik</option><option>Pressing</option><option>Angriff</option>
-            <option>Abwehr</option><option>Kondition</option><option>Kette</option>
-            <option>Konter</option><option>Zentrum</option><option>Standards</option><option>Sonstiges</option>
+            <optgroup label="Taktik">
+              <option>Taktik</option><option>Pressing</option><option>Gegenpressing</option>
+              <option>Angriff</option><option>Abwehr</option><option>Kette</option>
+              <option>Konter</option><option>Umschaltspiel</option><option>Zentrum</option>
+              <option>Spielaufbau</option><option>Raumdeckung</option><option>Ballbesitz</option>
+            </optgroup>
+            <optgroup label="Technik">
+              <option>Passspiel</option><option>Kombination</option><option>Torabschluss</option>
+              <option>Flanken</option><option>Kopfball</option><option>Zweikampf</option><option>Dribbling</option>
+            </optgroup>
+            <optgroup label="Fitness">
+              <option>Kondition</option><option>Ausdauer</option><option>Schnelligkeit</option>
+              <option>Koordination</option><option>Athletik</option>
+            </optgroup>
+            <optgroup label="Standards">
+              <option>Standards</option><option>Freistoß</option><option>Eckball</option>
+              <option>Einwurf</option><option>Elfmeter</option>
+            </optgroup>
+            <optgroup label="Spezial">
+              <option>Torhüter</option><option>Sonstiges</option>
+            </optgroup>
           </select>
         </div>
         <div class="field"><label>Dauer (Minuten)</label><input id="drillDuration" type="number" min="0" max="180" step="5" placeholder="15"></div>

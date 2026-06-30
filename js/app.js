@@ -8488,16 +8488,42 @@
     let drillRowClickTimer = null; // Verzögerung beim Laden einer Übung ins Taktikboard (Mehrfachklick beim Scrollen abfangen)
 
     const DRILL_FOCUS_COLORS = {
-      "Taktik":    "#dbeafe:#1e40af",
-      "Pressing":  "#fee2e2:#991b1b",
-      "Angriff":   "#fce7f3:#9d174d",
-      "Abwehr":    "#ede9fe:#5b21b6",
-      "Kondition": "#dcfce7:#166534",
-      "Kette":     "#f1f5f9:#334155",
-      "Konter":    "#fef3c7:#92400e",
-      "Zentrum":   "#e0f2fe:#075985",
-      "Standards": "#f0fdf4:#14532d",
-      "Sonstiges": "#f3f4f6:#374151",
+      // Taktik
+      "Taktik":          "#dbeafe:#1e40af",
+      "Pressing":        "#fee2e2:#991b1b",
+      "Gegenpressing":   "#fecaca:#7f1d1d",
+      "Angriff":         "#fce7f3:#9d174d",
+      "Abwehr":          "#ede9fe:#5b21b6",
+      "Kette":           "#f1f5f9:#334155",
+      "Konter":          "#fef3c7:#92400e",
+      "Umschaltspiel":   "#ffedd5:#9a3412",
+      "Zentrum":         "#e0f2fe:#075985",
+      "Spielaufbau":     "#cffafe:#164e63",
+      "Raumdeckung":     "#e0e7ff:#3730a3",
+      "Ballbesitz":      "#d1fae5:#065f46",
+      // Technik
+      "Passspiel":       "#dcfce7:#166534",
+      "Kombination":     "#bbf7d0:#14532d",
+      "Torabschluss":    "#fee2e2:#991b1b",
+      "Flanken":         "#fdf4ff:#7e22ce",
+      "Kopfball":        "#fef9c3:#713f12",
+      "Zweikampf":       "#f1f5f9:#1e293b",
+      "Dribbling":       "#fff7ed:#9a3412",
+      // Fitness
+      "Kondition":       "#d1fae5:#065f46",
+      "Ausdauer":        "#dcfce7:#166534",
+      "Schnelligkeit":   "#fef3c7:#92400e",
+      "Koordination":    "#ede9fe:#5b21b6",
+      "Athletik":        "#f0fdf4:#14532d",
+      // Standards
+      "Standards":       "#f0fdf4:#14532d",
+      "Freistoß":        "#fce7f3:#9d174d",
+      "Eckball":         "#e0f2fe:#075985",
+      "Einwurf":         "#f8fafc:#475569",
+      "Elfmeter":        "#fee2e2:#991b1b",
+      // Spezial
+      "Torhüter":        "#fef3c7:#78350f",
+      "Sonstiges":       "#f3f4f6:#374151",
     };
 
     function drillFocusBadge(focus) {
