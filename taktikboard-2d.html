@@ -522,18 +522,32 @@ function drawPlayer(obj,p,sel){
 }
 
 function drawCone(obj,p,sel){
-  const s=fieldScale()*0.6;
-  ctx.beginPath(); ctx.moveTo(p.x,p.y-8*s/6); ctx.lineTo(p.x-6*s,p.y+5*s); ctx.lineTo(p.x+6*s,p.y+5*s); ctx.closePath();
+  const r=7; // gleiche Größe wie Ball
+  ctx.beginPath(); ctx.moveTo(p.x,p.y-r*1.4); ctx.lineTo(p.x-r,p.y+r*0.6); ctx.lineTo(p.x+r,p.y+r*0.6); ctx.closePath();
   ctx.fillStyle=obj.color||'#ff5500'; ctx.fill();
   if(sel){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); }
 }
 
 function drawBall(obj,p,sel){
   const r=7;
+  // Weißer Grundkreis
   ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
-  ctx.fillStyle='#f0f0f0'; ctx.fill();
-  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
-  if(sel){ ctx.strokeStyle='rgba(100,180,255,0.9)'; ctx.lineWidth=2; ctx.stroke(); }
+  ctx.fillStyle='#f5f5f5'; ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=0.8; ctx.stroke();
+  // Schwarzes Mittel-Pentagon (vereinfacht als Kreis + Streifen)
+  ctx.beginPath(); ctx.arc(p.x,p.y,r*0.38,0,Math.PI*2);
+  ctx.fillStyle='#222'; ctx.fill();
+  // 5 kleine schwarze Felder drum herum (Pentagon-Kanten vereinfacht)
+  for(let i=0;i<5;i++){
+    const a=i*Math.PI*2/5-Math.PI/2;
+    const px=p.x+Math.cos(a)*r*0.68, py=p.y+Math.sin(a)*r*0.68;
+    ctx.beginPath(); ctx.arc(px,py,r*0.22,0,Math.PI*2);
+    ctx.fillStyle='#222'; ctx.fill();
+  }
+  // Glanzpunkt
+  ctx.beginPath(); ctx.arc(p.x-r*0.28,p.y-r*0.28,r*0.18,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.fill();
+  if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.strokeStyle='rgba(100,180,255,0.9)'; ctx.lineWidth=2; ctx.stroke(); }
 }
 
 function drawMedball(obj,p,sel){
