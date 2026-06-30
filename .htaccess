@@ -2,6 +2,34 @@
 # kadrivo.de/<vereinsname> laedt die App; die App liest den Verein aus dem Pfad.
 # Echte Dateien und Ordner werden normal ausgeliefert.
 
+# ----------------------------------------------------------------
+# LiteSpeed-Cache (LSCache) fuer App-Shell-Dateien deaktivieren.
+# Ohne das liefert Hostinger/LiteSpeed nach einem Deploy weiterhin
+# alte Versionen von index.html/app.js/app.css/service-worker.js aus,
+# auch wenn die Dateien auf dem Server bereits aktualisiert wurden.
+# ----------------------------------------------------------------
+<IfModule LiteSpeed>
+  CacheLookup off
+</IfModule>
+
+<FilesMatch "^(index\.html|backend\.html|taktikboard-2d\.html|taktikboard-3d\.html|service-worker\.js|manifest\.webmanifest)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+    Header unset X-LiteSpeed-Cache-Control
+  </IfModule>
+  <IfModule LiteSpeed>
+    CacheLookup off
+  </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(js|css)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, must-revalidate"
+  </IfModule>
+</FilesMatch>
+
 RewriteEngine On
 
 # HTTPS erzwingen
