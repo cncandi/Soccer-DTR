@@ -112,13 +112,13 @@ canvas{display:block}
   <div id="canvas-wrap">
     <canvas id="c"></canvas>
     <div id="toolbar">
+      <button class="tb-btn" id="btn-mode-spiel" onclick="setMode2d('spiel')" style="background:#155e3b;color:#fff;border-color:#155e3b;font-weight:700">Spiel</button>
+      <button class="tb-btn" id="btn-mode-training" onclick="setMode2d('training')" style="background:#1a1a3e;color:#7a8bc4;border-color:#2a2a4a;font-weight:700">Training</button>
       <button class="tb-btn" onclick="undo()">↩ Undo</button>
       <button class="tb-btn" onclick="clearAll()">🗑 Leeren</button>
       <button class="tb-btn" onclick="toggleNames()" id="btn-names">Namen: Aus</button>
       <button class="tb-btn" onclick="autoPlace2d()">⚡ Auto-Aufstellung</button>
       <button class="tb-btn" onclick="toggleOpponents2d()" id="btn-opponents">Gegner: An</button>
-      <span id="modebadge2d" class="tb-btn" style="background:#155e3b;color:#fff;border-color:#155e3b;font-weight:700">SPIEL</span>
-      <button class="tb-btn" onclick="toggleMode2d()">Wechseln</button>
       <button class="tb-btn" id="btn-clear-field" onclick="clearAllFromField()" style="display:none;border-color:#cc3333;color:#ff8888">Alle vom Feld</button>
       <button class="tb-btn" onclick="toggleSceneBar()" id="btn-scenes">🎬 Szenen</button>
       <button class="tb-btn" onclick="exportPng()">📷 PNG</button>
@@ -1047,14 +1047,20 @@ function highlightPlayer(pid){
   if(obj){ selected=obj.id; render(); }
 }
 
-function toggleMode2d(){
-  mode2d = mode2d==='spiel' ? 'training' : 'spiel';
-  const badge = document.getElementById('modebadge2d');
+function setMode2d(newMode){
+  mode2d = newMode;
+  const btnSpiel = document.getElementById('btn-mode-spiel');
+  const btnTraining = document.getElementById('btn-mode-training');
   const clearBtn = document.getElementById('btn-clear-field');
-  if(badge){
-    badge.textContent = mode2d==='spiel' ? 'SPIEL' : 'TRAINING';
-    badge.style.background = mode2d==='spiel' ? '#155e3b' : '#1a3a7a';
-    badge.style.borderColor = mode2d==='spiel' ? '#155e3b' : '#1a3a7a';
+  if(btnSpiel){
+    btnSpiel.style.background = mode2d==='spiel' ? '#155e3b' : '#1a1a3e';
+    btnSpiel.style.color = mode2d==='spiel' ? '#fff' : '#7a8bc4';
+    btnSpiel.style.borderColor = mode2d==='spiel' ? '#155e3b' : '#2a2a4a';
+  }
+  if(btnTraining){
+    btnTraining.style.background = mode2d==='training' ? '#1a3a7a' : '#1a1a3e';
+    btnTraining.style.color = mode2d==='training' ? '#fff' : '#7a8bc4';
+    btnTraining.style.borderColor = mode2d==='training' ? '#1a3a7a' : '#2a2a4a';
   }
   if(clearBtn) clearBtn.style.display = mode2d==='training' ? '' : 'none';
   if(currentTab==='tools') updateSidebar();
