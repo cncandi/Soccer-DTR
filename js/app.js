@@ -3025,6 +3025,8 @@
       if (activeView === "players" || activeView === "dashboard") {
         renderPlayers();
         renderStaff();
+      }
+      if (activeView === "players" || activeView === "dashboard" || activeView === "events") {
         renderSelfProfileForm();
       }
       if (activeView === "events" || activeView === "dashboard") {
