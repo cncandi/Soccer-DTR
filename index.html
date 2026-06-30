@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=250">
+  <link rel="stylesheet" href="css/app.css?v=251">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v250';
+      const EXPECTED = 'v251';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -439,6 +439,7 @@
               <button class="mini btn-primary" type="button" id="newDrillBtn" onclick="event.stopPropagation()">+ Neue Übung</button>
               <button class="mini" type="button" id="saveDrillBtn" onclick="event.stopPropagation()">Übung speichern</button>
               <button class="mini" type="button" id="deleteDrillBtn" style="color:#cc0000;border-color:#cc0000" onclick="event.stopPropagation()">Übung löschen</button>
+              <button class="mini" type="button" onclick="event.stopPropagation();printTrainingSession(document.getElementById('drillEventSelect')?.value)" title="Trainingseinheit drucken">🖨</button>
               <button class="section-chevron" id="trainingChevron" type="button" onclick="event.stopPropagation();toggleSection('trainingSection','trainingChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>

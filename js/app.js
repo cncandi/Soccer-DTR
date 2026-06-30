@@ -8957,4 +8957,128 @@
         }
       });
     })();
+
+    // ============================================================
+    // TRAININGSEINHEIT DRUCKEN
+    // ============================================================
+    window.printTrainingSession = function(eventId) {
+      const ev = (state.events || []).find(e => e.id === eventId);
+      const assignedDrills = (eventDrillsData[eventId] || [])
+        .slice().sort((a,b) => a.sortOrder - b.sortOrder)
+        .map(r => drillsData.find(d => d.id === r.drillId))
+        .filter(Boolean);
+
+      const club = currentClub();
+      const clubName = escapeHtml(club?.name || "Kadrivo");
+      const eventDate = ev?.date ? new Date(ev.date).toLocaleDateString("de-DE", {weekday:"long", day:"2-digit", month:"long", year:"numeric"}) : "";
+      const eventTitle = escapeHtml(ev?.title || ev?.focus || "Training");
+      const totalMin = assignedDrills.reduce((s,d) => s + (d.duration_min||0), 0);
+
+      const drillCards = assignedDrills.map((d, i) => {
+        const num = i + 1;
+        const name = escapeHtml(d.name || "—");
+        const focus = escapeHtml(d.focus || "");
+        const duration = d.duration_min ? `${d.duration_min} min` : "—";
+        const remark = (d.remark || "").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+
+        let imgHtml = "";
+        if (d.type === "image" && d.image_url) {
+          imgHtml = `<img src="${d.image_url}" style="width:100%;height:100%;object-fit:contain;border-radius:4px">`;
+        } else if (d.type === "tactic" && d.tactic_data) {
+          const dataStr = JSON.stringify(d.tactic_data).replace(/</g,"\\u003c").replace(/>/g,"\\u003e");
+          imgHtml = `<canvas id="dc-${d.id}" width="420" height="280" style="width:100%;height:auto;border-radius:4px"></canvas>
+<script>(function(){
+  const data=JSON.parse('${dataStr.replace(/'/g,"\\u0027")}');
+  const cv=document.getElementById('dc-${d.id}');
+  if(!cv||!data)return;
+  const ctx=cv.getContext('2d');
+  const fw=404,fh=264,ox=8,oy=8,FW=105,FH=68;
+  ctx.fillStyle='#3a8c3a';ctx.fillRect(0,0,420,280);
+  ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1.5;
+  ctx.strokeRect(8,8,404,264);
+  ctx.beginPath();ctx.moveTo(210,8);ctx.lineTo(210,272);ctx.stroke();
+  ctx.beginPath();ctx.arc(210,140,30,0,Math.PI*2);ctx.stroke();
+  ctx.strokeRect(8,90,60,100);ctx.strokeRect(8,110,30,60);
+  ctx.strokeRect(352,90,60,100);ctx.strokeRect(382,110,30,60);
+  (data.drawLines||[]).forEach(l=>{
+    if(l.x1===undefined)return;
+    const x1=ox+(l.x1/FW)*fw,y1=oy+(l.y1/FH)*fh,x2=ox+(l.x2/FW)*fw,y2=oy+(l.y2/FH)*fh;
+    ctx.strokeStyle=l.color||'#fff';ctx.lineWidth=1.5;
+    ctx.setLineDash(l.dashed?[4,3]:[]);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.setLineDash([]);
+    if(l.arrow!==false){const a=Math.atan2(y2-y1,x2-x1);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-7*Math.cos(a-0.4),y2-7*Math.sin(a-0.4));ctx.lineTo(x2-7*Math.cos(a+0.4),y2-7*Math.sin(a+0.4));ctx.closePath();ctx.fillStyle=l.color||'#fff';ctx.fill();}
+  });
+  (data.objects||[]).filter(o=>!o.hidden&&o.fx!=null).forEach(o=>{
+    const px=ox+(o.fx/FW)*fw,py=oy+(o.fy/FH)*fh;
+    if(o.type==='player'){
+      ctx.beginPath();ctx.arc(px,py,7,0,Math.PI*2);
+      ctx.fillStyle=o.color||'#1a1aff';ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+      if(o.num||o.name){ctx.fillStyle='#fff';ctx.font='bold 7px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.num||o.name?.charAt(0)||'',px,py);}
+    } else if(o.type==='cone'){
+      ctx.beginPath();ctx.moveTo(px,py-7);ctx.lineTo(px-5,py+4);ctx.lineTo(px+5,py+4);ctx.closePath();
+      ctx.fillStyle=o.color||'#ff5500';ctx.fill();
+    } else if(o.type==='ball'){
+      ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);
+      ctx.fillStyle='#f5f5f5';ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=0.5;ctx.stroke();
+    }
+  });
+})();<\/script>`;
+        } else {
+          imgHtml = `<div style="color:#bbb;font-size:12px;text-align:center">Kein Bild</div>`;
+        }
+
+        return `<div class="drill-card">
+  <div class="drill-num">${num}</div>
+  <div class="drill-img">${imgHtml}</div>
+  <div class="drill-info">
+    <div class="drill-meta-row">
+      ${focus ? `<span class="badge">${focus}</span>` : ""}
+      <span class="duration">${duration}</span>
+    </div>
+    <div class="drill-name">${name}</div>
+    <div class="drill-remark">${remark || '<span style="color:#aaa">—</span>'}</div>
+  </div>
+</div>`;
+      }).join("");
+
+      const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
+<title>Training – ${clubName}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
+.page-header{background:#1e6b3c;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.page-header .club{font-size:17px;font-weight:700}
+.page-header .sub{font-size:11px;opacity:.8;margin-top:2px}
+.page-header .total{font-size:12px;opacity:.85;text-align:right}
+.session-title{background:#f3f8f5;border-bottom:2px solid #1e6b3c;padding:9px 24px;font-size:14px;font-weight:600;color:#1e6b3c}
+.drill-card{display:grid;grid-template-columns:22px 220px 1fr;border-bottom:1px solid #ddd;min-height:185px;page-break-inside:avoid}
+.drill-num{background:#1e6b3c;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl}
+.drill-img{border-right:1px solid #ddd;padding:12px;background:#f9faf8;display:flex;align-items:center;justify-content:center}
+.drill-info{padding:14px 16px}
+.drill-meta-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.badge{background:#e8f5ee;color:#1e6b3c;border:1px solid #b2d8c0;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600}
+.duration{color:#666;font-size:11px}
+.drill-name{font-size:14px;font-weight:700;margin-bottom:8px}
+.drill-remark{font-size:12px;color:#333;line-height:1.65}
+.print-btn{text-align:center;padding:20px}
+@media print{.print-btn{display:none}.drill-card{page-break-inside:avoid}}
+</style></head><body>
+<div class="page-header">
+  <div><div class="club">${clubName}</div><div class="sub">${eventDate}</div></div>
+  <div class="total"><div style="font-size:15px;font-weight:700">${assignedDrills.length} Übungen</div><div>Gesamt: ${totalMin} min</div></div>
+</div>
+<div class="session-title">${eventTitle}</div>
+${drillCards || '<div style="padding:24px;color:#aaa;text-align:center">Keine Übungen zugeordnet.</div>'}
+<div class="print-btn"><button onclick="window.print()" style="background:#1e6b3c;color:#fff;border:none;border-radius:6px;padding:10px 28px;font-size:14px;cursor:pointer;font-weight:600">🖨 Drucken / PDF</button></div>
+</body></html>`;
+
+      const win = window.open("", "_blank");
+      if (!win) { alert("Popup wurde blockiert. Bitte Popup-Blocker deaktivieren."); return; }
+      win.document.write(html);
+      win.document.close();
+    };
+
+
   
