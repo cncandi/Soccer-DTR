@@ -1194,8 +1194,38 @@ function clearLines(){ if(!drawLines.length) return; pushUndo(); drawLines=[]; r
 // ============================================================
 // FARBWÄHLER
 // ============================================================
-function openConeColorPicker(){ _colorPickerMode='cone'; showColorPopup(); }
-function openPlayerColorPicker2d(){ _colorPickerMode='player'; showColorPopup(); }
+function openConeColorPicker(){
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.value = '#ff5500';
+  input.style.cssText = 'position:fixed;top:-100px;left:-100px;opacity:0;pointer-events:none';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    setActiveTool('cone-custom', {type:'cone', color:input.value});
+    document.body.removeChild(input);
+    updateSidebar();
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if(document.body.contains(input)) document.body.removeChild(input); }, 200);
+  });
+  input.click();
+}
+function openPlayerColorPicker2d(){
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.value = '#ff0000';
+  input.style.cssText = 'position:fixed;top:-100px;left:-100px;opacity:0;pointer-events:none';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    setActiveTool('player-custom', {type:'player', color:input.value});
+    document.body.removeChild(input);
+    updateSidebar();
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if(document.body.contains(input)) document.body.removeChild(input); }, 200);
+  });
+  input.click();
+}
 function openTrainingColorPicker(){ _colorPickerMode='training'; showColorPopup(); }
 
 function showColorPopup(){
