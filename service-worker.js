@@ -1,4 +1,4 @@
-const CACHE_NAME = "soccer-dtr-v243";
+const CACHE_NAME = "soccer-dtr-v244";
 const BADGE_DB_NAME = "soccer-dtr-badges";
 const BADGE_STORE_NAME = "counts";
 const MESSAGE_BADGE_KEY = "messages";

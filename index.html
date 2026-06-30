@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v243';
+      const EXPECTED = 'v244';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -1033,23 +1033,15 @@ Nein</textarea></div>
           </select>
         </div>
         <div class="field"><label>Dauer (Minuten)</label><input id="drillDuration" type="number" min="0" max="180" step="5" placeholder="15"></div>
-        <div class="field full">
-          <label>Typ</label>
-          <select id="drillType" onchange="updateDrillTypeUI()">
-            <option value="tactic">Trainingstaktik (Taktikboard)</option>
-            <option value="image">PNG / Bild (max. 1 MB)</option>
-            <option value="youtube">YouTube-Link</option>
-          </select>
-        </div>
-        <div class="field full" id="drillTypeTactic"><label>Taktikboard verknüpfen (nur Trainings-Taktiken)</label><select id="drillTacticBoardId"><option value="">— kein Taktikboard —</option></select></div>
-        <div class="field full" id="drillTypeImage" style="display:none">
-          <label>Bild hochladen oder aus Zwischenablage einfügen (max. 1 MB)</label>
-          <input id="drillImageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="handleDrillImageUpload(this)">
-          <p class="meta" style="margin:4px 0">Oder Bild aus Zwischenablage: <strong>Strg+V / ⌘V</strong> im Modal</p>
-          <img id="drillImagePreview" style="max-width:100%;max-height:160px;margin-top:8px;display:none;border-radius:6px;object-fit:contain">
-          <input type="hidden" id="drillImageUrl">
-        </div>
-        <div class="field full" id="drillTypeYoutube" style="display:none"><label>YouTube-URL</label><input id="drillYoutubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"></div>
+        <!-- Typ und Taktikboard werden intern automatisch gesetzt (immer tactic); keine Felder nötig -->
+        <input type="hidden" id="drillType" value="tactic">
+        <input type="hidden" id="drillTacticBoardId">
+        <input type="hidden" id="drillTypeTactic">
+        <input type="hidden" id="drillTypeImage">
+        <input type="hidden" id="drillTypeYoutube">
+        <input type="hidden" id="drillImageUrl">
+        <input type="hidden" id="drillYoutubeUrl">
+        <img id="drillImagePreview" style="display:none">
         <div class="field full"><label>Bemerkung</label><textarea id="drillRemark" rows="3" placeholder="Hinweise, Varianten…"></textarea></div>
         <div class="field full row-actions">
           <button class="btn-primary" type="submit">Speichern</button>
