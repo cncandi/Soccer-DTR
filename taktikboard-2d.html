@@ -639,19 +639,32 @@ function drawArrow(line){
     const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
     if(len>0){
       const steps=Math.max(3,Math.floor(len/12));
+      const ux=dx/len, uy=dy/len;
       ctx.beginPath(); ctx.moveTo(a.x,a.y);
       for(let i=1;i<=steps;i++){
-        const t=i/steps, px=a.x+dx*t, py=a.y+dy*t;
-        const nx=-dy/len*8*(i%2===0?1:-1);
-        const ny= dx/len*8*(i%2===0?1:-1);
-        ctx.lineTo(px+nx,py+ny);
+        if(i===steps){
+          // Letzter Punkt exakt auf Endpunkt — kein Offset
+          ctx.lineTo(b.x,b.y);
+        } else {
+          const t=i/steps, px=a.x+dx*t, py=a.y+dy*t;
+          const side=8*(i%2===0?1:-1);
+          ctx.lineTo(px-uy*side, py+ux*side);
+        }
       }
       ctx.stroke();
-      // Pfeilspitze
-      const ux=dx/len,uy=dy/len,ah=8,aw=5,tx=b.x-ux*ah,ty=b.y-uy*ah;
-      ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-uy*aw,ty+ux*aw); ctx.lineTo(tx+uy*aw,ty-ux*aw); ctx.closePath();
-      ctx.fillStyle=col; ctx.fill();
+      // Pfeilspitze am Endpunkt, Richtung von vorletztem Zacken zum Endpunkt
+      const t2=(steps-1)/steps;
+      const ppx=a.x+dx*t2, ppy=a.y+dy*t2;
+      const side2=8*((steps-1)%2===0?1:-1);
+      const prevX=ppx-uy*side2, prevY=ppy+ux*side2;
+      const adx=b.x-prevX, ady=b.y-prevY, alen=Math.hypot(adx,ady);
+      if(alen>0){
+        const aux=adx/alen, auy=ady/alen, ah=8, aw=5;
+        const tx=b.x-aux*ah, ty=b.y-auy*ah;
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(tx-auy*aw,ty+aux*aw); ctx.lineTo(tx+auy*aw,ty-aux*aw); ctx.closePath();
+        ctx.fillStyle=col; ctx.fill();
+      }
     }
   } else if(type==='arc'||type==='arc-arrow'){
     if(line.mx!==undefined){
