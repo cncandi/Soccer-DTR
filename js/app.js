@@ -6963,6 +6963,7 @@
         if (window.supabase && !syncInProgress) quickSyncTable("events", stateKey);
       }
       if (viewName === "settings") renderKadrivoSubscriptionButton();
+      if (viewName === "fame") renderFame();
       // Collapse-Init für neu sichtbar gewordene Panels
       if (typeof initAutoCollapse === "function") initAutoCollapse();
     }
