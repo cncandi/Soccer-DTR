@@ -8542,6 +8542,9 @@
         if (search && !d.name.toLowerCase().includes(search)) return false;
         if (focusFilter && d.focus !== focusFilter) return false;
         if (typeFilter && d.type !== typeFilter) return false;
+        if ($("#drillShowOnlyEventFilter")?.checked && selectedEventId) {
+          if (!assignedIds.has(d.id)) return false;
+        }
         return true;
       });
 
@@ -8820,8 +8823,14 @@
       };
       // Übung speichert ihre Taktikboard-Zeichnung eigenständig (unabhängig von Spiel/Training-Boards).
       // Wird nur erfasst, wenn beim Öffnen des Modals eine aktuelle Zeichnung exportiert wurde (pendingDrillTacticData).
-      if (type === "tactic" && pendingDrillTacticData !== undefined) {
-        row.tactic_data = pendingDrillTacticData;
+      if (type === "tactic") {
+        if (pendingDrillTacticData !== undefined) {
+          row.tactic_data = pendingDrillTacticData;
+        } else {
+          // Fallback: Modal wurde direkt per Edit-Button geöffnet → aktuelle board.twoData nehmen
+          const board = typeof currentTacticBoard === "function" ? currentTacticBoard() : null;
+          if (board?.twoData) row.tactic_data = board.twoData;
+        }
       }
       try {
         const { error } = await client.from("drills").upsert(row);

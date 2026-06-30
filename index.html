@@ -39,7 +39,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v246';
+      const EXPECTED = 'v247';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -450,6 +450,10 @@
                   <option value="image">PNG</option>
                   <option value="youtube">YouTube</option>
                 </select>
+                <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#ccc;cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" id="drillShowOnlyEventFilter" onchange="renderDrillsTable()">
+                  Nur dieses Training
+                </label>
               </div>
               <div class="drills-table-wrap">
                 <table class="drills-table" id="drillsTable">
