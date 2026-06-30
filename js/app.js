@@ -3636,7 +3636,7 @@
       const form = $("#selfProfileForm");
       if (!panel || !form) return;
       const player = playerByName(activeUser());
-      const canEditSelf = Boolean(player && hasMemberRole(player, "Spieler"));
+      const canEditSelf = Boolean(player);
       panel.hidden = !canEditSelf;
       if (!canEditSelf) {
         form.innerHTML = "";
