@@ -8985,15 +8985,23 @@
       VIEWS.forEach(viewId => {
         const view = document.getElementById(viewId);
         if (!view) return;
-        // Alle direkten und verschachtelten .panel-Elemente in diesem View
         view.querySelectorAll(".panel").forEach((panel, idx) => {
-          // Bereits umgebaut?
-          if (panel.dataset.collapseInit) return;
-          panel.dataset.collapseInit = "1";
+          // Bereits erfolgreich umgebaut?
+          if (panel.dataset.collapseInit === "done") return;
 
-          // Titel aus h3 oder item-head > h3 holen
-          const h3 = panel.querySelector(":scope > h3, :scope > .item-head > h3, :scope > .event-form-head > h3, :scope > .calendar-head > h3");
-          if (!h3) return;
+          // Kalender-Panel (hat calendar-head) explizit ausschließen
+          if (panel.querySelector(":scope > .calendar-head")) {
+            panel.dataset.collapseInit = "done";
+            return;
+          }
+
+          // Titel aus h3 holen — alle gängigen Verschachtelungen
+          const h3 = panel.querySelector(
+            ":scope > h3, :scope > .item-head > h3, :scope > .item-head > div > h3, :scope > .event-form-head > h3"
+          );
+          if (!h3) return; // kein Titel — nicht markieren, beim nächsten Aufruf nochmal versuchen
+          panel.dataset.collapseInit = "done";
+
           const titleText = h3.textContent.trim();
           const titleKey = titleText.toLowerCase();
           const icon = ICONS[Object.keys(ICONS).find(k => titleKey.includes(k))] || { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="#888" stroke-width="1.4"/></svg>', bg: "#f0f0f0" };
@@ -9011,11 +9019,10 @@
           headerDiv.style.cssText = "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;user-select:none";
           headerDiv.setAttribute("onclick", `toggleSection('${uid}','${uid}-ch')`);
 
-          // Rechte Seite des Headers: bestehende Buttons aus item-head / event-form-head mitnehmen
+          // Rechte Seite: Buttons aus item-head oder event-form-head mitnehmen
           const itemHead = panel.querySelector(":scope > .item-head, :scope > .event-form-head");
           let rightContent = "";
           if (itemHead) {
-            // Alles außer h3 in den Header rechts verschieben
             const rightEl = itemHead.querySelector(".row-actions, .event-kind-actions, button:not(.section-chevron)");
             if (rightEl) rightContent = rightEl.outerHTML;
           }
@@ -9032,15 +9039,14 @@
                 title="Ein-/Ausklappen">▼</button>
             </div>`;
 
-          // Body: alle Kinder des Panels außer h3 und item-head einwickeln
+          // Body: alle Kinder außer h3 und itemHead einwickeln
           const bodyDiv = document.createElement("div");
           bodyDiv.id = uid;
           bodyDiv.className = "section-body collapsed";
           bodyDiv.style.padding = "0 16px 16px";
 
           // Alle Kinder außer h3/itemHead in body verschieben
-          const children = Array.from(panel.childNodes);
-          children.forEach(child => {
+          Array.from(panel.childNodes).forEach(child => {
             if (child === h3 || child === itemHead) return;
             bodyDiv.appendChild(child);
           });
@@ -9051,8 +9057,8 @@
 
           panel.appendChild(headerDiv);
           panel.appendChild(bodyDiv);
-        });
-      });
+        }); // end panel forEach
+      }); // end view forEach
     }
 
 
