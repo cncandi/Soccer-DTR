@@ -8986,20 +8986,20 @@
           imgHtml = `<img src="${d.image_url}" style="width:100%;height:100%;object-fit:contain;border-radius:4px">`;
         } else if (d.type === "tactic" && d.tactic_data) {
           const dataStr = JSON.stringify(d.tactic_data).replace(/</g,"\\u003c").replace(/>/g,"\\u003e");
-          imgHtml = `<canvas id="dc-${d.id}" width="420" height="280" style="width:100%;height:auto;border-radius:4px"></canvas>
+          imgHtml = `<canvas id="dc-${d.id}" width="700" height="467" style="width:100%;height:auto;border-radius:4px"></canvas>
 <script>(function(){
   const data=JSON.parse('${dataStr.replace(/'/g,"\\u0027")}');
   const cv=document.getElementById('dc-${d.id}');
   if(!cv||!data)return;
   const ctx=cv.getContext('2d');
-  const fw=404,fh=264,ox=8,oy=8,FW=105,FH=68;
-  ctx.fillStyle='#3a8c3a';ctx.fillRect(0,0,420,280);
+  const fw=684,fh=451,ox=8,oy=8,FW=105,FH=68;
+  ctx.fillStyle='#3a8c3a';ctx.fillRect(0,0,700,467);
   ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1.5;
-  ctx.strokeRect(8,8,404,264);
-  ctx.beginPath();ctx.moveTo(210,8);ctx.lineTo(210,272);ctx.stroke();
-  ctx.beginPath();ctx.arc(210,140,30,0,Math.PI*2);ctx.stroke();
-  ctx.strokeRect(8,90,60,100);ctx.strokeRect(8,110,30,60);
-  ctx.strokeRect(352,90,60,100);ctx.strokeRect(382,110,30,60);
+  ctx.strokeRect(8,8,684,451);
+  ctx.beginPath();ctx.moveTo(350,8);ctx.lineTo(350,459);ctx.stroke();
+  ctx.beginPath();ctx.arc(350,233,50,0,Math.PI*2);ctx.stroke();
+  ctx.strokeRect(8,154,100,163);ctx.strokeRect(8,187,50,97);
+  ctx.strokeRect(592,154,100,163);ctx.strokeRect(642,187,50,97);
   (data.drawLines||[]).forEach(l=>{
     if(l.x1===undefined)return;
     const x1=ox+(l.x1/FW)*fw,y1=oy+(l.y1/FH)*fh,x2=ox+(l.x2/FW)*fw,y2=oy+(l.y2/FH)*fh;
@@ -9053,7 +9053,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
 .page-header .sub{font-size:11px;opacity:.8;margin-top:2px}
 .page-header .total{font-size:12px;opacity:.85;text-align:right}
 .session-title{background:#f3f8f5;border-bottom:2px solid #1e6b3c;padding:9px 24px;font-size:14px;font-weight:600;color:#1e6b3c}
-.drill-card{display:grid;grid-template-columns:22px 220px 1fr;border-bottom:1px solid #ddd;min-height:185px;page-break-inside:avoid}
+.drill-card{display:grid;grid-template-columns:22px 550px 1fr;border-bottom:1px solid #ddd;min-height:340px;page-break-inside:avoid}
 .drill-num{background:#1e6b3c;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl}
 .drill-img{border-right:1px solid #ddd;padding:12px;background:#f9faf8;display:flex;align-items:center;justify-content:center}
 .drill-info{padding:14px 16px}
