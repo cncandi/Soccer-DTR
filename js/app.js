@@ -6962,6 +6962,8 @@
         if (window.supabase && !syncInProgress) quickSyncTable("events", stateKey);
       }
       if (viewName === "settings") renderKadrivoSubscriptionButton();
+      // Collapse-Init für neu sichtbar gewordene Panels
+      if (typeof initAutoCollapse === "function") initAutoCollapse();
     }
 
     setupNavLabels();
@@ -8442,6 +8444,7 @@
     } else {
       // Eingeloggt ODER kein Vereinslink → normalen Zustand laden
       render();
+      initAutoCollapse();
       setLoginVisible(!restoredLogin);
       if (restoredLogin && location.hash === "#messages") switchView("messages");
       syncWithSupabase({ silent: true }).then(() => {
@@ -8959,7 +8962,7 @@
       if (modal) modal.addEventListener("click", e=>{ if(e.target===modal) closeDrillModal(); });
     }
 
-    document.addEventListener("stateLoaded", () => { loadDrills(); initAutoCollapse(); });
+    document.addEventListener("stateLoaded", () => { loadDrills(); });
 
     // ============================================================
     // AUTO-COLLAPSE für dashboard, players, events
