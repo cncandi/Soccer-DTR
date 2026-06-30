@@ -3673,6 +3673,7 @@
         </div>
         <div class="field full"><button class="btn-primary" type="submit">Meine Daten speichern</button></div>
       `;
+      if (typeof initAutoCollapse === "function") initAutoCollapse();
     }
 
     function renderPlayers() {
