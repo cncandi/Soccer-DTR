@@ -92,13 +92,11 @@ canvas{display:block}
 </head>
 <body>
 <div id="topbar">
+  <button class="btn" id="btn-mode-spiel" onclick="setMode3d('spiel')" style="background:#155e3b;color:#fff;border-color:#155e3b;font-weight:700">Spiel</button>
+  <button class="btn" id="btn-mode-training" onclick="setMode3d('training')" style="background:#1e1e3e;color:#7a8bc4;border-color:#3a3a6a;font-weight:700">Training</button>
+  <div class="sep"></div>
   <h1>⚽ Taktiktafel</h1>
   <span id="kadrivo-link">Kadrivo</span>
-  <div class="sep"></div>
-  <div class="group">
-    <span id="modebadge" class="spiel">SPIEL</span>
-    <button class="btn" onclick="toggleMode()">Wechseln</button>
-  </div>
   <div class="sep"></div>
   <div class="group">
     <label>Heim</label>
@@ -1117,17 +1115,17 @@ const TOOLS_DEF = [
   {id:'tp_custom', label:'Spieler (Farbe…)',  icon:'🎨', cat:'player', build:()=>{ openTrainingPlayerPicker(); return null; }},
   // Bälle
   {id:'ball',      label:'Ball',              icon:'⚽', cat:'ball',   build:()=>buildBall3D(0.55)},
-  {id:'medball',   label:'Medizinball',       icon:'🏐', cat:'ball',   build:()=>buildMedball()},
+  {id:'medball',   label:'Medizinball',       icon:'🏐', cat:'training',   build:()=>buildMedball()},
   {id:'cone_custom', label:'Hütchen (Farbe…)', icon:'🔺', cat:'cone',   build:()=>{ openConePicker(); return null; }},
   // Stangen
-  {id:'pole_v',    label:'Stange vertikal',   icon:'▍',  cat:'pole',   build:()=>buildPole3D(false)},
-  {id:'pole_h',    label:'Stange horizontal', icon:'▬',  cat:'pole',   build:()=>buildPole3D(true)},
+  {id:'pole_v',    label:'Stange vertikal',   icon:'▍',  cat:'training',   build:()=>buildPole3D(false)},
+  {id:'pole_h',    label:'Stange horizontal', icon:'▬',  cat:'training',   build:()=>buildPole3D(true)},
   // Tore — Normales Tor = exakte FIFA-Maße (7.32m × 2.44m)
   {id:'goal_mini', label:'Kleines Tor (2m)',  icon:'🥅', cat:'goal',   build:()=>buildGoal3D(2,     1)},
   {id:'goal_mid',  label:'Mittleres Tor (5m)',icon:'🥅', cat:'goal',   build:()=>buildGoal3D(5,     2)},
   {id:'goal_full', label:'Normales Tor',      icon:'🥅', cat:'goal',   build:()=>buildGoal3D(GOAL_W, GOAL_H)},
   // Koordinationsleiter
-  {id:'ladder',    label:'Koordinationsleiter',icon:'🪜', cat:'other',  build:()=>buildLadder3D()},
+  {id:'ladder',    label:'Koordinationsleiter',icon:'🪜', cat:'training',  build:()=>buildLadder3D()},
 ];
 
 function buildBall3D(r=0.55){
@@ -1979,7 +1977,7 @@ function updateSidebar(){
   if(activeTab==='tools'){
     el.innerHTML=`
       <div class="section-head">Utensilien <span style="color:#666;font-weight:400">(klicken → platzieren, Esc = stop)</span></div>
-      ${TOOLS_DEF.map(t=>`<div class="tool-item" id="titem-${t.id}" onclick="addTool('${t.id}')"${placeToolId===t.id?' style="border-color:#ffaa44;background:#2a1a00"':''}>
+      ${TOOLS_DEF.filter(t=>mode==='training'||t.cat!=='training').map(t=>`<div class="tool-item" id="titem-${t.id}" onclick="addTool('${t.id}')"${placeToolId===t.id?' style="border-color:#ffaa44;background:#2a1a00"':''}>
         <span style="font-size:13px">${t.icon}</span>${t.label}</div>`).join('')}
       <div style="display:flex;align-items:center;gap:6px;padding:6px 0 2px">
         <label style="font-size:10px;color:#888">Raster</label>
@@ -2321,15 +2319,25 @@ function toggleNames(){
   updatePlayerLabels();
 }
 
-function toggleMode(){
-  mode=mode==='spiel'?'training':'spiel';
-  const b=document.getElementById('modebadge');
-  b.textContent=mode==='spiel'?'SPIEL':'TRAINING';
-  b.className='modebadge '+(mode==='spiel'?'spiel':'training');
+function setMode3d(newMode){
+  mode=newMode;
+  const btnSpiel=document.getElementById('btn-mode-spiel');
+  const btnTraining=document.getElementById('btn-mode-training');
+  if(btnSpiel){
+    btnSpiel.style.background = mode==='spiel' ? '#155e3b' : '#1e1e3e';
+    btnSpiel.style.color = mode==='spiel' ? '#fff' : '#7a8bc4';
+    btnSpiel.style.borderColor = mode==='spiel' ? '#155e3b' : '#3a3a6a';
+  }
+  if(btnTraining){
+    btnTraining.style.background = mode==='training' ? '#1a3a7a' : '#1e1e3e';
+    btnTraining.style.color = mode==='training' ? '#fff' : '#7a8bc4';
+    btnTraining.style.borderColor = mode==='training' ? '#1a3a7a' : '#3a3a6a';
+  }
   const tt=document.getElementById('tab-tools');
   tt.style.display='';
   document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
   document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;
+  if(activeTab==='tools') updateSidebar();
   buildField();
   scheduleKadrivoSave();
 }
@@ -3387,9 +3395,18 @@ function importKadrivoState(data, roster){
     mode = data?.mode || mode;
     currentFormation = FORMATIONS[data?.formation] ? data.formation : currentFormation;
     document.querySelectorAll('.fbtn').forEach(btn=>btn.classList.toggle('active', btn.textContent.trim() === currentFormation));
-    const badge=document.getElementById('modebadge');
-    badge.textContent=mode==='spiel'?'SPIEL':'TRAINING';
-    badge.className='modebadge '+(mode==='spiel'?'spiel':'training');
+    const btnSpiel=document.getElementById('btn-mode-spiel');
+    const btnTraining=document.getElementById('btn-mode-training');
+    if(btnSpiel){
+      btnSpiel.style.background = mode==='spiel' ? '#155e3b' : '#1e1e3e';
+      btnSpiel.style.color = mode==='spiel' ? '#fff' : '#7a8bc4';
+      btnSpiel.style.borderColor = mode==='spiel' ? '#155e3b' : '#3a3a6a';
+    }
+    if(btnTraining){
+      btnTraining.style.background = mode==='training' ? '#1a3a7a' : '#1e1e3e';
+      btnTraining.style.color = mode==='training' ? '#fff' : '#7a8bc4';
+      btnTraining.style.borderColor = mode==='training' ? '#1a3a7a' : '#3a3a6a';
+    }
     document.getElementById('tab-tools').style.display='';
     document.getElementById('ruler').style.display = mode==='training' ? '' : 'none';
     document.getElementById('s-mode').textContent=`Modus: ${mode==='spiel'?'Spiel':'Training'}`;

@@ -1078,31 +1078,29 @@ function clearAllFromField(){
 function buildToolsSidebar(){
   const at=activeTool;
   const cls=id=>'tool-item'+(at&&at.id===id?' active':'');
-  const trainingTools = mode2d==='training' ? `
+  const isTraining = mode2d==='training';
+  const trainingSection = isTraining ? `
   <div class="section-head">Training</div>
   <div class="${cls('medball')}" id="atool-medball" onclick="setActiveTool('medball',{type:'medball'})"><span class="ticon">🏐</span>Medizinball</div>
+  <div class="${cls('pole-v')}" id="atool-pole-v" onclick="setActiveTool('pole-v',{type:'pole',horizontal:false})"><span class="ticon">▍</span>Stange vertikal</div>
+  <div class="${cls('pole-h')}" id="atool-pole-h" onclick="setActiveTool('pole-h',{type:'pole',horizontal:true})"><span class="ticon">▬</span>Stange horizontal</div>
   <div class="${cls('ladder')}" id="atool-ladder" onclick="setActiveTool('ladder',{type:'ladder'})"><span class="ticon">🪜</span>Koordinationsleiter</div>
   ` : '';
   return `<div class="section-head">Spieler</div>
   <div class="tool-item" onclick="openPlayerColorPicker2d()"><span class="ticon">🎨</span>Spieler (Farbe…)</div>
   <div class="section-head">Bälle</div>
   <div class="${cls('ball')}" id="atool-ball" onclick="setActiveTool('ball',{type:'ball'})"><span class="ticon">⚽</span>Ball</div>
-  <div class="${cls('medball')}" id="atool-medball" onclick="setActiveTool('medball',{type:'medball'})"><span class="ticon">🏐</span>Medizinball</div>
   <div class="section-head">Hütchen</div>
   <div class="${cls('cone-or')}" id="atool-cone-or" onclick="setActiveTool('cone-or',{type:'cone',color:'#ff5500'})"><span class="ticon" style="color:#ff5500">▲</span>Orange</div>
   <div class="${cls('cone-ye')}" id="atool-cone-ye" onclick="setActiveTool('cone-ye',{type:'cone',color:'#ffff00'})"><span class="ticon" style="color:#ffff00">▲</span>Gelb</div>
   <div class="${cls('cone-re')}" id="atool-cone-re" onclick="setActiveTool('cone-re',{type:'cone',color:'#ff0000'})"><span class="ticon" style="color:#ff0000">▲</span>Rot</div>
   <div class="${cls('cone-bl')}" id="atool-cone-bl" onclick="setActiveTool('cone-bl',{type:'cone',color:'#0077ff'})"><span class="ticon" style="color:#0077ff">▲</span>Blau</div>
   <div class="tool-item" onclick="openConeColorPicker()"><span class="ticon">🎨</span>Hütchen Farbe…</div>
-  <div class="section-head">Stangen</div>
-  <div class="${cls('pole-v')}" id="atool-pole-v" onclick="setActiveTool('pole-v',{type:'pole',horizontal:false})"><span class="ticon">▍</span>Stange vertikal</div>
-  <div class="${cls('pole-h')}" id="atool-pole-h" onclick="setActiveTool('pole-h',{type:'pole',horizontal:true})"><span class="ticon">▬</span>Stange horizontal</div>
   <div class="section-head">Tore</div>
   <div class="${cls('goal-s')}" id="atool-goal-s" onclick="setActiveTool('goal-s',{type:'goal',goalW:2,goalH:1})"><span class="ticon">🥅</span>Kleines Tor (2m)</div>
   <div class="${cls('goal-m')}" id="atool-goal-m" onclick="setActiveTool('goal-m',{type:'goal',goalW:5,goalH:2})"><span class="ticon">🥅</span>Mittleres Tor (5m)</div>
   <div class="${cls('goal-l')}" id="atool-goal-l" onclick="setActiveTool('goal-l',{type:'goal',goalW:7.32,goalH:2.44})"><span class="ticon">🥅</span>Normales Tor</div>
-  <div class="section-head">Training</div>
-  <div class="${cls('ladder')}" id="atool-ladder" onclick="setActiveTool('ladder',{type:'ladder'})"><span class="ticon">🪜</span>Koordinationsleiter</div>
+  ${trainingSection}
   <p style="font-size:9px;color:#555;padding:6px">Klick auf Feld platziert · ESC zum Beenden</p>`;
 }
 
