@@ -8933,7 +8933,99 @@
       if (modal) modal.addEventListener("click", e=>{ if(e.target===modal) closeDrillModal(); });
     }
 
-    document.addEventListener("stateLoaded", () => { loadDrills(); });
+    document.addEventListener("stateLoaded", () => { loadDrills(); initAutoCollapse(); });
+
+    // ============================================================
+    // AUTO-COLLAPSE für dashboard, players, events
+    // ============================================================
+    function initAutoCollapse() {
+      const VIEWS = ["dashboard", "players", "events"];
+      // Icon-Map für bekannte Panel-Titel
+      const ICONS = {
+        "naechste termine":   { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="#2d7a4f" stroke-width="1.4"/><path d="M1 5h12" stroke="#2d7a4f" stroke-width="1.4"/><path d="M4 1v2M10 1v2" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#e8f5ee" },
+        "neue mitteilungen":  { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="9" rx="2" stroke="#3b5bdb" stroke-width="1.4"/><path d="M1 5l6 4 6-4" stroke="#3b5bdb" stroke-width="1.4"/></svg>', bg: "#eef2ff" },
+        "person anlegen":     { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4" r="2.5" stroke="#2d7a4f" stroke-width="1.4"/><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/><path d="M10 6.5v3M8.5 8H12" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#e8f5ee" },
+        "kader":              { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="4" r="2" stroke="#2d7a4f" stroke-width="1.4"/><circle cx="10" cy="4" r="2" stroke="#2d7a4f" stroke-width="1.4"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/><path d="M10 8c1.7.3 3 1.8 3 3.6" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#e8f5ee" },
+        "termin erstellen":   { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="#e67700" stroke-width="1.4"/><path d="M1 5h12" stroke="#e67700" stroke-width="1.4"/><path d="M7 7.5v3M5.5 9H8.5" stroke="#e67700" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#fff8e6" },
+        "meine daten":        { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4" r="2.5" stroke="#3b5bdb" stroke-width="1.4"/><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="#3b5bdb" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#eef2ff" },
+        "aktuelle woche":     { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="#e67700" stroke-width="1.4"/><path d="M1 5h12" stroke="#e67700" stroke-width="1.4"/></svg>', bg: "#fff8e6" },
+        "alle termine":       { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="#2d7a4f" stroke-width="1.4"/><path d="M1 5h12M4 8h6M4 10.5h4" stroke="#2d7a4f" stroke-width="1.4" stroke-linecap="round"/></svg>', bg: "#e8f5ee" },
+      };
+
+      VIEWS.forEach(viewId => {
+        const view = document.getElementById(viewId);
+        if (!view) return;
+        // Alle direkten und verschachtelten .panel-Elemente in diesem View
+        view.querySelectorAll(".panel").forEach((panel, idx) => {
+          // Bereits umgebaut?
+          if (panel.dataset.collapseInit) return;
+          panel.dataset.collapseInit = "1";
+
+          // Titel aus h3 oder item-head > h3 holen
+          const h3 = panel.querySelector(":scope > h3, :scope > .item-head > h3, :scope > .event-form-head > h3, :scope > .calendar-head > h3");
+          if (!h3) return;
+          const titleText = h3.textContent.trim();
+          const titleKey = titleText.toLowerCase();
+          const icon = ICONS[Object.keys(ICONS).find(k => titleKey.includes(k))] || { svg: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="#888" stroke-width="1.4"/></svg>', bg: "#f0f0f0" };
+
+          // Eindeutige IDs
+          const uid = `acp-${viewId}-${idx}`;
+
+          // Panel: overflow hidden, padding entfernen
+          panel.style.padding = "0";
+          panel.style.overflow = "hidden";
+
+          // Header bauen
+          const headerDiv = document.createElement("div");
+          headerDiv.className = "section-header";
+          headerDiv.style.cssText = "cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;user-select:none";
+          headerDiv.setAttribute("onclick", `toggleSection('${uid}','${uid}-ch')`);
+
+          // Rechte Seite des Headers: bestehende Buttons aus item-head / event-form-head mitnehmen
+          const itemHead = panel.querySelector(":scope > .item-head, :scope > .event-form-head");
+          let rightContent = "";
+          if (itemHead) {
+            // Alles außer h3 in den Header rechts verschieben
+            const rightEl = itemHead.querySelector(".row-actions, .event-kind-actions, button:not(.section-chevron)");
+            if (rightEl) rightContent = rightEl.outerHTML;
+          }
+
+          headerDiv.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="section-icon" style="background:${icon.bg}">${icon.svg}</span>
+              <span style="font-size:.95rem;font-weight:600">${escapeHtml(titleText)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              ${rightContent}
+              <button class="section-chevron collapsed" id="${uid}-ch" type="button"
+                onclick="event.stopPropagation();toggleSection('${uid}','${uid}-ch')"
+                title="Ein-/Ausklappen">▼</button>
+            </div>`;
+
+          // Body: alle Kinder des Panels außer h3 und item-head einwickeln
+          const bodyDiv = document.createElement("div");
+          bodyDiv.id = uid;
+          bodyDiv.className = "section-body collapsed";
+          bodyDiv.style.padding = "0 16px 16px";
+
+          // Alle Kinder außer h3/itemHead in body verschieben
+          const children = Array.from(panel.childNodes);
+          children.forEach(child => {
+            if (child === h3 || child === itemHead) return;
+            bodyDiv.appendChild(child);
+          });
+
+          // h3 und itemHead entfernen (ersetzt durch headerDiv)
+          h3.remove();
+          if (itemHead) itemHead.remove();
+
+          panel.appendChild(headerDiv);
+          panel.appendChild(bodyDiv);
+        });
+      });
+    }
+
+
     setupDrillListeners();
 
     // Drill-Funktionen die vom HTML (onclick) oder global aufgerufen werden
