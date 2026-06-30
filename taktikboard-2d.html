@@ -697,7 +697,16 @@ function hitTest(cx,cy){
     if(obj.hidden) continue;
     if(!showOpponents && obj.type==='player' && obj.team==='away') continue;
     const p=fieldToCanvas(obj.fx,obj.fy);
-    const r=obj.type==='player'?16:obj.type==='text'?22:14;
+    let r;
+    if(obj.type==='player') r=16;
+    else if(obj.type==='text') r=22;
+    else if(obj.type==='cone'){
+      // Dreieck: Spitze bei p.y-9.8, Basis bei p.y+4.2 → visuelle Mitte bei p.y-2.8
+      // Hit-Test gegen verschobenen Mittelpunkt
+      if((cx-p.x)**2+(cy-(p.y-3))**2<=12*12) return {src:'obj',obj};
+      continue;
+    }
+    else r=14;
     if((cx-p.x)**2+(cy-p.y)**2<=r*r) return {src:'obj',obj};
   }
   for(let i=drawLines.length-1;i>=0;i--){
@@ -911,7 +920,8 @@ document.addEventListener('keydown',e=>{
     selected=null; render(); return;
   }
   if(e.key==='Delete'||e.key==='Backspace'){
-    if(!selected) return; e.preventDefault();
+    if(!selected){ e.preventDefault(); return; }
+    e.preventDefault();
     const line=drawLines.find(l=>l.id===selected);
     if(line){ pushUndo(); drawLines=drawLines.filter(l=>l.id!==selected); selected=null; render(); scheduleKadrivoSave(); return; }
     const obj=objects.find(o=>o.id===selected);
