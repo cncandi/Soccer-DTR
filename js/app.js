@@ -8529,6 +8529,8 @@
 
     let drillsData = [];
     let selectedDrillId = null;
+    let drillPage = 0;
+    const DRILL_PAGE_SIZE = 25;
     let eventDrillsData = {};
     let drillAssignDirty = false;
     let pendingTacticDrill = null;
@@ -8622,6 +8624,13 @@
       const selectedEventId = $("#drillEventSelect")?.value || "";
       const assignedIds = new Set((eventDrillsData[selectedEventId] || []).map(r=>r.drillId));
 
+      // Page zurücksetzen wenn Filter sich geändert hat
+      const filterKey = search + "|" + focusFilter + "|" + typeFilter + "|" + selectedEventId;
+      if (renderDrillsTable._lastFilterKey !== filterKey) {
+        drillPage = 0;
+        renderDrillsTable._lastFilterKey = filterKey;
+      }
+
       const filtered = drillsData.filter(d => {
         if (search && !d.name.toLowerCase().includes(search)) return false;
         if (focusFilter && d.focus !== focusFilter) return false;
@@ -8632,7 +8641,7 @@
         return true;
       });
 
-      tbody.innerHTML = filtered.map(d => {
+      tbody.innerHTML = filtered.slice(drillPage * DRILL_PAGE_SIZE, (drillPage + 1) * DRILL_PAGE_SIZE).map(d => {
         const inPlan = assignedIds.has(d.id);
         const pngThumb = d.type === "image" && d.image_url
           ? `<span class="drill-thumb-wrap" onmouseenter="showDrillThumbPreview(event,'${escapeAttr(d.image_url)}','${escapeAttr(d.name)}','${escapeAttr(d.focus||'')}','${escapeAttr(d.remark||'')}',${d.duration_min||0})" onmouseleave="hideDrillThumbPreview()"><img src="${escapeAttr(d.image_url)}" style="width:28px;height:20px;object-fit:cover;border-radius:3px;display:block"></span>`
@@ -8655,7 +8664,18 @@
         </tr>`;
       }).join("") || `<tr><td colspan="8" style="color:#aaa;text-align:center;padding:16px">Keine Übungen gefunden</td></tr>`;
 
-      if (footer) footer.textContent = `${filtered.length} Übung${filtered.length!==1?"en":""}`;
+      const totalPages = Math.ceil(filtered.length / DRILL_PAGE_SIZE);
+      const from = filtered.length ? drillPage * DRILL_PAGE_SIZE + 1 : 0;
+      const to = Math.min((drillPage + 1) * DRILL_PAGE_SIZE, filtered.length);
+      if (footer) {
+        footer.innerHTML = `<span style="color:#888;font-size:12px">${filtered.length} Übung${filtered.length!==1?"en":""}`
+          + (totalPages > 1 ? ` · ${from}–${to}` : "") + `</span>`
+          + (totalPages > 1 ? `<span style="display:flex;gap:4px;align-items:center">`
+            + `<button class="mini" onclick="drillPageNav(-1)" ${drillPage===0?"disabled":""}>‹</button>`
+            + Array.from({length:totalPages},(_,i)=>`<button class="mini${i===drillPage?" active":""}" onclick="drillPageNav(${i},true)">${i+1}</button>`).join("")
+            + `<button class="mini" onclick="drillPageNav(1)" ${drillPage>=totalPages-1?"disabled":""}>›</button>`
+            + `</span>` : "");
+      }
     }
 
     function renderDrillEventSelect() {
@@ -9111,6 +9131,21 @@
     // Drill-Funktionen die vom HTML (onclick) oder global aufgerufen werden
     window.openDrillModal = openDrillModal;
     window.closeDrillModal = closeDrillModal;
+    window.drillPageNav = function(valOrIdx, absolute) {
+      const search = ($('#drillSearchInput')?.value||'').toLowerCase();
+      const focusFilter = $('#drillFocusFilter')?.value||'';
+      const typeFilter = $('#drillTypeFilter')?.value||'';
+      const filtered = drillsData.filter(d => {
+        if (search && !d.name.toLowerCase().includes(search)) return false;
+        if (focusFilter && d.focus !== focusFilter) return false;
+        if (typeFilter && d.type !== typeFilter) return false;
+        return true;
+      });
+      const totalPages = Math.ceil(filtered.length / DRILL_PAGE_SIZE);
+      if (absolute) { drillPage = valOrIdx; }
+      else { drillPage = Math.max(0, Math.min(totalPages - 1, drillPage + valOrIdx)); }
+      renderDrillsTable();
+    };
     window.updateDrillTypeUI = updateDrillTypeUI;
     window.handleDrillImageUpload = handleDrillImageUpload;
     window.drillToggleAssign = drillToggleAssign;
