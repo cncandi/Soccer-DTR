@@ -9282,7 +9282,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
 </div>
 <div class="session-title">${eventTitle}</div>
 ${drillCards || '<div style="padding:24px;color:#aaa;text-align:center">Keine Übungen zugeordnet.</div>'}
-<div class="print-btn"><button onclick="window.print()" style="background:#1e6b3c;color:#fff;border:none;border-radius:6px;padding:10px 28px;font-size:14px;cursor:pointer;font-weight:600">🖨 Drucken / PDF</button></div>
+<div class="print-btn"><button onclick="window.print()" style="background:#1e6b3c;color:#fff;border:none;border-radius:6px;padding:10px 28px;font-size:14px;cursor:pointer;font-weight:600">🖨 Drucken / PDF</button><button onclick="window.close()" style="background:#fff;color:#555;border:1px solid #ddd;border-radius:6px;padding:10px 28px;font-size:14px;cursor:pointer;font-weight:600;margin-left:10px">✕ Schliessen</button></div>
 </body></html>`;
 
       const win = window.open("", "_blank");
