@@ -6122,6 +6122,10 @@
       const is3d = mode === "3d";
       const wasFrom = is3d ? "2d" : "3d"; // Quell-Modus (von dem wir wechseln)
 
+      // Beim Moduswechsel Dialog unterdrücken
+      window._suppressDrillNotice = true;
+      setTimeout(() => { window._suppressDrillNotice = false; }, 2000);
+
       // Spielerpositionen vom bisher sichtbaren Frame anfordern (Sync)
       const sourceFrame = wasFrom === "2d" ? $("#tactic2dFrame") : $("#tactic3dFrame");
       pendingModeSync = { target: is3d ? "3d" : "2d" };
@@ -9162,7 +9166,7 @@
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === "kadrivo:tactic-save") {
           const board = (typeof state !== "undefined" && state.tacticBoards || []).find(b => b.id === event.data.boardId);
-          if (board && $(".view.active")?.id === "tactics" && typeof showDrillTacticSaveNotice === "function") {
+          if (board && $(".view.active")?.id === "tactics" && typeof showDrillTacticSaveNotice === "function" && !window._suppressDrillNotice) {
             showDrillTacticSaveNotice(event.data.boardId, board.title || "Taktik");
           }
         }
