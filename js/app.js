@@ -9108,6 +9108,38 @@
 
     setupDrillListeners();
 
+    // Deep-Link: ?open=training&event=<id> → Training-Section öffnen und Termin wählen
+    (function() {
+      const params = new URLSearchParams(location.search);
+      if (params.get("open") === "training" && params.get("event")) {
+        const targetEventId = params.get("event");
+        // Warten bis drillsData und eventDrillsData geladen sind
+        function tryOpenTraining(attempts) {
+          const trainingSection = document.getElementById("trainingSection");
+          const evSel = document.getElementById("drillEventSelect");
+          if (!trainingSection || !evSel) {
+            if (attempts < 30) setTimeout(() => tryOpenTraining(attempts + 1), 300);
+            return;
+          }
+          // Training-Section aufklappen
+          if (trainingSection.classList.contains("collapsed")) {
+            window.toggleSection("trainingSection", "trainingChevron");
+          }
+          // Termin im Select setzen
+          evSel.value = targetEventId;
+          evSel.dispatchEvent(new Event("change"));
+          // Scrollen
+          setTimeout(() => {
+            document.getElementById("drillsPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 200);
+          // URL bereinigen
+          const clean = location.pathname + location.search.replace(/[?&]open=[^&]*|[?&]event=[^&]*/g, "").replace(/^&/, "?");
+          history.replaceState(null, "", clean || location.pathname);
+        }
+        setTimeout(() => tryOpenTraining(0), 800);
+      }
+    })();
+
     // Drill-Funktionen die vom HTML (onclick) oder global aufgerufen werden
     window.openDrillModal = openDrillModal;
     window.closeDrillModal = closeDrillModal;
@@ -9143,6 +9175,11 @@
       const club = currentClub();
       const clubName = escapeHtml(club?.name || "Kadrivo");
       const eventDate = ev?.date ? new Date(ev.date).toLocaleDateString("de-DE", {weekday:"long", day:"2-digit", month:"long", year:"numeric"}) : "";
+      const appUrl = (club?.slug ? `${PUBLIC_APP_URL}${club.slug}` : PUBLIC_APP_URL) + `?open=training&event=${encodeURIComponent(eventId)}`;
+      const noPlanHtml = `<div style="padding:40px 24px;text-align:center">
+        <div style="font-size:15px;color:#888;margin-bottom:16px">Für dieses Training wurden noch keine Übungen geplant.</div>
+        <a href="${appUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#1e6b3c;color:#fff;text-decoration:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:600">Training jetzt planen →</a>
+      </div>`;
       const eventTitle = escapeHtml(ev?.title || ev?.focus || "Training");
       const totalMin = assignedDrills.reduce((s,d) => s + (d.duration_min||0), 0);
 
@@ -9242,7 +9279,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
   <div class="total"><div style="font-size:15px;font-weight:700">${assignedDrills.length} Übungen</div><div>Gesamt: ${totalMin} min</div></div>
 </div>
 <div class="session-title">${eventTitle}</div>
-${drillCards || '<div style="padding:24px;color:#aaa;text-align:center">Keine Übungen zugeordnet.</div>'}
+${drillCards || noPlanHtml}
 <div class="print-btn"><button onclick="window.print()" style="background:#1e6b3c;color:#fff;border:none;border-radius:6px;padding:10px 28px;font-size:14px;cursor:pointer;font-weight:600">🖨 Drucken / PDF</button></div>
 </body></html>`;
 
