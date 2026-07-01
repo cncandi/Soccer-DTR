@@ -4287,6 +4287,7 @@
           <div class="row-actions">
             <button class="mini" data-toggle-admin-event-details="${escapeAttr(event.id)}">${escapeHtml(rosterLabel)} ${expanded ? "ausblenden" : "anzeigen"}</button>
             ${event.type === "Spiel" ? `<button class="mini yes" data-print-match-squad="${escapeAttr(event.id)}">Kader HTML</button>` : ""}
+            ${normalizedEventType(event.type) === "Training" ? `<button class="mini yes" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training HTML</button>` : ""}
             ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
             ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
           </div>
