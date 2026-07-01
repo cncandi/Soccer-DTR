@@ -8611,8 +8611,7 @@
       renderDrillsTable();
       renderDrillEventSelect();
       renderDrillAssignPanel();
-      renderEvents();
-      renderAllEventsList();
+      document.dispatchEvent(new CustomEvent("drillsLoaded"));
     }
 
     function renderDrillsTable() {
@@ -9011,6 +9010,13 @@
     }
 
     document.addEventListener("stateLoaded", () => { loadDrills(); });
+    document.addEventListener("drillsLoaded", () => {
+      const v = document.querySelector(".view.active")?.id;
+      if (v === "events" || v === "dashboard") {
+        if (typeof renderEvents === "function") renderEvents();
+        if (typeof renderAllEventsList === "function") renderAllEventsList();
+      }
+    });
 
     // ============================================================
     // AUTO-COLLAPSE für dashboard, players, events
