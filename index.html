@@ -30,7 +30,17 @@
   <meta name="apple-mobile-web-app-title" content="Kadrivo">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="application-name" content="Kadrivo">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest" id="manifest-link">
+  <script>
+    // Manifest-Link mit Club-Slug versehen damit start_url stimmt
+    (function() {
+      var seg = (location.pathname || '').split('/').filter(Boolean).pop() || '';
+      var reserved = ['index.html','backend.html','taktikboard-2d.html','taktikboard-3d.html'];
+      if (seg && seg.indexOf('.') === -1 && reserved.indexOf(seg) === -1) {
+        document.getElementById('manifest-link').href = 'manifest.webmanifest?slug=' + encodeURIComponent(seg);
+      }
+    })();
+  </script>
   <link rel="icon" href="kadrivo-icon-192.png">
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
@@ -39,7 +49,7 @@
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v271';
+      const EXPECTED = 'v272';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);

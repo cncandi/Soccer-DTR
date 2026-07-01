@@ -12,7 +12,7 @@
   CacheLookup off
 </IfModule>
 
-<FilesMatch "^(index\.html|backend\.html|taktikboard-2d\.html|taktikboard-3d\.html|service-worker\.js|manifest\.webmanifest)$">
+<FilesMatch "^(index\.html|backend\.html|taktikboard-2d\.html|taktikboard-3d\.html|service-worker\.js|manifest\.webmanifest|manifest\.php)$">
   <IfModule mod_headers.c>
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
@@ -35,6 +35,9 @@ RewriteEngine On
 # HTTPS erzwingen
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# manifest.webmanifest → manifest.php (dynamischer start_url je Club)
+RewriteRule ^manifest\.webmanifest$ manifest.php [L]
 
 # Vorhandene Dateien direkt ausliefern (js, css, Bilder, Taktikboards, etc.)
 RewriteCond %{REQUEST_FILENAME} -f [OR]
