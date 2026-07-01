@@ -48,7 +48,7 @@ echo '<link rel="manifest" href="'.htmlspecialchars($mhref).'">';
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v274';
+      const EXPECTED = 'v275';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -943,7 +943,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=255" defer></script>
+  <script src="js/app.js?v=256" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');

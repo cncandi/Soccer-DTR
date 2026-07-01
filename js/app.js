@@ -3632,6 +3632,7 @@
       $("#statUnavailable").textContent = roster.filter((player) => statusActiveToday(player, "unavailable")).length;
       $("#statVacation").textContent = roster.filter((player) => statusActiveToday(player, "vacation")).length;
       const statTF = $("#statTrainingFocus"); if (statTF) statTF.textContent = roster.filter((player) => player.trainingFocusShort || player.trainingFocusLong).length;
+      const statPending = $("#statPendingFame"); if (statPending) statPending.textContent = (state.hallOfFame?.selfTrainings || []).filter(e => !e.approved).length;
     }
 
     function renderSelfProfileForm() {
