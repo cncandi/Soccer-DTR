@@ -12,7 +12,7 @@
   CacheLookup off
 </IfModule>
 
-<FilesMatch "^(index\.html|backend\.html|taktikboard-2d\.html|taktikboard-3d\.html|service-worker\.js|manifest\.webmanifest|manifest\.php)$">
+<FilesMatch "^(index\.(html|php)|backend\.html|taktikboard-2d\.html|taktikboard-3d\.html|service-worker\.js|manifest\.webmanifest|manifest\.php)$">
   <IfModule mod_headers.c>
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
@@ -47,6 +47,6 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Alles andere (z.B. /vfl-biedenkopf) auf index.html umschreiben.
-# Die URL im Browser bleibt erhalten; die App ermittelt den Verein aus dem Pfad.
-RewriteRule ^ index.html [L]
+# Alles andere (z.B. /vfl-biedenkopf) auf index.php umschreiben.
+# Die URL im Browser bleibt erhalten; PHP setzt den richtigen Manifest-Link.
+RewriteRule ^ index.php [L]

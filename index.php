@@ -30,16 +30,16 @@
   <meta name="apple-mobile-web-app-title" content="Kadrivo">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="application-name" content="Kadrivo">
-  <script>
-    (function(){
-      var seg=(location.pathname||'').split('/').filter(Boolean).pop()||'';
-      var reserved=['index.html','backend.html','taktikboard-2d.html','taktikboard-3d.html'];
-      var href=(seg&&seg.indexOf('.')===-1&&reserved.indexOf(seg)===-1)
-        ? '/'+seg+'/manifest.webmanifest'
-        : '/manifest.webmanifest';
-      document.write('<link rel="manifest" href="'+href+'">');
-    })();
-  </script>
+<?php
+$slug='';
+$parts=array_filter(explode('/',trim(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH),'/')));
+$reserved=['index.html','backend.html','taktikboard-2d.html','taktikboard-3d.html','index.php'];
+foreach($parts as $p){
+  if(!in_array($p,$reserved)&&strpos($p,'.')===false&&preg_match('/^[a-z0-9-]+$/',$p)){$slug=$p;break;}
+}
+$mhref=$slug?'/manifest.webmanifest?slug='.urlencode($slug):'/manifest.webmanifest';
+echo '<link rel="manifest" href="'.htmlspecialchars($mhref).'">';
+?>
   <link rel="icon" href="kadrivo-icon-192.png">
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
