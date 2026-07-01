@@ -35,11 +35,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=251">
+  <link rel="stylesheet" href="css/app.css?v=252">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v260';
+      const EXPECTED = 'v261';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -356,10 +356,10 @@
             <div style="display:flex;align-items:center;gap:6px">
               <button class="mini" id="btn-tactic-3d" onclick="event.stopPropagation();switchTacticMode('3d')" type="button" title="3D-Ansicht">3D</button>
               <button class="mini active" id="btn-tactic-2d" onclick="event.stopPropagation();switchTacticMode('2d')" type="button" title="2D-Ansicht">2D</button>
-              <button class="section-chevron" id="tacticBoardChevron" type="button" onclick="event.stopPropagation();toggleSection('tacticBoardSection','tacticBoardChevron')" title="Ein-/Ausklappen">▼</button>
+              <button class="section-chevron collapsed" id="tacticBoardChevron" type="button" onclick="event.stopPropagation();toggleSection('tacticBoardSection','tacticBoardChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>
-          <div id="tacticBoardSection" class="section-body">
+          <div id="tacticBoardSection" class="section-body collapsed">
             <div id="tacticBoardContent" style="padding:0 16px 8px">
               <div class="tactic-3d-panel" id="tactic-panel-3d" style="display:none">
                 <div class="item-head">
@@ -392,10 +392,10 @@
               <button type="button" id="saveTacticBoardBtn" class="mini btn-primary" onclick="event.stopPropagation()">Taktik speichern</button>
               <button type="button" class="mini" style="color:#cc0000;border-color:#cc0000" onclick="event.stopPropagation();deleteCurrentTacticBoard()">Taktik löschen</button>
               <p class="meta" id="tacticSaveStatus" aria-live="polite" style="font-size:11px;margin:0"></p>
-              <button class="section-chevron" id="spielChevron" type="button" onclick="event.stopPropagation();toggleSection('spielSection','spielChevron')" title="Ein-/Ausklappen">▼</button>
+              <button class="section-chevron collapsed" id="spielChevron" type="button" onclick="event.stopPropagation();toggleSection('spielSection','spielChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>
-          <div id="spielSection" class="section-body">
+          <div id="spielSection" class="section-body collapsed">
             <form id="tacticBoardForm" onsubmit="return false" style="padding:16px">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
                 <div>
@@ -440,10 +440,10 @@
               <button class="mini" type="button" id="saveDrillBtn" onclick="event.stopPropagation()">Übung speichern</button>
               <button class="mini" type="button" id="deleteDrillBtn" style="color:#cc0000;border-color:#cc0000" onclick="event.stopPropagation()">Übung löschen</button>
               <button class="mini" type="button" onclick="event.stopPropagation();printTrainingSession(document.getElementById('drillEventSelect')?.value)" title="Trainingseinheit drucken">🖨</button>
-              <button class="section-chevron" id="trainingChevron" type="button" onclick="event.stopPropagation();toggleSection('trainingSection','trainingChevron')" title="Ein-/Ausklappen">▼</button>
+              <button class="section-chevron collapsed" id="trainingChevron" type="button" onclick="event.stopPropagation();toggleSection('trainingSection','trainingChevron')" title="Ein-/Ausklappen">▼</button>
             </div>
           </div>
-          <div id="trainingSection" class="section-body">
+          <div id="trainingSection" class="section-body collapsed">
             <div style="padding:0 16px 16px">
               <div id="drillTacticSaveNotice" class="drill-tactic-notice" style="display:none;margin-bottom:10px">
                 <span>Taktikboard-Einheit gespeichert. In Bibliothek übernehmen?</span>
@@ -934,7 +934,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=243" defer></script>
+  <script src="js/app.js?v=244" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');

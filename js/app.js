@@ -6174,6 +6174,48 @@
       if (chevron) chevron.classList.toggle('collapsed', collapsed);
     };
 
+    // Drill-Thumbnail Hover-Vorschau
+    (function() {
+      let tip = null;
+      function ensureTip() {
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.id = 'drillThumbTooltip';
+          tip.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:12px;max-width:320px;pointer-events:none;display:none';
+          document.body.appendChild(tip);
+        }
+        return tip;
+      }
+      window.showDrillThumbPreview = function(evt, imgUrl, name, focus, remark, dur) {
+        const t = ensureTip();
+        const badge = focus ? `<span style="background:#e8f5ee;color:#155e3b;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${escapeHtml(focus)}</span>` : '';
+        const durStr = dur ? `<span style="color:#888;font-size:11px">${dur} min</span>` : '';
+        t.innerHTML = `
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px">${escapeHtml(name)}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">${badge}${durStr}</div>
+          <img src="${escapeAttr(imgUrl)}" style="width:100%;border-radius:6px;display:block;margin-bottom:${remark?'8px':'0'}">
+          ${remark ? `<div style="font-size:12px;color:#555;line-height:1.4">${escapeHtml(remark)}</div>` : ''}
+        `;
+        t.style.display = 'block';
+        positionTip(t, evt);
+      };
+      window.hideDrillThumbPreview = function() {
+        if (tip) tip.style.display = 'none';
+      };
+      function positionTip(t, evt) {
+        const margin = 12;
+        const tw = 320;
+        let x = evt.clientX + margin;
+        let y = evt.clientY + margin;
+        if (x + tw > window.innerWidth - 8) x = evt.clientX - tw - margin;
+        t.style.left = Math.max(8, x) + 'px';
+        t.style.top = Math.max(8, y) + 'px';
+      }
+      document.addEventListener('mousemove', function(e) {
+        if (tip && tip.style.display !== 'none') positionTip(tip, e);
+      });
+    })();
+
     window.saveTacticBoardWithCheck   = saveTacticBoardWithCheck;
 
     // Neue Taktik mit Name anlegen und 2D-State speichern
@@ -8592,7 +8634,7 @@
       tbody.innerHTML = filtered.map(d => {
         const inPlan = assignedIds.has(d.id);
         const pngThumb = d.type === "image" && d.image_url
-          ? `<img src="${escapeAttr(d.image_url)}" style="width:28px;height:20px;object-fit:cover;border-radius:3px;display:block">`
+          ? `<span class="drill-thumb-wrap" onmouseenter="showDrillThumbPreview(event,'${escapeAttr(d.image_url)}','${escapeAttr(d.name)}','${escapeAttr(d.focus||'')}','${escapeAttr(d.remark||'')}',${d.duration_min||0})" onmouseleave="hideDrillThumbPreview()"><img src="${escapeAttr(d.image_url)}" style="width:28px;height:20px;object-fit:cover;border-radius:3px;display:block"></span>`
           : `<span style="color:#ccc;font-size:11px">—</span>`;
         const linkCell = d.type === "youtube" && d.youtube_url
           ? `<a href="${escapeAttr(d.youtube_url)}" target="_blank" rel="noopener" style="font-size:12px;color:#e53e3e">▶</a>`
