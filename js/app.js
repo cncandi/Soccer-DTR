@@ -8530,7 +8530,7 @@
     let drillsData = [];
     let selectedDrillId = null;
     let drillPage = 0;
-    const DRILL_PAGE_SIZE = 25;
+    const DRILL_PAGE_SIZE = 15;
     let eventDrillsData = {};
     let drillAssignDirty = false;
     let pendingTacticDrill = null;
