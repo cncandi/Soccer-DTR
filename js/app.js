@@ -3034,12 +3034,12 @@
         renderCalendar();
         renderEvents();
         renderAllEventsList();
-        if (typeof loadDrills === "function" && drillsData && drillsData.length === 0 && currentClubId) loadDrills();
+        if (typeof loadDrills === "function" && typeof drillsData !== "undefined" && drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "tactics") {
         renderTacticBoard();
         if (typeof renderDrillEventSelect === "function") renderDrillEventSelect();
-        if (typeof loadDrills === "function" && drillsData && drillsData.length === 0 && currentClubId) loadDrills();
+        if (typeof loadDrills === "function" && typeof drillsData !== "undefined" && drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "scouting") {
         renderScouting();
@@ -4255,7 +4255,7 @@
               ` : ""}
               ${eventSupportsRsvp(event) ? `<button class="mini" data-toggle-event-details="${event.id}">${escapeHtml(rosterLabel)} ${expanded ? "ausblenden" : "anzeigen"}</button>` : ""}
               ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
-              ${canManage() && normalizedEventType(event.type) === "Training" ? ((eventDrillsData[event.id]||[]).length > 0 ? `<button class="mini yes" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training HTML</button>` : `<button class="mini" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training planen</button>`) : ""}
+              ${canManage() && normalizedEventType(event.type) === "Training" ? (((typeof eventDrillsData!=="undefined"?eventDrillsData[event.id]:null)||[]).length > 0 ? `<button class="mini yes" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training HTML</button>` : `<button class="mini" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training planen</button>`) : ""}
               ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
             </div>
             ${myStatus === "yes" ? renderTransportControls(event, player, myRecord) : ""}
@@ -4289,7 +4289,7 @@
           <div class="row-actions">
             <button class="mini" data-toggle-admin-event-details="${escapeAttr(event.id)}">${escapeHtml(rosterLabel)} ${expanded ? "ausblenden" : "anzeigen"}</button>
             ${event.type === "Spiel" ? `<button class="mini yes" data-print-match-squad="${escapeAttr(event.id)}">Kader HTML</button>` : ""}
-            ${normalizedEventType(event.type) === "Training" ? ((eventDrillsData[event.id]||[]).length > 0 ? `<button class="mini yes" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training HTML</button>` : `<button class="mini" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training planen</button>`) : ""}
+            ${normalizedEventType(event.type) === "Training" ? (((typeof eventDrillsData!=="undefined"?eventDrillsData[event.id]:null)||[]).length > 0 ? `<button class="mini yes" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training HTML</button>` : `<button class="mini" onclick="event.stopPropagation();printTrainingSession('${escapeAttr(event.id)}')">Training planen</button>`) : ""}
             ${canManage() ? `<button class="mini" data-edit-event="${escapeAttr(event.id)}">Bearbeiten</button>` : ""}
             ${canManage() ? `<button class="mini no" data-delete-event="${escapeAttr(event.id)}">Loeschen</button>` : ""}
           </div>
