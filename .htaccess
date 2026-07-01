@@ -36,7 +36,10 @@ RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 
-# manifest.webmanifest → manifest.php (dynamischer start_url je Club)
+# Vereins-spezifisches Manifest: /<slug>/manifest.webmanifest → manifest.php?slug=<slug>
+RewriteRule ^([a-z0-9-]+)/manifest\.webmanifest$ manifest.php?slug=$1 [L,QSA]
+
+# Wurzel-Manifest auf manifest.php
 RewriteRule ^manifest\.webmanifest$ manifest.php [L]
 
 # Vorhandene Dateien direkt ausliefern (js, css, Bilder, Taktikboards, etc.)
