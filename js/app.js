@@ -3034,6 +3034,7 @@
         renderCalendar();
         renderEvents();
         renderAllEventsList();
+        if (typeof loadDrills === "function" && drillsData && drillsData.length === 0 && currentClubId) loadDrills();
       }
       if (activeView === "tactics") {
         renderTacticBoard();
