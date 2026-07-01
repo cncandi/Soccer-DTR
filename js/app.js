@@ -5391,13 +5391,13 @@
         ${isRosterPlayer ? `<div class="field"><label>Nationalitaet</label><select name="nationality">${nationalityOptions(player.nationality || "")}</select></div>` : ""}
         <div class="field"><label>Telefon</label><input name="phone" value="${escapeAttr(player.phone || "")}" inputmode="tel"></div>
         <div class="field"><label>Im Verein seit</label><input name="memberSince" type="date" value="${escapeAttr(player.memberSince || "")}"></div>
-        ${isRosterPlayer && fullAccess ? `<div class="field"><label>Kapitänsrolle</label><select name="captainRole">${captainRoleOptions(player.captainRole || "")}</select></div>` : ""}
-        ${fullAccess ? `<div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>` : ""}
+        ${isRosterPlayer && isSuperadmin() ? `<div class="field"><label>Kapitänsrolle</label><select name="captainRole">${captainRoleOptions(player.captainRole || "")}</select></div>` : ""}
+        ${isSuperadmin() ? `<div class="field"><label>Berechtigung</label><select name="role">${roleOptions(player.role || "Spieler")}</select></div>` : ""}
         <div class="field full"><label>Gruppen</label><div class="inline-checks">${groupEditor(player)}</div></div>
         ${fullAccess ? `<div class="field full"><label>Funktion</label><div class="inline-checks">${memberRoleEditor(player)}</div></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Passwort</label><input name="password" type="text" value="${escapeAttr(player.password || DEFAULT_PASSWORD)}" autocomplete="off"></div>` : ""}
         ${fullAccess ? `<div class="field"><label>Aktion</label><button class="mini" id="generatePlayerPasswordBtn" type="button">Temp-Passwort erzeugen</button></div>` : ""}
-        ${isRosterPlayer && fullAccess ? renderTransferControls(player) : ""}
+        ${isRosterPlayer && isSuperadmin() ? renderTransferControls(player) : ""}
         </div>
         <div class="player-tab-panel form-grid" data-player-tab-panel="details">
         <div class="field"><label>Spielerbild</label><input type="file" name="photoFile" accept="image/*"></div>
@@ -5420,7 +5420,7 @@
             <div class="field full"><label>Schwaechen</label><textarea name="weaknesses">${escapeHtml(player.performance?.weaknesses || "")}</textarea></div>
             <div class="field full"><label>Gespraeche</label><textarea name="talks">${escapeHtml(player.performance?.talks || "")}</textarea></div>
         </div>` : ""}
-        ${fullAccess ? `<div class="field"><button class="btn-danger" id="deletePlayerFromModalBtn" type="button">Spieler entfernen</button></div>` : ""}
+        ${isSuperadmin() ? `<div class="field"><button class="btn-danger" id="deletePlayerFromModalBtn" type="button">Spieler entfernen</button></div>` : ""}
         <div class="field"><button class="btn-primary" type="submit">Speichern</button></div>
       `;
       $("#playerModal").classList.add("open");
