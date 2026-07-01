@@ -44,11 +44,11 @@
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=252">
+  <link rel="stylesheet" href="css/app.css?v=253">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v273';
+      const EXPECTED = 'v274';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -170,6 +170,7 @@
           <div class="stat"><strong id="statInjured">0</strong><span>Verletzte Spieler</span></div>
           <div class="stat"><strong id="statUnavailable">0</strong><span>Nicht verf&uuml;gbar</span></div>
           <div class="stat"><strong id="statVacation">0</strong><span>Urlaub</span></div>
+          <div class="stat"><strong id="statTrainingFocus">0</strong><span>Indiv. Training</span></div>
         </div>
 
         <div class="grid two">
@@ -943,7 +944,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=254" defer></script>
+  <script src="js/app.js?v=255" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');

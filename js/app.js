@@ -3631,6 +3631,7 @@
       $("#statInjured").textContent = roster.filter((player) => statusActiveToday(player, "injured")).length;
       $("#statUnavailable").textContent = roster.filter((player) => statusActiveToday(player, "unavailable")).length;
       $("#statVacation").textContent = roster.filter((player) => statusActiveToday(player, "vacation")).length;
+      const statTF = $("#statTrainingFocus"); if (statTF) statTF.textContent = roster.filter((player) => player.trainingFocusShort || player.trainingFocusLong).length;
     }
 
     function renderSelfProfileForm() {

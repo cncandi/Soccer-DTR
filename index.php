@@ -44,11 +44,11 @@ echo '<link rel="manifest" href="'.htmlspecialchars($mhref).'">';
   <link rel="apple-touch-icon" href="kadrivo-apple-touch-icon.png">
   <title>Kadrivo Vereinsmanager</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/app.css?v=252">
+  <link rel="stylesheet" href="css/app.css?v=253">
   <script>
     // Harter Cache-Bust: wenn localStorage noch alte Version hat → alle Caches leeren und neu laden
     (function(){
-      const EXPECTED = 'v273';
+      const EXPECTED = 'v274';
       const stored = localStorage.getItem('kadrivo-app-version');
       if (stored !== EXPECTED) {
         localStorage.setItem('kadrivo-app-version', EXPECTED);
@@ -943,7 +943,7 @@ Nein</textarea></div>
     </section>
   </div>
 
-  <script src="js/app.js?v=254" defer></script>
+  <script src="js/app.js?v=255" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var btn = document.getElementById('saveTacticBoardBtn');
