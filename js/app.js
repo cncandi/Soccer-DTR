@@ -9278,7 +9278,10 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
 </style></head><body>
 <div class="page-header">
   <div><div class="club">${clubName}</div><div class="sub">${eventDate}</div></div>
-  <div class="total"><div style="font-size:15px;font-weight:700">${assignedDrills.length} Übungen</div><div>Gesamt: ${totalMin} min</div></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="total"><div style="font-size:15px;font-weight:700">${assignedDrills.length} Übungen</div><div>Gesamt: ${totalMin} min</div></div>
+    <button onclick="window.close()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap">✕ Schliessen</button>
+  </div>
 </div>
 <div class="session-title">${eventTitle}</div>
 ${drillCards || '<div style="padding:24px;color:#aaa;text-align:center">Keine Übungen zugeordnet.</div>'}
